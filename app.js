@@ -111,6 +111,115 @@ const Linear = {
 };
 
 // ============================================
+// Linear API 模块
+// ============================================
+const LinearAPI = {
+  endpoint: '/api/linear',
+  key: localStorage.getItem('gv_linear_key') || '',
+
+  async query(q, vars = {}) {
+    const res = await fetch(this.endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Api-Key': this.key },
+      body: JSON.stringify({ query: q, variables: vars }),
+    });
+    return res.json();
+  },
+
+  async fetchIssues() {
+    const { data, errors } = await this.query(`
+      query {
+        issues {
+          nodes {
+            id
+            identifier
+            title
+            description
+            state { name type }
+            priority
+            dueDate
+            estimate
+            project { name }
+            labels { nodes { name } }
+            createdAt
+            updatedAt
+            completedAt
+          }
+        }
+      }
+    `);
+    if (errors) throw new Error(errors[0].message);
+    return data.issues.nodes;
+  },
+
+  async sync() {
+    const raw = await this.fetchIssues();
+    const mapped = mapLinearIssues(raw);
+    Linear.issues = mapped.issues;
+    Linear.done = mapped.done;
+    localStorage.setItem('gv_linear_sync', Date.now());
+    return mapped;
+  },
+};
+
+function detectFaction(issue) {
+  const text = [
+    issue.project?.name || '',
+    ...(issue.labels?.nodes || []).map(l => l.name),
+    issue.title || '',
+  ].join(' ').toLowerCase();
+
+  const biz = ['商业','business','客户','client','销售','sales','合作','partnership','合同','contract','报价','市场','marketing','提案','pitch','谈判','营收','revenue'];
+  const cre = ['创作','creative','写作','write','小说','novel','设计','design','内容','content','文案','copy','视频','video','博客','blog','策划','编辑','产品','product'];
+  const ch = ['杂务','chore','日常','daily','行政','admin','邮件','email','清理','clean','维护','maint','报销','expense','整理','归档'];
+
+  for (const w of biz) if (text.includes(w)) return 'egov';
+  for (const w of cre) if (text.includes(w)) return 'jupiter';
+  for (const w of ch) if (text.includes(w)) return 'remnant';
+
+  if (issue.priority === 1) return 'egov';
+  if (issue.priority === 2) return 'jupiter';
+  return 'remnant';
+}
+
+function mapLinearState(name, type) {
+  const n = (name || '').toLowerCase();
+  const t = (type || '').toLowerCase();
+  if (t === 'completed' || n.includes('done') || n.includes('完成')) return 'done';
+  if (t === 'started' || n.includes('progress') || n.includes('进行中')) return 'in_progress';
+  if (t === 'canceled' || n.includes('cancel') || n.includes('取消')) return 'canceled';
+  if (t === 'backlog' || n.includes('backlog')) return 'backlog';
+  return 'todo';
+}
+
+function mapLinearIssues(rawIssues) {
+  const issues = [];
+  const done = [];
+
+  for (const issue of rawIssues) {
+    const status = mapLinearState(issue.state?.name, issue.state?.type);
+    const item = {
+      id: issue.identifier,
+      title: issue.title,
+      priority: { 1: 'urgent', 2: 'high', 3: 'medium', 4: 'low', 0: 'low' }[issue.priority] || 'low',
+      status,
+      due: issue.dueDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+      faction: detectFaction(issue),
+      estimate: issue.estimate || 3,
+      labels: (issue.labels?.nodes || []).map(l => l.name),
+    };
+
+    if (status === 'done' || status === 'canceled') {
+      done.push({ ...item, completedAt: issue.completedAt || issue.updatedAt });
+    } else {
+      issues.push(item);
+    }
+  }
+
+  return { issues, done };
+}
+
+// ============================================
 // 工具函数
 // ============================================
 function rand(n) { return Math.floor(Math.random() * n); }
@@ -722,9 +831,60 @@ function initMap() {
 }
 
 // ============================================
+// Linear 连接 UI
+// ============================================
+function initLinearUI() {
+  const input = document.querySelector('#apiKeyInput');
+  const btnConnect = document.querySelector('#btnConnect');
+  const btnDemo = document.querySelector('#btnDemo');
+  const status = document.querySelector('#connectStatus');
+
+  if (LinearAPI.key) input.value = LinearAPI.key;
+
+  async function tryConnect() {
+    const key = input.value.trim();
+    if (!key) { status.textContent = '请输入 API Key'; status.style.color = '#ff3f52'; return; }
+
+    status.textContent = '正在连接 Linear...';
+    status.style.color = '#ffd251';
+    LinearAPI.key = key;
+
+    try {
+      await LinearAPI.sync();
+      localStorage.setItem('gv_linear_key', key);
+      status.textContent = '✓ 已连接，任务已同步';
+      status.style.color = '#17d7b6';
+
+      setTimeout(() => {
+        syncLinearToGame();
+        processAdvance();
+        renderUnits();
+        renderBriefing();
+        const firstEnemy = G.units.find(u => u.faction !== 'vanguard' && u.status !== 'destroyed');
+        if (firstEnemy) selectUnit(firstEnemy.id);
+      }, 300);
+    } catch (err) {
+      status.textContent = '× 连接失败: ' + err.message;
+      status.style.color = '#ff3f52';
+    }
+  }
+
+  btnConnect?.addEventListener('click', tryConnect);
+  btnDemo?.addEventListener('click', () => {
+    status.textContent = '使用演示数据';
+    status.style.color = '#4da3ff';
+  });
+
+  if (LinearAPI.key) {
+    tryConnect();
+  }
+}
+
+// ============================================
 // 启动
 // ============================================
 function boot() {
+  initLinearUI();
   syncLinearToGame();
   processAdvance();
   drawStarfield();
@@ -739,6 +899,6 @@ function boot() {
   if (first) selectUnit(first.id);
 }
 
-window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, G, Linear };
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, G, Linear, LinearAPI };
 window.addEventListener('resize', drawStarfield);
 boot();

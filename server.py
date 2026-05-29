@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""
+银河先遣队作战指挥台 — 本地代理服务器
+同时提供静态文件服务 + Linear GraphQL API 代理
+解决浏览器 CORS 限制
+"""
+
+import http.server
+import socketserver
+import urllib.request
+import urllib.error
+import json
+import os
+
+PORT = 5180
+LINEAR_API = "https://api.linear.app/graphql"
+
+class Handler(http.server.SimpleHTTPRequestHandler):
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_cors()
+        self.end_headers()
+
+    def send_cors(self):
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key')
+
+    def do_POST(self):
+        if self.path == '/api/linear':
+            try:
+                content_len = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(content_len)
+                api_key = self.headers.get('X-Api-Key', '')
+
+                req = urllib.request.Request(
+                    LINEAR_API,
+                    data=body,
+                    headers={
+                        'Content-Type': 'application/json',
+                        'Authorization': api_key,
+                    },
+                    method='POST'
+                )
+
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    data = resp.read()
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_cors()
+                    self.end_headers()
+                    self.wfile.write(data)
+
+            except urllib.error.HTTPError as e:
+                self.send_response(e.code)
+                self.send_header('Content-Type', 'application/json')
+                self.send_cors()
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'errors': [{'message': f'Linear API error: {e.code} {e.reason}'}]
+                }).encode())
+
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_cors()
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'errors': [{'message': str(e)}]
+                }).encode())
+            return
+
+        self.do_GET()
+
+    def end_headers(self):
+        self.send_cors()
+        super().end_headers()
+
+if __name__ == '__main__':
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    with socketserver.TCPServer(("", PORT), Handler) as httpd:
+        print(f"=" * 50)
+        print(f" 银河先遣队作战指挥台 — 本地服务器")
+        print(f" 地址: http://localhost:{PORT}")
+        print(f" 按 Ctrl+C 停止")
+        print(f"=" * 50)
+        httpd.serve_forever()
