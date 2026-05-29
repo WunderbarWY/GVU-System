@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """
 银河先遣队作战指挥台 — 本地代理服务器
-同时提供静态文件服务 + Linear GraphQL API 代理
-解决浏览器 CORS 限制
+使用 subprocess + curl 绕过 Python urllib SSL 问题
 """
 
 import http.server
 import socketserver
-import urllib.request
-import urllib.error
+import subprocess
 import json
 import os
 
@@ -30,35 +28,38 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if self.path == '/api/linear':
             try:
                 content_len = int(self.headers.get('Content-Length', 0))
-                body = self.rfile.read(content_len)
+                body = self.rfile.read(content_len).decode('utf-8')
                 api_key = self.headers.get('X-Api-Key', '')
 
-                req = urllib.request.Request(
-                    LINEAR_API,
-                    data=body,
-                    headers={
-                        'Content-Type': 'application/json',
-                        'Authorization': api_key,
-                    },
-                    method='POST'
+                # 用 curl 代理请求，绕过 Python SSL 问题
+                result = subprocess.run(
+                    [
+                        'curl', '-s', '-X', 'POST', LINEAR_API,
+                        '-H', 'Content-Type: application/json',
+                        '-H', f'Authorization: {api_key}',
+                        '-d', body,
+                        '--max-time', '15',
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=20,
                 )
 
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    data = resp.read()
-                    self.send_response(200)
+                if result.returncode != 0:
+                    self.send_response(502)
                     self.send_header('Content-Type', 'application/json')
                     self.send_cors()
                     self.end_headers()
-                    self.wfile.write(data)
+                    self.wfile.write(json.dumps({
+                        'errors': [{'message': f'Proxy error: {result.stderr}'}]
+                    }).encode())
+                    return
 
-            except urllib.error.HTTPError as e:
-                self.send_response(e.code)
+                self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_cors()
                 self.end_headers()
-                self.wfile.write(json.dumps({
-                    'errors': [{'message': f'Linear API error: {e.code} {e.reason}'}]
-                }).encode())
+                self.wfile.write(result.stdout.encode())
 
             except Exception as e:
                 self.send_response(500)

@@ -866,6 +866,7 @@ function initLinearUI() {
     } catch (err) {
       status.textContent = '× 连接失败: ' + err.message;
       status.style.color = '#ff3f52';
+      console.error('Linear sync error:', err);
     }
   }
 
@@ -873,8 +874,14 @@ function initLinearUI() {
   btnDemo?.addEventListener('click', () => {
     status.textContent = '使用演示数据';
     status.style.color = '#4da3ff';
+    localStorage.removeItem('gv_linear_key');
+    LinearAPI.key = '';
+    input.value = '';
+    // 重置为演示数据
+    location.reload();
   });
 
+  // 自动连接：有缓存 Key 且不是主动点了演示数据
   if (LinearAPI.key) {
     tryConnect();
   }
