@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>银河先遣队作战指挥台</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="command-shell">
+      <section class="solar-map" aria-label="太阳系战役地图">
+        <div class="map-header">
+          <div>
+            <p class="eyebrow">太阳系战役 / Linear 映射原型</p>
+            <h1>银河先遣队作战指挥台</h1>
+          </div>
+          <div class="status-clock">
+            <span>第 05 作战日</span>
+            <strong id="frontlineState">近地防线稳定</strong>
+          </div>
+        </div>
+
+        <div class="map-stage" id="mapStage">
+          <canvas id="starfield" aria-hidden="true"></canvas>
+          <div class="map-grid-overlay" aria-hidden="true"></div>
+          <div class="command-frame" aria-hidden="true">
+            <span class="frame-corner corner-tl"></span>
+            <span class="frame-corner corner-tr"></span>
+            <span class="frame-corner corner-bl"></span>
+            <span class="frame-corner corner-br"></span>
+            <div class="frame-readout readout-left">SOL OPS / VANGUARD CONTROL</div>
+            <div class="frame-readout readout-right">TACTICAL MAP 05</div>
+          </div>
+          <div class="scanline" aria-hidden="true"></div>
+          <div class="map-controls" aria-label="星图缩放控制">
+            <button type="button" data-zoom="in" aria-label="放大星图">+</button>
+            <button type="button" data-zoom="out" aria-label="缩小星图">-</button>
+            <button type="button" data-zoom="reset" aria-label="重置星图">1:1</button>
+            <span id="zoomLabel">100%</span>
+          </div>
+          <div class="map-world" id="mapWorld">
+            <div class="sun" aria-hidden="true"></div>
+            <div class="orbit orbit-mercury"></div>
+            <div class="orbit orbit-venus"></div>
+            <div class="orbit orbit-earth"></div>
+            <div class="orbit orbit-jupiter"></div>
+            <div class="orbit orbit-saturn"></div>
+            <div class="orbit orbit-pluto"></div>
+            <svg class="routes" viewBox="0 0 1000 720" role="img" aria-label="各阵营航道控制">
+              <defs>
+                <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 Z" fill="#4da3ff" />
+                </marker>
+                <marker id="arrow-teal" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 Z" fill="#17d7b6" />
+                </marker>
+                <marker id="arrow-yellow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 Z" fill="#ffd251" />
+                </marker>
+                <marker id="arrow-red" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                  <path d="M0 0 L8 4 L0 8 Z" fill="#ff3f52" />
+                </marker>
+              </defs>
+              <path class="route route-vanguard" d="M500 360 C420 300, 350 330, 280 390" />
+              <path class="route route-egov" d="M500 360 C570 310, 670 290, 735 250" />
+              <path class="route route-jupiter" d="M500 360 C620 430, 710 475, 820 510" />
+              <path class="route route-remnant" d="M500 360 C400 505, 360 585, 205 620" />
+              <path class="route route-neutral" d="M280 390 C390 475, 605 545, 820 510" />
+            </svg>
+            <div class="sector-label sector-vanguard">银河先遣队控制区</div>
+            <div class="sector-label sector-egov">商业战线</div>
+            <div class="sector-label sector-jupiter">创作战线</div>
+            <div class="sector-label sector-remnant">积压与干扰</div>
+            <div id="celestialBodies"></div>
+            <div id="unitLayer"></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="command-panel">
+        <section class="briefing-panel">
+          <p class="eyebrow">Linear 同步预览</p>
+          <h2>今日任务</h2>
+          <div id="dailyBrief"></div>
+        </section>
+
+        <section class="briefing-panel compact">
+          <h2>势力</h2>
+          <div class="factions" id="factions"></div>
+        </section>
+
+        <section class="briefing-panel unit-detail" id="unitDetail">
+          <p class="eyebrow">单位详情</p>
+          <h2>请选择舰队</h2>
+          <p class="muted">点击地图上的作战单位，查看它对应的 Linear 待办、战斗力、补给与风险。</p>
+        </section>
+      </aside>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
