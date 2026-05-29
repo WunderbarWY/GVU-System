@@ -129,7 +129,7 @@ const LinearAPI = {
   async fetchIssues() {
     const { data, errors } = await this.query(`
       query {
-        issues {
+        issues(first: 100) {
           nodes {
             id
             identifier
