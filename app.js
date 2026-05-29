@@ -1,447 +1,672 @@
-const factions = {
-  vanguard: {
-    name: "银河先遣队",
-    role: "玩家势力",
-    domain: "已控制航道",
-    color: "#4da3ff",
-    glow: "rgba(77, 163, 255, 0.85)",
-    territory: "地球、水星周围航道",
-  },
-  egov: {
-    name: "地球联合政府",
-    role: "敌军 1",
-    domain: "商业活动",
-    color: "#17d7b6",
-    glow: "rgba(23, 215, 182, 0.82)",
-    territory: "月球、金星周围航道",
-  },
-  jupiter: {
-    name: "木星兵团",
-    role: "敌军 2",
-    domain: "创作线活动",
-    color: "#ffd251",
-    glow: "rgba(255, 210, 81, 0.78)",
-    territory: "木星、土星航道",
-  },
-  remnant: {
-    name: "星际遗民",
-    role: "混乱势力",
-    domain: "杂事、拖延、干扰",
-    color: "#ff3f52",
-    glow: "rgba(255, 63, 82, 0.86)",
-    territory: "冥王星、无人航道",
+/**
+ * ============================================================
+ * 银河先遣队作战指挥台 — 核心逻辑引擎 v2.0
+ * 作者: Kimi
+ * 架构: 双层映射系统（游戏层 ↔ 任务层）
+ * 原则: 不点开是战棋，点开了是工作
+ * ============================================================
+ */
+
+// ============================================
+// 游戏配置与常量
+// ============================================
+const CONFIG = {
+  EARTH: { x: 25, y: 48 },
+  ADVANCE_RATE: 2.5,
+  CRITICAL_DISTANCE: 15,
+  MAX_HISTORY: 50,
+  FACTION_COLORS: {
+    vanguard: '#4da3ff',
+    egov: '#17d7b6',
+    jupiter: '#ffd251',
+    remnant: '#ff3f52',
   },
 };
 
-const planets = [
-  { name: "水星前哨", x: 37, y: 51, size: 24, color: "#9fb5c8", glow: "rgba(77,163,255,.55)" },
-  { name: "金星航道", x: 70, y: 29, size: 40, color: "#17d7b6", glow: "rgba(23,215,182,.6)" },
-  { name: "地球司令部", x: 25, y: 48, size: 56, color: "#4da3ff", glow: "rgba(77,163,255,.72)" },
-  { name: "月球封锁线", x: 49, y: 40, size: 18, color: "#c8fff6", glow: "rgba(23,215,182,.72)" },
-  { name: "木星船坞", x: 76, y: 64, size: 86, color: "#ffd251", glow: "rgba(255,210,81,.62)" },
-  { name: "土星议庭", x: 58, y: 74, size: 70, color: "#d7b14a", glow: "rgba(255,210,81,.5)", ring: true },
-  { name: "冥王星暗港", x: 22, y: 82, size: 30, color: "#ff3f52", glow: "rgba(255,63,82,.6)" },
-];
-
-const tasks = [
-  {
-    id: "LIN-101",
-    title: "商业合作提案定稿",
-    faction: "egov",
-    unit: "合同巡洋舰 01",
-    shipClass: "cruiser",
-    size: "巡洋舰",
-    status: "In Progress",
-    priority: "高",
-    due: "今日",
-    estimate: 5,
-    x: 60,
-    y: 32,
-    power: 82,
-    supply: 63,
-    morale: 58,
-    notes: "商业活动任务。接入 Linear 后会显示 issue 描述、负责人、评论和子任务。",
-  },
-  {
-    id: "LIN-118",
-    title: "客户跟进与报价",
-    faction: "egov",
-    unit: "报价驱逐舰 02",
-    shipClass: "destroyer",
-    size: "驱逐舰",
-    status: "Todo",
-    priority: "中",
-    due: "明日",
-    estimate: 3,
-    x: 77,
-    y: 22,
-    power: 66,
-    supply: 70,
-    morale: 52,
-    notes: "商业活动任务。当前是待办状态，未开始会保持在敌方控制航道附近。",
-  },
-  {
-    id: "LIN-205",
-    title: "小说第五章结构修订",
-    faction: "jupiter",
-    unit: "第五章战列舰",
-    shipClass: "battleship",
-    size: "战列舰",
-    status: "In Progress",
-    priority: "高",
-    due: "本周",
-    estimate: 8,
-    x: 69,
-    y: 54,
-    power: 76,
-    supply: 88,
-    morale: 74,
-    notes: "创作线任务。用于承载小说章节推进，后续可同步 Linear project 或 label。",
-  },
-  {
-    id: "LIN-232",
-    title: "世界观势力表整理",
-    faction: "jupiter",
-    unit: "档案工程母舰",
-    shipClass: "carrier",
-    size: "工程母舰",
-    status: "Todo",
-    priority: "中",
-    due: "3 日后",
-    estimate: 5,
-    x: 52,
-    y: 68,
-    power: 52,
-    supply: 82,
-    morale: 68,
-    notes: "创作线任务。用于整理阵营、航道和战役规则的设定资料。",
-  },
-  {
-    id: "LIN-309",
-    title: "邮箱和碎片消息清理",
-    faction: "remnant",
-    unit: "碎片袭扰艇",
-    shipClass: "raider",
-    size: "袭扰艇",
-    status: "Backlog",
-    priority: "低",
-    due: "逾期",
-    estimate: 2,
-    x: 30,
-    y: 76,
-    power: 38,
-    supply: 36,
-    morale: 91,
-    notes: "杂事任务。逾期或长期未处理时，会显示为红色干扰单位。",
-  },
-  {
-    id: "LIN-330",
-    title: "拖延积压复盘",
-    faction: "remnant",
-    unit: "积压劫掠舰",
-    shipClass: "raider",
-    size: "混编单位",
-    status: "Todo",
-    priority: "中",
-    due: "逾期",
-    estimate: 3,
-    x: 20,
-    y: 75,
-    power: 57,
-    supply: 41,
-    morale: 86,
-    notes: "拖延积压任务。后续可以把它拆成多个 Linear 子 issue。",
-  },
-  {
-    id: "LIN-001",
-    title: "今日最小胜利",
-    faction: "vanguard",
-    unit: "先遣旗舰",
-    shipClass: "flagship",
-    size: "旗舰",
-    status: "Done",
-    priority: "高",
-    due: "今日",
-    estimate: 1,
-    x: 31,
-    y: 38,
-    power: 91,
-    supply: 78,
-    morale: 84,
-    notes: "今日已完成样例。接入 Linear 后，Done 状态会转化为己方蓝白单位。",
-  },
-];
-
-const mapState = {
-  zoom: 0.58,
-  panX: 0,
-  panY: 0,
-  dragging: false,
-  startX: 0,
-  startY: 0,
-  originX: 0,
-  originY: 0,
+const FACTIONS = {
+  vanguard: { name: '银河先遣队', role: '玩家势力', domain: '已控制航道', color: '#4da3ff', glow: 'rgba(77,163,255,0.85)', territory: '地球、水星周围航道' },
+  egov: { name: '地球联合政府', role: '商业战线敌军', domain: '商业活动', color: '#17d7b6', glow: 'rgba(23,215,182,0.82)', territory: '月球、金星周围航道' },
+  jupiter: { name: '木星兵团', role: '创作战线敌军', domain: '创作线活动', color: '#ffd251', glow: 'rgba(255,210,81,0.78)', territory: '木星、土星航道' },
+  remnant: { name: '星际遗民', role: '混乱势力', domain: '杂事与拖延', color: '#ff3f52', glow: 'rgba(255,63,82,0.86)', territory: '冥王星、无人航道' },
 };
 
-function drawStarfield() {
-  const canvas = document.querySelector("#starfield");
-  const stage = document.querySelector("#mapStage");
-  const ctx = canvas.getContext("2d");
+const SHIP_CLASSES = {
+  flagship:   { label: '旗舰', size: 36, threat: 120, powerBase: 90 },
+  battleship: { label: '战列舰', size: 33, threat: 100, powerBase: 80 },
+  carrier:    { label: '母舰', size: 33, threat: 90, powerBase: 70 },
+  cruiser:    { label: '巡洋舰', size: 30, threat: 80, powerBase: 65 },
+  destroyer:  { label: '驱逐舰', size: 27, threat: 60, powerBase: 50 },
+  raider:     { label: '袭扰艇', size: 25, threat: 45, powerBase: 35 },
+};
+
+const NAME_POOL = {
+  prefixes: ['暗影','猎鹰','雷霆','幽冥','烈焰','霜狼','烈风','苍穹','绝影','天狼','冥河','碎星','狂澜','极光','陨铁','赤霄','寒鸦','炽羽'],
+  suffixes: ['号','舰','刃','影','矢','牙','翼','芒','痕','瞳','霆','陨'],
+  vanguard: ['晨曦','启明','守望','黎明','北辰','银翼','天穹','白虹','霜华','星耀'],
+  egov: ['翡翠','青岚','碧落','苍玉','琉璃','碧玺','青鸾','翠微'],
+  jupiter: ['金焰','熔核','日冕','耀斑','烬星','煌炎','炽阳','熔金'],
+  remnant: ['血月','赤瞳','猩红','烬灭','蚀骨','暗礁','枯骨','锈锚'],
+};
+
+const WAR_TEMPLATES = {
+  morning: [
+    '第{{turn}}作战日：{{faction}}在{{location}}部署{{count}}支舰队，其中{{overdue}}支进入威胁范围。',
+    '晨曦扫描显示{{location}}方向有{{faction}}活动，规模约{{count}}艘。',
+    '近地防线传感器捕捉到{{faction}}信号，{{location}}区域压力上升。',
+  ],
+  victory: [
+    '银河先遣队成功在{{location}}击沉{{shipName}}，{{faction}}阵型出现缺口。',
+    '{{shipName}}在{{location}}遭先遣队伏击，被完全摧毁。',
+    '先遣队对{{location}}发动突袭，{{faction}}损失{{shipClass}}一艘。',
+  ],
+  advance: [
+    '警报：{{shipName}}突破{{location}}外围防线，向地球方向推进。',
+    '{{faction}}舰队{{shipName}}逼近近地轨道，预计{{days}}日内接触。',
+    '{{location}}观测站报告：{{shipName}}威胁等级提升，建议优先处理。',
+  ],
+  critical: [
+    '红色警报！{{faction}}多支舰队逼近地球轨道，防线压力达到临界点。',
+    '紧急战报：近地防线多处出现缺口，敌军先头部队已进入高危区域。',
+  ],
+  calm: [
+    '近地防线稳定。各战区无异常活动。',
+    '太阳系扫描完毕。当前威胁等级：低。',
+  ],
+};
+
+const PLANETS = [
+  { name: '水星前哨', x: 37, y: 51, size: 24, color: '#9fb5c8', glow: 'rgba(77,163,255,.55)' },
+  { name: '金星航道', x: 70, y: 29, size: 40, color: '#17d7b6', glow: 'rgba(23,215,182,.6)' },
+  { name: '地球司令部', x: 25, y: 48, size: 56, color: '#4da3ff', glow: 'rgba(77,163,255,.72)' },
+  { name: '月球封锁线', x: 49, y: 40, size: 18, color: '#c8fff6', glow: 'rgba(23,215,182,.72)' },
+  { name: '木星船坞', x: 76, y: 64, size: 86, color: '#ffd251', glow: 'rgba(255,210,81,.62)' },
+  { name: '土星议庭', x: 58, y: 74, size: 70, color: '#d7b14a', glow: 'rgba(255,210,81,.5)', ring: true },
+  { name: '冥王星暗港', x: 22, y: 82, size: 30, color: '#ff3f52', glow: 'rgba(255,63,82,.6)' },
+];
+
+// ============================================
+// 全局状态
+// ============================================
+const G = {
+  turn: 5,
+  units: [],
+  warHistory: [],
+  selectedId: null,
+  stats: { kills: 0, missions: 0, streak: 0, maxStreak: 0 },
+};
+
+// 模拟 Linear 数据（后续替换为真实 API）
+const Linear = {
+  issues: [
+    { id: 'LIN-101', title: '商业合作提案定稿', priority: 'urgent', status: 'in_progress', due: '2026-05-29', faction: 'egov', estimate: 5, labels: ['商业'] },
+    { id: 'LIN-118', title: '客户跟进与报价', priority: 'high', status: 'todo', due: '2026-05-30', faction: 'egov', estimate: 3, labels: ['商业'] },
+    { id: 'LIN-205', title: '小说第五章结构修订', priority: 'urgent', status: 'in_progress', due: '2026-06-02', faction: 'jupiter', estimate: 8, labels: ['创作'] },
+    { id: 'LIN-232', title: '世界观势力表整理', priority: 'medium', status: 'todo', due: '2026-06-01', faction: 'jupiter', estimate: 5, labels: ['创作'] },
+    { id: 'LIN-309', title: '邮箱和碎片消息清理', priority: 'low', status: 'backlog', due: '2026-05-20', faction: 'remnant', estimate: 2, labels: ['杂务'] },
+    { id: 'LIN-330', title: '拖延积压复盘', priority: 'medium', status: 'todo', due: '2026-05-25', faction: 'remnant', estimate: 3, labels: ['杂务'] },
+  ],
+  done: [
+    { id: 'LIN-001', title: '今日最小胜利', priority: 'high', completedAt: '2026-05-29', faction: 'vanguard', estimate: 1 },
+  ],
+};
+
+// ============================================
+// 工具函数
+// ============================================
+function rand(n) { return Math.floor(Math.random() * n); }
+function pick(a) { return a[rand(a.length)]; }
+function clamp(v, lo, hi) { return Math.min(Math.max(v, lo), hi); }
+function distToEarth(x, y) {
+  const dx = x - CONFIG.EARTH.x, dy = y - CONFIG.EARTH.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+function daysOverdue(dateStr) {
+  const diff = new Date() - new Date(dateStr);
+  return Math.max(0, Math.ceil(diff / 86400000));
+}
+function daysUntil(dateStr) {
+  const diff = new Date(dateStr) - new Date();
+  return Math.ceil(diff / 86400000);
+}
+
+// ============================================
+// 纯军事化命名系统
+// ============================================
+function genShipName(faction, used) {
+  const pool = NAME_POOL[faction] || NAME_POOL.prefixes;
+  let name, tries = 0;
+  do {
+    name = pick(pool) + pick(NAME_POOL.suffixes);
+    tries++;
+  } while (used.has(name) && tries < 100);
+  used.add(name);
+  return name;
+}
+function genCode(faction, idx) {
+  const p = { vanguard: 'V', egov: 'E', jupiter: 'J', remnant: 'R' };
+  return `${p[faction] || 'X'}-${String(idx + 1).padStart(3, '0')}`;
+}
+
+// ============================================
+// 映射引擎：Linear → 作战单位
+// ============================================
+function priorityToClass(p) {
+  return { urgent: 'battleship', high: 'cruiser', medium: 'destroyer', low: 'raider' }[p] || 'destroyer';
+}
+
+function spawnZone(faction) {
+  return {
+    egov: { x: [55, 82], y: [18, 42] },
+    jupiter: { x: [58, 88], y: [55, 82] },
+    remnant: { x: [12, 42], y: [68, 92] },
+  }[faction] || { x: [50, 80], y: [50, 80] };
+}
+
+function syncLinearToGame() {
+  const used = new Set();
+  const units = [];
+
+  // 未完成任务 → 敌军
+  Linear.issues.forEach((issue, i) => {
+    const cls = priorityToClass(issue.priority);
+    const zone = spawnZone(issue.faction);
+    const od = daysOverdue(issue.due);
+    let x = rand(zone.x[1] - zone.x[0]) + zone.x[0];
+    let y = rand(zone.y[1] - zone.y[0]) + zone.y[0];
+
+    if (od > 0) {
+      const dx = CONFIG.EARTH.x - x, dy = CONFIG.EARTH.y - y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const adv = od * CONFIG.ADVANCE_RATE;
+      x += (dx / d) * adv;
+      y += (dy / d) * adv;
+    }
+
+    x = clamp(x, 5, 95);
+    y = clamp(y, 5, 95);
+
+    units.push({
+      id: genCode(issue.faction, i),
+      name: genShipName(issue.faction, used),
+      shipClass: cls,
+      faction: issue.faction,
+      x, y,
+      status: od > 0 ? 'advancing' : 'stationed',
+      advanceDist: distToEarth(x, y),
+      power: SHIP_CLASSES[cls].powerBase + rand(25) - 10,
+      supply: rand(55) + 40,
+      morale: od > 0 ? rand(30) + 30 : rand(40) + 50,
+      mission: {
+        linearId: issue.id,
+        title: issue.title,
+        priority: issue.priority,
+        due: issue.due,
+        status: issue.status,
+        estimate: issue.estimate,
+        labels: issue.labels,
+        overdue: od,
+      },
+    });
+  });
+
+  // 已完成 → 我方巡逻舰
+  Linear.done.forEach((issue, i) => {
+    units.push({
+      id: genCode('vanguard', i),
+      name: genShipName('vanguard', used),
+      shipClass: 'flagship',
+      faction: 'vanguard',
+      x: clamp(CONFIG.EARTH.x + rand(16) - 8, 10, 90),
+      y: clamp(CONFIG.EARTH.y + rand(12) - 6, 10, 90),
+      status: 'patrol',
+      power: rand(15) + 85,
+      supply: rand(25) + 70,
+      morale: rand(20) + 75,
+      mission: { title: issue.title, status: 'done', completedAt: issue.completedAt },
+    });
+  });
+
+  G.units = units;
+}
+
+// ============================================
+// 敌军反扑引擎
+// ============================================
+function processAdvance() {
+  G.units.filter(u => u.faction !== 'vanguard').forEach(s => {
+    const od = s.mission?.overdue || 0;
+    if (od > 0) {
+      s.status = 'advancing';
+      const dx = CONFIG.EARTH.x - s.x, dy = CONFIG.EARTH.y - s.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > CONFIG.CRITICAL_DISTANCE) {
+        const step = od * CONFIG.ADVANCE_RATE * 0.35;
+        s.x = clamp(s.x + (dx / d) * step, 5, 95);
+        s.y = clamp(s.y + (dy / d) * step, 5, 95);
+      }
+      s.advanceDist = distToEarth(s.x, s.y);
+      s.morale = clamp(50 + od * 8, 50, 98);
+    }
+  });
+}
+
+// ============================================
+// 战报生成器（双层：游戏叙事 + 工作统计）
+// ============================================
+function nearestPlanet(x, y) {
+  return PLANETS.reduce((best, p) => {
+    const d = Math.hypot(x - p.x, y - p.y);
+    return d < best.d ? { ...p, d } : best;
+  }, { ...PLANETS[0], d: Infinity }).name;
+}
+function sectorName(f) {
+  return { egov: '金星-月球', jupiter: '木星-土星', remnant: '冥王星' }[f] || '未知区域';
+}
+
+function generateReport() {
+  const enemies = G.units.filter(u => u.faction !== 'vanguard' && u.status !== 'destroyed');
+  const advancing = enemies.filter(u => u.status === 'advancing');
+  const critical = advancing.filter(u => u.advanceDist < CONFIG.CRITICAL_DISTANCE);
+
+  // --- 上层：纯游戏叙事 ---
+  let narrative = '';
+  if (critical.length > 0) {
+    narrative = pick(WAR_TEMPLATES.critical).replace('{{faction}}', FACTIONS[critical[0].faction].name);
+  } else if (advancing.length > 0) {
+    const s = advancing[0];
+    narrative = pick(WAR_TEMPLATES.advance)
+      .replace('{{shipName}}', s.name)
+      .replace('{{faction}}', FACTIONS[s.faction].name)
+      .replace('{{location}}', nearestPlanet(s.x, s.y))
+      .replace('{{days}}', Math.max(1, Math.ceil(s.advanceDist / CONFIG.ADVANCE_RATE)));
+  } else if (enemies.length > 0) {
+    const groups = {};
+    enemies.forEach(u => { groups[u.faction] = (groups[u.faction] || 0) + 1; });
+    const top = Object.entries(groups).sort((a, b) => b[1] - a[1])[0];
+    narrative = pick(WAR_TEMPLATES.morning)
+      .replace('{{turn}}', G.turn)
+      .replace('{{faction}}', FACTIONS[top[0]].name)
+      .replace('{{location}}', sectorName(top[0]))
+      .replace('{{count}}', top[1])
+      .replace('{{overdue}}', advancing.length);
+  } else {
+    narrative = pick(WAR_TEMPLATES.calm);
+  }
+
+  // --- 下层：工作实际摘要 ---
+  const todo = Linear.issues.filter(i => i.status !== 'done');
+  const odIssues = Linear.issues.filter(i => daysOverdue(i.due) > 0);
+  const inProg = Linear.issues.filter(i => i.status === 'in_progress');
+
+  return {
+    narrative,
+    work: {
+      done: Linear.done.map(i => ({ id: i.id, title: i.title })),
+      inProgress: inProg.map(i => ({ id: i.id, title: i.title, due: i.due, days: daysUntil(i.due) })),
+      todo: todo.filter(i => i.status === 'todo').map(i => ({ id: i.id, title: i.title, due: i.due, days: daysUntil(i.due) })),
+      overdue: odIssues.map(i => ({ id: i.id, title: i.title, days: daysOverdue(i.due) })),
+    },
+    counts: { done: Linear.done.length, todo: todo.length, overdue: odIssues.length, advancing: advancing.length, critical: critical.length },
+  };
+}
+
+// ============================================
+// 完成任务 → 击沉敌舰
+// ============================================
+function completeMission(unitId) {
+  const u = G.units.find(x => x.id === unitId);
+  if (!u || u.faction === 'vanguard') return;
+
+  explode(u.x, u.y, FACTIONS[u.faction].color);
+
+  // 战史记录
+  G.warHistory.unshift({
+    type: 'victory',
+    turn: G.turn,
+    time: new Date().toISOString(),
+    shipName: u.name,
+    shipClass: SHIP_CLASSES[u.shipClass].label,
+    faction: u.faction,
+    location: nearestPlanet(u.x, u.y),
+    missionId: u.mission.linearId,
+    missionTitle: u.mission.title,
+  });
+  if (G.warHistory.length > CONFIG.MAX_HISTORY) G.warHistory.pop();
+
+  // 统计更新
+  G.stats.kills++;
+  G.stats.missions++;
+  G.stats.streak++;
+  if (G.stats.streak > G.stats.maxStreak) G.stats.maxStreak = G.stats.streak;
+
+  // 标记摧毁
+  u.status = 'destroyed';
+
+  // 从 Linear 模拟数据中移除
+  const idx = Linear.issues.findIndex(i => i.id === u.mission.linearId);
+  if (idx >= 0) {
+    const done = Linear.issues.splice(idx, 1)[0];
+    Linear.done.push({ ...done, completedAt: new Date().toISOString().split('T')[0], faction: 'vanguard' });
+  }
+
+  // 生成我方增援舰
+  const used = new Set(G.units.map(x => x.name));
+  G.units.push({
+    id: genCode('vanguard', G.units.length),
+    name: genShipName('vanguard', used),
+    shipClass: 'destroyer',
+    faction: 'vanguard',
+    x: clamp(CONFIG.EARTH.x + rand(12) - 6, 10, 90),
+    y: clamp(CONFIG.EARTH.y + rand(10) - 5, 10, 90),
+    status: 'patrol',
+    power: rand(20) + 55,
+    supply: rand(30) + 60,
+    morale: rand(20) + 70,
+    mission: { title: '增援舰队', status: 'reserve' },
+  });
+
+  // 延迟刷新
+  setTimeout(() => {
+    renderUnits();
+    renderBriefing();
+    renderDetail(null);
+  }, 650);
+}
+
+function startMission(unitId) {
+  const u = G.units.find(x => x.id === unitId);
+  if (!u || u.faction === 'vanguard') return;
+  u.mission.status = 'in_progress';
+  const issue = Linear.issues.find(i => i.id === u.mission.linearId);
+  if (issue) issue.status = 'in_progress';
+  renderUnits();
+  renderDetail(unitId);
+}
+
+// ============================================
+// Canvas 粒子爆炸特效
+// ============================================
+function explode(px, py, color) {
+  const canvas = document.querySelector('#starfield');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const stage = document.querySelector('#mapStage');
   const rect = stage.getBoundingClientRect();
-  const ratio = window.devicePixelRatio || 1;
-  canvas.width = rect.width * ratio;
-  canvas.height = rect.height * ratio;
-  ctx.scale(ratio, ratio);
-  ctx.clearRect(0, 0, rect.width, rect.height);
+  const x = (px / 100) * rect.width;
+  const y = (py / 100) * rect.height;
 
-  for (let i = 0; i < 180; i += 1) {
-    const x = Math.random() * rect.width;
-    const y = Math.random() * rect.height;
-    const r = Math.random() * 1.4 + 0.35;
-    const alpha = Math.random() * 0.65 + 0.18;
-    ctx.fillStyle = `rgba(232, 251, 255, ${alpha})`;
+  const particles = Array.from({ length: 45 }, (_, i) => {
+    const angle = (Math.PI * 2 * i) / 45 + (rand(40) - 20) * 0.02;
+    const speed = rand(6) + 2;
+    return {
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1,
+      decay: (rand(20) + 12) / 1000,
+      size: rand(3) + 1,
+      color,
+    };
+  });
+
+  let frame = 0;
+  function tick() {
+    frame++;
+    let alive = false;
+    particles.forEach(p => {
+      if (p.life <= 0) return;
+      alive = true;
+      p.x += p.vx; p.y += p.vy;
+      p.vx *= 0.95; p.vy *= 0.95;
+      p.life -= p.decay;
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    if (alive && frame < 100) requestAnimationFrame(tick);
+    else drawStarfield();
+  }
+  tick();
+}
+
+// ============================================
+// 渲染层（完全复用 Codex 的 CSS 类名）
+// ============================================
+function drawStarfield() {
+  const c = document.querySelector('#starfield');
+  const s = document.querySelector('#mapStage');
+  if (!c || !s) return;
+  const ctx = c.getContext('2d');
+  const r = s.getBoundingClientRect();
+  const ratio = window.devicePixelRatio || 1;
+  c.width = r.width * ratio;
+  c.height = r.height * ratio;
+  ctx.scale(ratio, ratio);
+  ctx.clearRect(0, 0, r.width, r.height);
+  for (let i = 0; i < 220; i++) {
+    ctx.fillStyle = `rgba(232,251,255,${rand(70) * 0.01 + 0.12})`;
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.arc(rand(r.width), rand(r.height), rand(16) * 0.1 + 0.3, 0, Math.PI * 2);
     ctx.fill();
   }
 }
 
 function renderPlanets() {
-  const layer = document.querySelector("#celestialBodies");
-  layer.innerHTML = planets
-    .map(
-      (planet) => `
-        <div class="body-marker" style="left:${planet.x}%;top:${planet.y}%">
-          <span class="planet ${planet.ring ? "has-ring" : ""}" style="--size:${planet.size}px;--color:${planet.color};--glow:${planet.glow}"></span>
-          <span>${planet.name}</span>
-        </div>
-      `,
-    )
-    .join("");
+  const el = document.querySelector('#celestialBodies');
+  if (!el) return;
+  el.innerHTML = PLANETS.map(p => `
+    <div class="body-marker" style="left:${p.x}%;top:${p.y}%">
+      <span class="planet ${p.ring ? 'has-ring' : ''}" style="--size:${p.size}px;--color:${p.color};--glow:${p.glow}"></span>
+      <span>${p.name}</span>
+    </div>
+  `).join('');
 }
 
 function renderFactions() {
-  const factionList = document.querySelector("#factions");
-  factionList.innerHTML = Object.values(factions)
-    .map(
-      (faction) => `
-        <div class="faction">
-          <span class="swatch" style="--color:${faction.color}"></span>
-          <div>
-            <strong>${faction.name}</strong>
-            <span>${faction.domain}</span>
-          </div>
-          <small>${faction.role}</small>
-        </div>
-      `,
-    )
-    .join("");
+  const el = document.querySelector('#factions');
+  if (!el) return;
+  el.innerHTML = Object.values(FACTIONS).map(f => `
+    <div class="faction">
+      <span class="swatch" style="--color:${f.color}"></span>
+      <div><strong>${f.name}</strong><span>${f.domain}</span></div>
+      <small>${f.role}</small>
+    </div>
+  `).join('');
+}
+
+function shipIcon(cls) {
+  const p = {
+    flagship: '<path d="M50 6 L68 36 L88 48 L66 54 L58 88 L50 76 L42 88 L34 54 L12 48 L32 36 Z"/><path d="M50 19 L50 68"/><path d="M35 47 L65 47"/>',
+    battleship: '<path d="M50 8 L75 38 L82 66 L59 60 L50 88 L41 60 L18 66 L25 38 Z"/><path d="M33 41 L67 41"/><path d="M39 57 L61 57"/>',
+    carrier: '<path d="M50 10 L84 42 L74 74 L54 65 L50 90 L46 65 L26 74 L16 42 Z"/><path d="M28 45 L72 45"/><path d="M33 57 L67 57"/><path d="M42 31 L58 31"/>',
+    cruiser: '<path d="M50 9 L70 34 L77 61 L58 58 L50 86 L42 58 L23 61 L30 34 Z"/><path d="M38 39 L62 39"/>',
+    destroyer: '<path d="M50 8 L66 35 L71 58 L56 55 L50 84 L44 55 L29 58 L34 35 Z"/><path d="M39 43 L61 43"/>',
+    raider: '<path d="M50 12 L72 52 L58 50 L50 84 L42 50 L28 52 Z"/><path d="M35 38 L22 31"/><path d="M65 38 L78 31"/>',
+  };
+  return `<svg class="ship-icon" viewBox="0 0 100 100" aria-hidden="true">${p[cls] || p.destroyer}</svg>`;
 }
 
 function renderUnits() {
-  const layer = document.querySelector("#unitLayer");
-  layer.innerHTML = tasks
-    .map((task) => {
-      const faction = factions[task.faction];
-      const threatRadius = task.faction === "vanguard" ? 56 : 58 + task.power * 0.45;
-      return `
-        <span class="threat-pulse" style="left:${task.x}%;top:${task.y}%;--radius:${threatRadius}px;--unit-color:${faction.color}"></span>
-        <span class="unit-trail" style="left:${task.x - 1.4}%;top:${task.y + 1.1}%;--trail-width:${40 + task.power * 0.25}px;--angle:${task.faction === "remnant" ? "-28deg" : task.faction === "jupiter" ? "18deg" : "-12deg"};--unit-color:${faction.color}"></span>
-        <button
-          class="unit ship-${task.shipClass}"
-          data-id="${task.id}"
-          type="button"
-          aria-label="查看 ${task.title}"
-          style="left:${task.x}%;top:${task.y}%;--unit-color:${faction.color};--unit-glow:${faction.glow};--status-color:${statusColor(task.status)};color:${faction.color}"
-        >
-          ${shipIcon(task.shipClass)}
-          <span class="unit-code">${task.id}</span>
-          <span class="unit-label">${task.unit}</span>
-          <span class="status-chip"></span>
-        </button>
-      `;
-    })
-    .join("");
+  const layer = document.querySelector('#unitLayer');
+  if (!layer) return;
 
-  layer.querySelectorAll(".unit").forEach((unit) => {
-    unit.addEventListener("click", () => selectUnit(unit.dataset.id));
+  const active = G.units.filter(u => u.status !== 'destroyed');
+  layer.innerHTML = active.map(u => {
+    const f = FACTIONS[u.faction];
+    const isV = u.faction === 'vanguard';
+    const threat = isV ? 56 : 58 + u.power * 0.45;
+    const crit = !isV && u.advanceDist < CONFIG.CRITICAL_DISTANCE;
+    const adv = u.status === 'advancing';
+    const angle = u.faction === 'remnant' ? '-28deg' : u.faction === 'jupiter' ? '18deg' : '-12deg';
+
+    return `
+      ${!isV ? `<span class="threat-pulse" style="left:${u.x}%;top:${u.y}%;--radius:${threat}px;--unit-color:${crit ? '#ff3f52' : f.color}"></span>` : ''}
+      ${!isV ? `<span class="unit-trail" style="left:${u.x - 1.4}%;top:${u.y + 1.1}%;--trail-width:${40 + u.power * 0.25}px;--angle:${angle};--unit-color:${f.color}"></span>` : ''}
+      <button class="unit ship-${u.shipClass} ${u.status} ${G.selectedId === u.id ? 'is-selected' : ''}"
+        data-id="${u.id}" type="button"
+        style="left:${u.x}%;top:${u.y}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};color:${f.color}">
+        ${shipIcon(u.shipClass)}
+        <span class="unit-code">${u.id}</span>
+        <span class="unit-label">${u.name}${crit ? ' ⚠' : ''}</span>
+        ${!isV ? `<span class="status-chip" style="--status-color:${adv ? '#ff3f52' : '#4da3ff'}"></span>` : ''}
+      </button>
+    `;
+  }).join('');
+
+  layer.querySelectorAll('.unit').forEach(btn => {
+    btn.addEventListener('click', () => selectUnit(btn.dataset.id));
   });
-}
-
-function statusColor(status) {
-  const colors = {
-    Done: "#4da3ff",
-    "In Progress": "#e8fbff",
-    Todo: "#ffd251",
-    Backlog: "#ff3f52",
-  };
-
-  return colors[status] || "#8ea4b8";
 }
 
 function renderBriefing() {
-  const done = tasks.filter((task) => task.status === "Done");
-  const todo = tasks.filter((task) => task.status !== "Done");
-  const overdue = tasks.filter((task) => task.due === "逾期").length;
+  const el = document.querySelector('#dailyBrief');
+  if (!el) return;
+  const r = generateReport();
 
-  document.querySelector("#dailyBrief").innerHTML = `
+  let html = `<p style="margin-bottom:10px;color:#e8fbff;line-height:1.6;">${r.narrative}</p>`;
+
+  if (r.counts.critical > 0) {
+    html += `<p style="color:#ff3f52;font-size:13px;margin-bottom:12px;font-family:var(--font-display);">⚠ 防线告急：${r.counts.critical} 支敌军进入高危区域</p>`;
+  } else if (r.counts.advancing > 0) {
+    html += `<p style="color:#ffd251;font-size:13px;margin-bottom:12px;font-family:var(--font-display);">▲ ${r.counts.advancing} 支敌军正在推进</p>`;
+  }
+
+  // 统计面板
+  html += `
     <div class="sync-grid">
-      <div><strong>${done.length}</strong><span>已完成</span></div>
-      <div><strong>${todo.length}</strong><span>待办</span></div>
-      <div><strong>${overdue}</strong><span>逾期</span></div>
+      <div><strong>${r.counts.done}</strong><span>已完成</span></div>
+      <div><strong>${r.counts.todo}</strong><span>待办</span></div>
+      <div><strong style="color:${r.counts.overdue > 0 ? '#ff3f52' : '#4da3ff'}">${r.counts.overdue}</strong><span>逾期</span></div>
     </div>
     <div class="task-list">
-      <h3>已完成</h3>
-      ${briefRows(done)}
-      <h3>待办</h3>
-      ${briefRows(todo)}
-    </div>
   `;
 
-  const state = `${done.length} 完成 / ${todo.length} 待办`;
-  document.querySelector("#frontlineState").textContent = state;
+  if (r.work.overdue.length) {
+    html += `<h3 style="color:#ff3f52;">逾期任务</h3>`;
+    html += r.work.overdue.map(t => briefRow(t, '#ff3f52', `逾期${t.days}天`)).join('');
+  }
+  if (r.work.inProgress.length) {
+    html += `<h3>进行中</h3>`;
+    html += r.work.inProgress.map(t => briefRow(t, '#e8fbff', `剩${t.days}天`)).join('');
+  }
+  if (r.work.todo.length) {
+    html += `<h3>待办</h3>`;
+    html += r.work.todo.map(t => briefRow(t, '#ffd251', `剩${t.days}天`)).join('');
+  }
+  html += `</div>`;
+
+  el.innerHTML = html;
+
+  const state = document.querySelector('#frontlineState');
+  if (state) {
+    if (r.counts.critical > 0) {
+      state.textContent = `防线告急 · ${r.counts.critical}支逼近`;
+      state.style.color = '#ff3f52';
+    } else if (r.counts.advancing > 0) {
+      state.textContent = `${r.counts.advancing}支敌军推进中`;
+      state.style.color = '#ffd251';
+    } else {
+      state.textContent = '近地防线稳定';
+      state.style.color = '#e8fbff';
+    }
+  }
+}
+
+function briefRow(t, color, label) {
+  return `
+    <button class="brief-row" type="button" onclick="window.__game.selectByMission('${t.id}')">
+      <span class="dot" style="--color:${color}"></span>
+      <span>${t.title}</span>
+      <small>${label}</small>
+    </button>
+  `;
 }
 
 function selectUnit(id) {
-  const task = tasks.find((item) => item.id === id);
-  const faction = factions[task.faction];
-  document.querySelectorAll(".unit").forEach((unit) => {
-    unit.classList.toggle("is-selected", unit.dataset.id === id);
-  });
-
-  document.querySelector("#unitDetail").innerHTML = `
-    <p class="eyebrow">${task.id} / ${faction.name}</p>
-    <h2 class="unit-title" style="--unit-color:${faction.color}">${task.title}</h2>
-    <p>${task.notes}</p>
-    <div class="tag-row">
-      <span class="tag">${task.unit}</span>
-      <span class="tag">${task.size}</span>
-      <span class="tag">Linear: ${task.status}</span>
-      <span class="tag">${task.priority}优先级</span>
-      <span class="tag">${task.estimate} 点</span>
-      <span class="tag">${task.due}</span>
-    </div>
-    ${stat("战斗力", task.power, faction.color)}
-    ${stat("补给", task.supply, faction.color)}
-    ${stat("士气", task.morale, faction.color)}
-    <p class="muted">这里后续会从 Linear issue 实时读取：标题、描述、状态、优先级、截止时间、子任务和评论。</p>
-  `;
+  const u = G.units.find(x => x.id === id);
+  if (!u) return;
+  G.selectedId = id;
+  document.querySelectorAll('.unit').forEach(b => b.classList.toggle('is-selected', b.dataset.id === id));
+  renderDetail(id);
 }
 
-function briefRows(items) {
-  if (!items.length) {
-    return `<p class="empty-row">暂无</p>`;
+function selectByMission(linearId) {
+  const u = G.units.find(x => x.mission?.linearId === linearId);
+  if (u) selectUnit(u.id);
+}
+
+function renderDetail(id) {
+  const panel = document.querySelector('#unitDetail');
+  if (!panel) return;
+  if (!id) {
+    panel.innerHTML = `
+      <p class="eyebrow">单位详情</p>
+      <h2>请选择舰队</h2>
+      <p class="muted">点击地图上的作战单位，查看它对应的 Linear 待办、战斗力、补给与风险。</p>
+    `;
+    return;
   }
 
-  return items
-    .map((task) => {
-      const faction = factions[task.faction];
-      return `
-        <button class="brief-row" type="button" onclick="selectUnit('${task.id}')">
-          <span class="dot" style="--color:${faction.color}"></span>
-          <span>${task.title}</span>
-          <small>${task.status}</small>
-        </button>
-      `;
-    })
-    .join("");
-}
+  const u = G.units.find(x => x.id === id);
+  const f = FACTIONS[u.faction];
+  const isV = u.faction === 'vanguard';
+  const od = u.mission?.overdue || 0;
 
-function shipIcon(shipClass) {
-  const paths = {
-    flagship:
-      '<path d="M50 6 L68 36 L88 48 L66 54 L58 88 L50 76 L42 88 L34 54 L12 48 L32 36 Z"/><path d="M50 19 L50 68"/><path d="M35 47 L65 47"/>',
-    battleship:
-      '<path d="M50 8 L75 38 L82 66 L59 60 L50 88 L41 60 L18 66 L25 38 Z"/><path d="M33 41 L67 41"/><path d="M39 57 L61 57"/>',
-    carrier:
-      '<path d="M50 10 L84 42 L74 74 L54 65 L50 90 L46 65 L26 74 L16 42 Z"/><path d="M28 45 L72 45"/><path d="M33 57 L67 57"/><path d="M42 31 L58 31"/>',
-    cruiser:
-      '<path d="M50 9 L70 34 L77 61 L58 58 L50 86 L42 58 L23 61 L30 34 Z"/><path d="M38 39 L62 39"/>',
-    destroyer:
-      '<path d="M50 8 L66 35 L71 58 L56 55 L50 84 L44 55 L29 58 L34 35 Z"/><path d="M39 43 L61 43"/>',
-    raider:
-      '<path d="M50 12 L72 52 L58 50 L50 84 L42 50 L28 52 Z"/><path d="M35 38 L22 31"/><path d="M65 38 L78 31"/>',
-  };
-
-  return `
-    <svg class="ship-icon" viewBox="0 0 100 100" aria-hidden="true">
-      ${paths[shipClass] || paths.destroyer}
-    </svg>
+  let html = `
+    <p class="eyebrow">${u.id} / ${f.name} / ${SHIP_CLASSES[u.shipClass].label}</p>
+    <h2 class="unit-title" style="--unit-color:${f.color}">${u.name}</h2>
   `;
-}
 
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
-}
+  if (!isV && u.mission) {
+    const m = u.mission;
+    html += `
+      <div style="border-left:3px solid ${f.color};padding-left:12px;margin:12px 0;">
+        <p style="margin:0 0 4px;font-size:14px;color:#e8fbff;">${m.title}</p>
+        <p style="margin:0;color:var(--muted);font-size:12px;">${m.linearId} · ${m.priority} · 预估${m.estimate}点</p>
+      </div>
+      ${od > 0 ? `<p style="color:#ff3f52;font-size:13px;margin:8px 0;">⚠ 已逾期 ${od} 天 — 敌军正在向地球推进</p>` : ''}
+    `;
+  } else if (isV) {
+    html += `<p style="color:#4da3ff;font-size:13px;">银河先遣队巡逻中。选择敌军舰队可查看对应任务详情。</p>`;
+  }
 
-function applyMapTransform() {
-  const world = document.querySelector("#mapWorld");
-  const label = document.querySelector("#zoomLabel");
-  world.style.setProperty("--zoom", mapState.zoom.toFixed(2));
-  world.style.setProperty("--pan-x", `${Math.round(mapState.panX)}px`);
-  world.style.setProperty("--pan-y", `${Math.round(mapState.panY)}px`);
-  label.textContent = `${Math.round(mapState.zoom * 100)}%`;
-}
+  html += `
+    <div class="tag-row">
+      <span class="tag">${u.name}</span>
+      <span class="tag">${SHIP_CLASSES[u.shipClass].label}</span>
+      <span class="tag">${u.status === 'advancing' ? '推进中' : u.status === 'stationed' ? '驻防' : u.status === 'patrol' ? '巡逻' : u.status}</span>
+      <span class="tag">战力 ${u.power}</span>
+    </div>
+    ${meter('战斗力', u.power, f.color)}
+    ${meter('补给', u.supply, f.color)}
+    ${meter('士气', u.morale, f.color)}
+  `;
 
-function zoomMap(delta) {
-  mapState.zoom = clamp(mapState.zoom + delta, 0.65, 2.4);
-  applyMapTransform();
-}
+  if (!isV && u.status !== 'destroyed') {
+    html += `
+      <div style="margin-top:14px;display:flex;gap:8px;">
+        <button onclick="window.__game.complete('${u.id}')" style="flex:1;padding:10px;border:1px solid #4da3ff;border-radius:4px;background:rgba(77,163,255,0.14);color:#4da3ff;cursor:pointer;font-family:var(--font-display);font-size:13px;">✓ 完成任务</button>
+        <button onclick="window.__game.start('${u.id}')" style="flex:1;padding:10px;border:1px solid rgba(232,251,255,0.2);border-radius:4px;background:rgba(232,251,255,0.05);color:#e8fbff;cursor:pointer;font-family:var(--font-display);font-size:13px;">▶ 开始推进</button>
+      </div>
+    `;
+  }
 
-function resetMap() {
-  mapState.zoom = 1;
-  mapState.panX = 0;
-  mapState.panY = 0;
-  applyMapTransform();
-}
-
-function initMapControls() {
-  const stage = document.querySelector("#mapStage");
-  document.querySelectorAll("[data-zoom]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const action = button.dataset.zoom;
-      if (action === "in") zoomMap(0.18);
-      if (action === "out") zoomMap(-0.18);
-      if (action === "reset") resetMap();
+  // 相关战史
+  const hist = G.warHistory.filter(h => h.missionId === u.mission?.linearId).slice(0, 3);
+  if (hist.length) {
+    html += `<div style="margin-top:14px;"><p style="color:var(--muted);font-size:11px;margin-bottom:6px;font-family:var(--font-display);">作战记录</p>`;
+    hist.forEach(h => {
+      html += `<p style="font-size:12px;color:#7890a4;margin:3px 0;">· 第${h.turn}日 ${h.shipName} 于 ${h.location}</p>`;
     });
-  });
+    html += `</div>`;
+  }
 
-  stage.addEventListener(
-    "wheel",
-    (event) => {
-      event.preventDefault();
-      zoomMap(event.deltaY < 0 ? 0.12 : -0.12);
-    },
-    { passive: false },
-  );
-
-  stage.addEventListener("pointerdown", (event) => {
-    if (event.target.closest(".unit, .map-controls")) return;
-    mapState.dragging = true;
-    mapState.startX = event.clientX;
-    mapState.startY = event.clientY;
-    mapState.originX = mapState.panX;
-    mapState.originY = mapState.panY;
-    stage.classList.add("is-panning");
-    stage.setPointerCapture(event.pointerId);
-  });
-
-  stage.addEventListener("pointermove", (event) => {
-    if (!mapState.dragging) return;
-    mapState.panX = mapState.originX + event.clientX - mapState.startX;
-    mapState.panY = mapState.originY + event.clientY - mapState.startY;
-    applyMapTransform();
-  });
-
-  stage.addEventListener("pointerup", (event) => {
-    if (!mapState.dragging) return;
-    mapState.dragging = false;
-    stage.classList.remove("is-panning");
-    stage.releasePointerCapture(event.pointerId);
-  });
+  panel.innerHTML = html;
 }
 
-function stat(label, value, color) {
+function meter(label, value, color) {
   return `
     <div class="stat-row">
       <span>${label}</span>
@@ -451,16 +676,69 @@ function stat(label, value, color) {
   `;
 }
 
+// ============================================
+// 地图控制（保留 Codex 全部交互）
+// ============================================
+const map = { zoom: 0.58, panX: 0, panY: 0, dragging: false, sx: 0, sy: 0, ox: 0, oy: 0 };
+function applyMap() {
+  const w = document.querySelector('#mapWorld');
+  const l = document.querySelector('#zoomLabel');
+  if (!w) return;
+  w.style.setProperty('--zoom', map.zoom.toFixed(2));
+  w.style.setProperty('--pan-x', `${Math.round(map.panX)}px`);
+  w.style.setProperty('--pan-y', `${Math.round(map.panY)}px`);
+  if (l) l.textContent = `${Math.round(map.zoom * 100)}%`;
+}
+function zoom(d) { map.zoom = clamp(map.zoom + d, 0.35, 2.4); applyMap(); }
+function resetMap() { map.zoom = 0.58; map.panX = 0; map.panY = 0; applyMap(); }
+function initMap() {
+  const stage = document.querySelector('#mapStage');
+  if (!stage) return;
+  document.querySelectorAll('[data-zoom]').forEach(b => {
+    b.addEventListener('click', () => {
+      const a = b.dataset.zoom;
+      if (a === 'in') zoom(0.18);
+      if (a === 'out') zoom(-0.18);
+      if (a === 'reset') resetMap();
+    });
+  });
+  stage.addEventListener('wheel', e => { e.preventDefault(); zoom(e.deltaY < 0 ? 0.12 : -0.12); }, { passive: false });
+  stage.addEventListener('pointerdown', e => {
+    if (e.target.closest('.unit, .map-controls')) return;
+    map.dragging = true; map.sx = e.clientX; map.sy = e.clientY; map.ox = map.panX; map.oy = map.panY;
+    stage.classList.add('is-panning');
+    stage.setPointerCapture(e.pointerId);
+  });
+  stage.addEventListener('pointermove', e => {
+    if (!map.dragging) return;
+    map.panX = map.ox + e.clientX - map.sx;
+    map.panY = map.oy + e.clientY - map.sy;
+    applyMap();
+  });
+  stage.addEventListener('pointerup', e => {
+    if (!map.dragging) return;
+    map.dragging = false; stage.classList.remove('is-panning'); stage.releasePointerCapture(e.pointerId);
+  });
+}
+
+// ============================================
+// 启动
+// ============================================
 function boot() {
+  syncLinearToGame();
+  processAdvance();
   drawStarfield();
   renderPlanets();
   renderFactions();
   renderUnits();
   renderBriefing();
-  initMapControls();
-  applyMapTransform();
-  selectUnit("LIN-001");
+  initMap();
+  applyMap();
+
+  const first = G.units.find(u => u.faction !== 'vanguard' && u.status !== 'destroyed');
+  if (first) selectUnit(first.id);
 }
 
-window.addEventListener("resize", drawStarfield);
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, G, Linear };
+window.addEventListener('resize', drawStarfield);
 boot();
