@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""
-银河先遣队作战指挥台 — 本地代理服务器
-使用 subprocess + curl 绕过 Python urllib SSL 问题
-"""
-
 import http.server
 import socketserver
 import subprocess
@@ -31,18 +26,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 body = self.rfile.read(content_len).decode('utf-8')
                 api_key = self.headers.get('X-Api-Key', '')
 
-                # 用 curl 代理请求，绕过 Python SSL 问题
                 result = subprocess.run(
-                    [
-                        'curl', '-s', '-X', 'POST', LINEAR_API,
-                        '-H', 'Content-Type: application/json',
-                        '-H', f'Authorization: {api_key}',
-                        '-d', body,
-                        '--max-time', '15',
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=20,
+                    ['curl', '-s', '-X', 'POST', LINEAR_API,
+                     '-H', 'Content-Type: application/json',
+                     '-H', f'Authorization: {api_key}',
+                     '-d', body, '--max-time', '15'],
+                    capture_output=True, text=True, timeout=20,
                 )
 
                 if result.returncode != 0:
@@ -51,7 +40,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     self.send_cors()
                     self.end_headers()
                     self.wfile.write(json.dumps({
-                        'errors': [{'message': f'Proxy error: {result.stderr}'}]
+                        'errors': [{'message': f'Proxy error: rc={result.returncode} stderr={result.stderr}'}]
                     }).encode())
                     return
 
@@ -75,14 +64,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def end_headers(self):
         self.send_cors()
+        self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
         super().end_headers()
 
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     with socketserver.TCPServer(("", PORT), Handler) as httpd:
-        print(f"=" * 50)
-        print(f" 银河先遣队作战指挥台 — 本地服务器")
-        print(f" 地址: http://localhost:{PORT}")
-        print(f" 按 Ctrl+C 停止")
-        print(f"=" * 50)
+        print(f"Server running at http://localhost:{PORT}")
         httpd.serve_forever()

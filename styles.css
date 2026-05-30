@@ -32,10 +32,12 @@ body {
   margin: 0;
   color: var(--text);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
-    radial-gradient(circle at 17% 10%, rgba(77, 163, 255, 0.13), transparent 28%),
-    radial-gradient(circle at 78% 18%, rgba(23, 215, 182, 0.08), transparent 30%),
-    radial-gradient(circle at 70% 82%, rgba(255, 210, 81, 0.07), transparent 26%),
+    radial-gradient(ellipse at 50% -12%, rgba(232, 251, 255, 0.12), transparent 28%),
+    radial-gradient(ellipse at 18% 24%, rgba(77, 163, 255, 0.14), transparent 32%),
+    radial-gradient(ellipse at 82% 22%, rgba(23, 215, 182, 0.08), transparent 36%),
+    radial-gradient(ellipse at 62% 88%, rgba(255, 210, 81, 0.06), transparent 35%),
+    radial-gradient(ellipse at 12% 92%, rgba(255, 63, 82, 0.055), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 16%, rgba(0, 0, 0, 0.22) 100%),
     var(--space);
   font-family: var(--font-ui);
 }
@@ -46,10 +48,39 @@ body::before {
   z-index: -1;
   content: "";
   background:
+    radial-gradient(circle at 12% 22%, rgba(255, 255, 255, 0.38) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 72% 18%, rgba(232, 251, 255, 0.28) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 43% 74%, rgba(77, 163, 255, 0.22) 0 1px, transparent 1.8px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
     linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px);
-  background-size: 72px 72px;
-  mask-image: linear-gradient(180deg, black, transparent 85%);
+  background-position:
+    0 0,
+    18px 31px,
+    42px 9px,
+    0 0,
+    0 0;
+  background-size:
+    173px 139px,
+    227px 181px,
+    311px 241px,
+    72px 72px,
+    72px 72px;
+  mask-image: linear-gradient(180deg, black, transparent 88%);
+}
+
+body::after {
+  position: fixed;
+  inset: -18vh -12vw;
+  z-index: -1;
+  content: "";
+  background:
+    conic-gradient(from 215deg at 44% 48%, transparent 0deg, rgba(77, 163, 255, 0.055) 26deg, transparent 58deg, rgba(23, 215, 182, 0.038) 94deg, transparent 132deg),
+    radial-gradient(ellipse at 42% 46%, rgba(232, 251, 255, 0.075), transparent 18%),
+    radial-gradient(ellipse at 56% 48%, rgba(77, 163, 255, 0.055), transparent 34%);
+  filter: blur(22px);
+  opacity: 0.82;
+  transform: rotate(-7deg);
+  pointer-events: none;
 }
 
 button {
@@ -145,16 +176,46 @@ h2 {
   border: 1px solid rgba(172, 219, 255, 0.22);
   border-radius: 4px;
   background:
-    radial-gradient(circle at 50% 50%, rgba(255, 190, 74, 0.11), transparent 18%),
-    radial-gradient(circle at 23% 58%, rgba(77, 163, 255, 0.14), transparent 18%),
-    radial-gradient(circle at 73% 36%, rgba(23, 215, 182, 0.12), transparent 17%),
-    radial-gradient(circle at 76% 72%, rgba(255, 210, 81, 0.13), transparent 19%),
-    radial-gradient(circle at 23% 82%, rgba(255, 63, 82, 0.12), transparent 16%),
-    linear-gradient(rgba(232, 251, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(232, 251, 255, 0.04) 1px, transparent 1px),
-    rgba(2, 7, 18, 0.76);
-  background-size: 48px 48px;
+    radial-gradient(ellipse at 50% 48%, rgba(255, 190, 74, 0.13), transparent 14%),
+    radial-gradient(ellipse at 35% 46%, rgba(77, 163, 255, 0.09), transparent 26%),
+    radial-gradient(ellipse at 70% 36%, rgba(23, 215, 182, 0.085), transparent 24%),
+    radial-gradient(ellipse at 72% 76%, rgba(255, 210, 81, 0.08), transparent 26%),
+    radial-gradient(ellipse at 18% 78%, rgba(255, 63, 82, 0.075), transparent 22%),
+    radial-gradient(circle at 13% 18%, rgba(255, 255, 255, 0.42) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 78% 27%, rgba(232, 251, 255, 0.34) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 52% 62%, rgba(255, 255, 255, 0.24) 0 0.8px, transparent 1.5px),
+    conic-gradient(from 228deg at 50% 50%, transparent 0deg, rgba(77, 163, 255, 0.055) 32deg, transparent 74deg, rgba(23, 215, 182, 0.04) 118deg, transparent 170deg),
+    linear-gradient(rgba(232, 251, 255, 0.032) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 251, 255, 0.032) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(2, 7, 18, 0.58), rgba(1, 4, 11, 0.9));
+  background-position:
+    center,
+    center,
+    center,
+    center,
+    center,
+    0 0,
+    37px 19px,
+    101px 73px,
+    center,
+    0 0,
+    0 0,
+    center;
+  background-size:
+    auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    181px 137px,
+    263px 197px,
+    347px 251px,
+    auto,
+    48px 48px,
+    48px 48px,
+    auto;
   box-shadow:
+    inset 0 0 180px rgba(0, 0, 0, 0.54),
     inset 0 0 90px rgba(77, 163, 255, 0.11),
     inset 0 0 0 1px rgba(255, 255, 255, 0.04),
     0 20px 60px rgba(0, 0, 0, 0.36);
@@ -170,8 +231,9 @@ h2 {
   content: "";
   border: 1px solid rgba(232, 251, 255, 0.08);
   background:
-    linear-gradient(90deg, transparent, rgba(232, 251, 255, 0.04) 50%, transparent),
-    repeating-linear-gradient(180deg, transparent 0 7px, rgba(232, 251, 255, 0.025) 8px);
+    radial-gradient(ellipse at 50% 50%, transparent 0 42%, rgba(0, 0, 0, 0.28) 100%),
+    linear-gradient(90deg, transparent, rgba(232, 251, 255, 0.035) 50%, transparent),
+    repeating-linear-gradient(180deg, transparent 0 7px, rgba(232, 251, 255, 0.022) 8px);
   mix-blend-mode: screen;
   pointer-events: none;
 }
@@ -192,6 +254,12 @@ h2 {
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+#starfield {
+  opacity: 0.76;
+  filter: contrast(1.24) brightness(1.06) drop-shadow(0 0 2px rgba(232, 251, 255, 0.34));
+  mix-blend-mode: screen;
 }
 
 .command-frame {
@@ -291,13 +359,19 @@ h2 {
 .map-grid-overlay {
   z-index: 1;
   background:
+    radial-gradient(ellipse at 50% 50%, transparent 0 38%, rgba(0, 0, 0, 0.34) 100%),
     linear-gradient(90deg, rgba(232, 251, 255, 0.09), transparent 1px),
     linear-gradient(rgba(232, 251, 255, 0.09), transparent 1px),
     linear-gradient(90deg, rgba(77, 163, 255, 0.11), transparent 1px),
     linear-gradient(rgba(77, 163, 255, 0.11), transparent 1px);
-  background-size: 96px 96px;
+  background-size:
+    auto,
+    96px 96px,
+    96px 96px,
+    384px 384px,
+    384px 384px;
   mask-image: radial-gradient(circle at 50% 50%, black 0 45%, transparent 78%);
-  opacity: 0.28;
+  opacity: 0.24;
   pointer-events: none;
 }
 

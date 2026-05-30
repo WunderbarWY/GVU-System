@@ -1,0 +1,237 @@
+/* ============================================================
+   银河先遣队作战指挥台 — 视觉特效层 v3.0
+   作者: Kimi
+   说明: 叠加在 styles.css 之上，不破坏原有结构
+   ============================================================ */
+
+/* ---------- 全局 CRT 扫描线叠加 ---------- */
+.crt-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  background:
+    linear-gradient(180deg, rgba(18,16,16,0) 50%, rgba(0,0,0,0.12) 50%);
+  background-size: 100% 3px;
+  opacity: 0.25;
+  mix-blend-mode: multiply;
+}
+
+.crt-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 51;
+  background: radial-gradient(circle at 50% 50%, transparent 60%, rgba(0,0,0,0.4) 100%);
+}
+
+/* ---------- 航道流动 ---------- */
+@keyframes routeFlow {
+  to { stroke-dashoffset: -36; }
+}
+.route {
+  animation: routeFlow 2.5s linear infinite;
+}
+
+/* ---------- 舰船浮动 ---------- */
+@keyframes shipFloat {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0px); }
+  25% { transform: translate(-50%, -50%) translateY(-2px); }
+  75% { transform: translate(-50%, -50%) translateY(1px); }
+}
+
+.unit {
+  animation: shipFloat 4s ease-in-out infinite;
+}
+
+.unit:hover,
+.unit.is-selected {
+  animation: none;
+}
+
+/* ---------- 引擎尾焰 ---------- */
+.unit .engine-flame {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 14px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--unit-color) 0%, transparent 100%);
+  opacity: 0.8;
+  animation: enginePulse 0.4s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes enginePulse {
+  0% { height: 10px; opacity: 0.5; filter: blur(1px); }
+  100% { height: 20px; opacity: 1; filter: blur(3px); }
+}
+
+/* ---------- 威胁脉冲升级 ---------- */
+.threat-pulse.critical {
+  border-width: 2px;
+  border-style: dashed;
+  animation: criticalPulse 0.6s ease-in-out infinite;
+}
+
+@keyframes criticalPulse {
+  0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.85); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+}
+
+/* ---------- 霓虹文字 ---------- */
+.neon-glow {
+  text-shadow:
+    0 0 4px currentColor,
+    0 0 12px currentColor,
+    0 0 24px currentColor;
+}
+
+.neon-glow-strong {
+  text-shadow:
+    0 0 2px #fff,
+    0 0 8px currentColor,
+    0 0 16px currentColor,
+    0 0 32px currentColor;
+}
+
+/* ---------- 数据流文字 ---------- */
+@keyframes dataStream {
+  0% { opacity: 0; transform: translateX(-10px); }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(10px); }
+}
+
+.data-stream {
+  animation: dataStream 3s ease-in-out infinite;
+}
+
+/* ---------- 加载画面 ---------- */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(77,163,255,0.08), transparent 50%),
+    radial-gradient(circle at 70% 70%, rgba(255,63,82,0.06), transparent 50%),
+    #02050c;
+  font-family: var(--font-display);
+  transition: opacity 800ms ease, visibility 800ms ease;
+}
+
+.loading-screen.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loading-logo {
+  font-size: 28px;
+  color: var(--vanguard);
+  letter-spacing: 4px;
+  margin-bottom: 30px;
+}
+
+.loading-status {
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  min-height: 20px;
+}
+
+.loading-status::after {
+  content: '|';
+  animation: blink 0.8s step-end infinite;
+  color: var(--vanguard);
+}
+
+.loading-bar-track {
+  width: 320px;
+  height: 2px;
+  background: rgba(77,163,255,0.15);
+  margin-top: 16px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 1px;
+}
+
+.loading-bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, transparent, var(--vanguard), var(--vanguard-cold));
+  box-shadow: 0 0 12px var(--vanguard);
+  transition: width 200ms ease-out;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* ---------- 交战区标记 ---------- */
+.war-zone {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: warZonePulse 3s ease-in-out infinite;
+}
+
+@keyframes warZonePulse {
+  0%, 100% { opacity: 0.15; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.35; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+/* ---------- 粒子爆炸升级 ---------- */
+@keyframes debrisFly {
+  0% { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0); }
+}
+
+/* ---------- 势力光环 ---------- */
+.faction-aura {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: auraBreathe 4s ease-in-out infinite;
+}
+
+@keyframes auraBreathe {
+  0%, 100% { opacity: 0.08; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.18; transform: translate(-50%, -50%) scale(1.05); }
+}
+
+/* ---------- 跃迁效果 ---------- */
+@keyframes warpFlash {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  30% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(2); }
+}
+
+.warp-effect {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: warpFlash 800ms ease-out forwards;
+}
+
+/* ---------- 战略网格 ---------- */
+.strategic-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(90deg, rgba(77,163,255,0.03) 1px, transparent 1px),
+    linear-gradient(rgba(77,163,255,0.03) 1px, transparent 1px);
+  background-size: 120px 120px;
+  mask-image: radial-gradient(circle at 50% 50%, black 0 40%, transparent 80%);
+}

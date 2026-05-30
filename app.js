@@ -230,10 +230,12 @@ function distToEarth(x, y) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 function daysOverdue(dateStr) {
+  if (!dateStr) return 0;
   const diff = new Date() - new Date(dateStr);
   return Math.max(0, Math.ceil(diff / 86400000));
 }
 function daysUntil(dateStr) {
+  if (!dateStr) return 7; // 无截止日期默认剩7天
   const diff = new Date(dateStr) - new Date();
   return Math.ceil(diff / 86400000);
 }
@@ -426,7 +428,8 @@ function completeMission(unitId) {
   const u = G.units.find(x => x.id === unitId);
   if (!u || u.faction === 'vanguard') return;
 
-  explode(u.x, u.y, FACTIONS[u.faction].color);
+  warpJump(u.x, u.y, '#4da3ff');
+  setTimeout(() => explode(u.x, u.y, FACTIONS[u.faction].color), 200);
 
   // 战史记录
   G.warHistory.unshift({
@@ -617,6 +620,7 @@ function renderUnits() {
         data-id="${u.id}" type="button"
         style="left:${u.x}%;top:${u.y}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};color:${f.color}">
         ${shipIcon(u.shipClass)}
+        <span class="engine-flame" style="background:linear-gradient(180deg, ${f.color}, transparent);"></span>
         <span class="unit-code">${u.id}</span>
         <span class="unit-label">${u.name}${crit ? ' ⚠' : ''}</span>
         ${!isV ? `<span class="status-chip" style="--status-color:${adv ? '#ff3f52' : '#4da3ff'}"></span>` : ''}
@@ -665,6 +669,32 @@ function renderBriefing() {
     html += r.work.todo.map(t => briefRow(t, '#ffd251', `剩${t.days}天`)).join('');
   }
   html += `</div>`;
+
+  // 战区控制度
+  const control = calculateControl();
+  html += `
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(172,219,255,0.12);">
+      <p style="color:var(--muted);font-size:11px;margin:0 0 8px;font-family:var(--font-display);">战区控制度</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <div style="padding:6px 8px;border-radius:3px;background:rgba(77,163,255,0.08);border-left:2px solid #4da3ff;">
+          <span style="font-size:11px;color:var(--muted);">先遣队</span>
+          <span style="display:block;font-size:16px;font-family:var(--font-display);color:#4da3ff;">${control.vanguard.control}%</span>
+        </div>
+        <div style="padding:6px 8px;border-radius:3px;background:rgba(23,215,182,0.06);border-left:2px solid #17d7b6;">
+          <span style="font-size:11px;color:var(--muted);">商业线</span>
+          <span style="display:block;font-size:16px;font-family:var(--font-display);color:#17d7b6;">${control.egov.control}%</span>
+        </div>
+        <div style="padding:6px 8px;border-radius:3px;background:rgba(255,210,81,0.06);border-left:2px solid #ffd251;">
+          <span style="font-size:11px;color:var(--muted);">创作线</span>
+          <span style="display:block;font-size:16px;font-family:var(--font-display);color:#ffd251;">${control.jupiter.control}%</span>
+        </div>
+        <div style="padding:6px 8px;border-radius:3px;background:rgba(255,63,82,0.06);border-left:2px solid #ff3f52;">
+          <span style="font-size:11px;color:var(--muted);">混乱区</span>
+          <span style="display:block;font-size:16px;font-family:var(--font-display);color:#ff3f52;">${control.remnant.control}%</span>
+        </div>
+      </div>
+    </div>
+  `;
 
   el.innerHTML = html;
 
@@ -831,6 +861,236 @@ function initMap() {
 }
 
 // ============================================
+// 加载画面控制
+// ============================================
+function showLoading(text, percent) {
+  const screen = document.querySelector('#loadingScreen');
+  const status = document.querySelector('#loadingText');
+  const bar = document.querySelector('#loadingBar');
+  if (status) status.textContent = text;
+  if (bar) bar.style.width = percent + '%';
+}
+
+function hideLoading() {
+  const screen = document.querySelector('#loadingScreen');
+  if (screen) screen.classList.add('is-hidden');
+}
+
+// ============================================
+// 交战区与战略网络
+// ============================================
+const WAR_ZONES = [
+  { name: '水星走廊', x: 32, y: 48, radius: 80, faction: 'vanguard', importance: 'high' },
+  { name: '金星前线', x: 62, y: 32, radius: 100, faction: 'egov', importance: 'high' },
+  { name: '木星封锁带', x: 72, y: 64, radius: 120, faction: 'jupiter', importance: 'critical' },
+  { name: '冥王星边境', x: 18, y: 82, radius: 90, faction: 'remnant', importance: 'medium' },
+  { name: '地球轨道', x: 28, y: 46, radius: 60, faction: 'vanguard', importance: 'critical' },
+];
+
+const EXTRA_ROUTES = [
+  { d: 'M280 390 C350 420, 420 450, 500 360', faction: 'neutral' },
+  { d: 'M735 250 C680 280, 620 320, 500 360', faction: 'neutral' },
+  { d: 'M820 510 C750 480, 680 450, 500 360', faction: 'neutral' },
+  { d: 'M205 620 C280 580, 350 520, 500 360', faction: 'neutral' },
+  { d: 'M500 360 C450 250, 400 200, 350 180', faction: 'neutral' },
+  { d: 'M500 360 C550 480, 580 550, 600 600', faction: 'neutral' },
+];
+
+function renderWarZones() {
+  const svg = document.querySelector('.routes');
+  if (!svg) return;
+
+  // 添加额外航道
+  EXTRA_ROUTES.forEach((route, i) => {
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', route.d);
+    path.setAttribute('class', 'route route-neutral');
+    path.setAttribute('style', 'opacity:0.2;');
+    svg.appendChild(path);
+  });
+
+  // 添加势力光环
+  const mapStage = document.querySelector('#mapStage');
+  WAR_ZONES.forEach(zone => {
+    const aura = document.createElement('div');
+    aura.className = 'faction-aura';
+    const color = FACTIONS[zone.faction]?.color || '#4da3ff';
+    aura.style.cssText = `
+      left: ${zone.x}%;
+      top: ${zone.y}%;
+      width: ${zone.radius}px;
+      height: ${zone.radius}px;
+      background: radial-gradient(circle, ${color}22, transparent 70%);
+      border: 1px solid ${color}33;
+    `;
+    mapStage?.appendChild(aura);
+  });
+}
+
+// ============================================
+// 战区控制度系统
+// ============================================
+function calculateControl() {
+  const enemies = G.units.filter(u => u.faction !== 'vanguard' && u.status !== 'destroyed');
+  const total = enemies.length + G.units.filter(u => u.faction === 'vanguard').length;
+
+  const control = {
+    vanguard: { control: 0, ships: 0 },
+    egov: { control: 0, ships: 0 },
+    jupiter: { control: 0, ships: 0 },
+    remnant: { control: 0, ships: 0 },
+  };
+
+  G.units.forEach(u => {
+    if (u.status !== 'destroyed') {
+      control[u.faction].ships++;
+    }
+  });
+
+  Object.keys(control).forEach(f => {
+    control[f].control = total > 0 ? Math.round((control[f].ships / total) * 100) : 0;
+  });
+
+  return control;
+}
+
+// ============================================
+// 增援波次系统
+// ============================================
+function checkReinforcements() {
+  const overdue = G.units.filter(u => u.faction !== 'vanguard' && u.status === 'advancing');
+  if (overdue.length >= 3) {
+    // 生成增援
+    const factions = [...new Set(overdue.map(u => u.faction))];
+    factions.forEach(faction => {
+      const count = Math.min(2, overdue.filter(u => u.faction === faction).length);
+      for (let i = 0; i < count; i++) {
+        spawnReinforcement(faction);
+      }
+    });
+  }
+}
+
+function spawnReinforcement(faction) {
+  const zone = spawnZone(faction);
+  const x = rand(zone.x[1] - zone.x[0]) + zone.x[0];
+  const y = rand(zone.y[1] - zone.y[0]) + zone.y[0];
+
+  G.units.push({
+    id: genCode(faction, G.units.length + 100),
+    name: genShipName(faction, new Set(G.units.map(u => u.name))),
+    shipClass: 'raider',
+    faction,
+    x: clamp(x, 5, 95),
+    y: clamp(y, 5, 95),
+    status: 'advancing',
+    advanceDist: distToEarth(x, y),
+    power: rand(15) + 35,
+    supply: rand(30) + 30,
+    morale: rand(20) + 70,
+    mission: {
+      title: '增援舰队',
+      status: 'reinforcement',
+      priority: 'low',
+      estimate: 1,
+      overdue: 0,
+    },
+  });
+}
+
+// ============================================
+// 跃迁效果
+// ============================================
+function warpJump(px, py, color) {
+  const stage = document.querySelector('#mapStage');
+  if (!stage) return;
+  const rect = stage.getBoundingClientRect();
+  const x = (px / 100) * rect.width;
+  const y = (py / 100) * rect.height;
+
+  const warp = document.createElement('div');
+  warp.className = 'warp-effect';
+  warp.style.cssText = `
+    left: ${x}px;
+    top: ${y}px;
+    width: 60px;
+    height: 60px;
+    background: radial-gradient(circle, ${color}88, transparent 70%);
+    border: 2px solid ${color};
+    transform: translate(-50%, -50%);
+  `;
+  stage.appendChild(warp);
+  setTimeout(() => warp.remove(), 1000);
+}
+
+// ============================================
+// 升级粒子爆炸
+// ============================================
+function explode(px, py, color) {
+  const canvas = document.querySelector('#starfield');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const stage = document.querySelector('#mapStage');
+  const rect = stage.getBoundingClientRect();
+  const x = (px / 100) * rect.width;
+  const y = (py / 100) * rect.height;
+
+  // 主爆炸粒子
+  const particles = Array.from({ length: 60 }, (_, i) => {
+    const angle = (Math.PI * 2 * i) / 60 + (rand(40) - 20) * 0.02;
+    const speed = rand(8) + 3;
+    return {
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1,
+      decay: (rand(15) + 10) / 1000,
+      size: rand(4) + 2,
+      color,
+    };
+  });
+
+  // 碎片
+  const debris = Array.from({ length: 20 }, () => ({
+    x, y,
+    vx: (rand(20) - 10) * 0.3,
+    vy: (rand(20) - 10) * 0.3,
+    life: 1,
+    decay: (rand(10) + 5) / 1000,
+    size: rand(3) + 1,
+    color: '#fff',
+  }));
+
+  let frame = 0;
+  function tick() {
+    frame++;
+    let alive = false;
+
+    [...particles, ...debris].forEach(p => {
+      if (p.life <= 0) return;
+      alive = true;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vx *= 0.96;
+      p.vy *= 0.96;
+      p.life -= p.decay;
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    if (alive && frame < 120) {
+      requestAnimationFrame(tick);
+    } else {
+      drawStarfield();
+    }
+  }
+  tick();
+}
+
+// ============================================
 // Linear 连接 UI
 // ============================================
 function initLinearUI() {
@@ -858,6 +1118,8 @@ function initLinearUI() {
       setTimeout(() => {
         syncLinearToGame();
         processAdvance();
+        checkReinforcements();
+        renderWarZones();
         renderUnits();
         renderBriefing();
         const firstEnemy = G.units.find(u => u.faction !== 'vanguard' && u.status !== 'destroyed');
@@ -881,8 +1143,8 @@ function initLinearUI() {
     location.reload();
   });
 
-  // 自动连接：有缓存 Key 且不是主动点了演示数据
-  if (LinearAPI.key) {
+  // 自动连接：有缓存 Key 且格式正确
+  if (LinearAPI.key && LinearAPI.key.startsWith('lin_api_')) {
     tryConnect();
   }
 }
@@ -891,19 +1153,37 @@ function initLinearUI() {
 // 启动
 // ============================================
 function boot() {
-  initLinearUI();
-  syncLinearToGame();
-  processAdvance();
-  drawStarfield();
-  renderPlanets();
-  renderFactions();
-  renderUnits();
-  renderBriefing();
-  initMap();
-  applyMap();
+  try {
+    showLoading('初始化战术系统...', 10);
+    initLinearUI();
 
-  const first = G.units.find(u => u.faction !== 'vanguard' && u.status !== 'destroyed');
-  if (first) selectUnit(first.id);
+    showLoading('扫描星系威胁...', 30);
+    syncLinearToGame();
+    processAdvance();
+    checkReinforcements();
+
+    showLoading('渲染战略地图...', 60);
+    drawStarfield();
+    renderPlanets();
+    renderFactions();
+    renderWarZones();
+    renderUnits();
+    renderBriefing();
+    initMap();
+    applyMap();
+
+    showLoading('部署完成', 100);
+    setTimeout(() => {
+      hideLoading();
+      const first = G.units.find(u => u.faction !== 'vanguard' && u.status !== 'destroyed');
+      if (first) selectUnit(first.id);
+    }, 600);
+  } catch (err) {
+    console.error('[GV] BOOT FAILED:', err);
+    showLoading('系统启动失败: ' + err.message, 0);
+    const panel = document.querySelector('#unitDetail');
+    if (panel) panel.innerHTML = `<p style="color:#ff3f52">系统启动失败: ${err.message}<br>请打开浏览器控制台(F12)查看详情。</p>`;
+  }
 }
 
 window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, G, Linear, LinearAPI };

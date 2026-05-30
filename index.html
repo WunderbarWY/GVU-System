@@ -5,8 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>银河先遣队作战指挥台</title>
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./effects.css" />
   </head>
   <body>
+    <!-- 加载画面 -->
+    <div class="loading-screen" id="loadingScreen">
+      <div class="loading-logo">银河先遣队</div>
+      <div class="loading-status" id="loadingText">初始化战术系统...</div>
+      <div class="loading-bar-track">
+        <div class="loading-bar-fill" id="loadingBar"></div>
+      </div>
+    </div>
+
+    <!-- CRT 叠加效果 -->
+    <div class="crt-overlay"></div>
+    <div class="crt-vignette"></div>
+
     <main class="command-shell">
       <section class="solar-map" aria-label="太阳系战役地图">
         <div class="map-header">
@@ -22,6 +36,7 @@
 
         <div class="map-stage" id="mapStage">
           <canvas id="starfield" aria-hidden="true"></canvas>
+          <div class="strategic-grid" aria-hidden="true"></div>
           <div class="map-grid-overlay" aria-hidden="true"></div>
           <div class="command-frame" aria-hidden="true">
             <span class="frame-corner corner-tl"></span>
