@@ -9,11 +9,11 @@
 ## 已完成功能
 
 ### 数据层
-- [x] Linear GraphQL API 对接（双向同步）
+- [x] Linear GraphQL API 对接（单向读取，纯展示型）
 - [x] 读取任务：issues(first: 100) → 敌军舰队
 - [x] 读取工作流状态：workflowStates → 用于状态回写
-- [x] **回写 Linear**：完成任务 → Linear 状态变 Done
-- [x] **回写 Linear**：开始推进 → Linear 状态变 In Progress
+- [x] ~~回写 Linear~~：完成任务 → Linear 状态变 Done（已取消，纯展示型）
+- [x] ~~回写 Linear~~：开始推进 → Linear 状态变 In Progress（已取消，纯展示型）
 - [x] 智能势力映射：按 Project/Label/Title 关键词分配势力
 - [x] 优先级映射：Urgent→战列舰, High→巡洋舰, Medium→驱逐舰, Low→袭扰艇
 - [x] 自动连接：通过 `~/.gv_linear_key` 文件持久化（跨端口）
