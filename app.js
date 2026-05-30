@@ -488,21 +488,10 @@ async function completeMission(unitId) {
   const u = G.units.find(x => x.id === unitId);
   if (!u || u.faction === 'vanguard') return;
 
-  // 1. 先回写 Linear 状态
-  const statusEl = document.querySelector('#connectStatus');
-  try {
-    if (statusEl) { statusEl.textContent = '同步到 Linear...'; statusEl.style.color = '#ffd251'; }
-    const doneStateId = LinearAPI.getStateId(u.mission.teamId, 'completed', u.mission.linearId);
-    await LinearAPI.updateIssueState(u.mission.linearId, doneStateId);
-    if (statusEl) { statusEl.textContent = '✓ Linear 已更新'; statusEl.style.color = '#17d7b6'; }
-  } catch (err) {
-    console.error('[GV] Linear update failed:', err);
-    if (statusEl) { statusEl.textContent = '× Linear 同步失败: ' + err.message; statusEl.style.color = '#ff3f52'; }
-    alert('击沉动画已播放，但同步到 Linear 失败：' + err.message + '\n请手动在 Linear 中标记完成。');
-    return;
-  }
+  // 纯展示型：不回写 Linear，仅在本地播放动画并更新状态
+  // 用户需在 Linear 中手动标记完成，下次同步时游戏自动识别
 
-  // 2. 本地视觉效果
+  // 1. 本地视觉效果
   warpJump(u.x, u.y, '#4da3ff');
   setTimeout(() => explode(u.x, u.y, FACTIONS[u.faction].color), 200);
 
@@ -558,26 +547,33 @@ async function completeMission(unitId) {
     renderBriefing();
     renderDetail(null);
   }, 650);
+
+  // 提示用户手动在 Linear 中操作
+  const statusEl = document.querySelector('#connectStatus');
+  if (statusEl) {
+    statusEl.textContent = '⚡ 击沉动画已播放 — 请在 Linear 中手动标记该任务完成';
+    statusEl.style.color = '#ffd251';
+    setTimeout(() => { statusEl.textContent = ''; }, 5000);
+  }
 }
 
 async function startMission(unitId) {
   const u = G.units.find(x => x.id === unitId);
   if (!u || u.faction === 'vanguard') return;
 
-  try {
-    const inProgressStateId = LinearAPI.getStateId(u.mission.teamId, 'started', u.mission.linearId);
-    await LinearAPI.updateIssueState(u.mission.linearId, inProgressStateId);
-  } catch (err) {
-    console.error('[GV] Linear update failed:', err);
-    alert('开始推进失败: ' + err.message);
-    return;
-  }
-
+  // 纯展示型：不回写 Linear，仅更新本地状态
   u.mission.status = 'in_progress';
   const issue = Linear.issues.find(i => i.id === u.mission.linearId);
   if (issue) issue.status = 'in_progress';
   renderUnits();
   renderDetail(unitId);
+
+  const statusEl = document.querySelector('#connectStatus');
+  if (statusEl) {
+    statusEl.textContent = '⚡ 交火状态已更新 — 请在 Linear 中手动开始该任务';
+    statusEl.style.color = '#ffd251';
+    setTimeout(() => { statusEl.textContent = ''; }, 5000);
+  }
 }
 
 // ============================================
@@ -874,6 +870,7 @@ function renderDetail(id) {
         <button onclick="window.__game.complete('${u.id}')" style="flex:1;padding:10px;border:1px solid #4da3ff;border-radius:4px;background:rgba(77,163,255,0.14);color:#4da3ff;cursor:pointer;font-family:var(--font-display);font-size:13px;">✓ 完成任务</button>
         <button onclick="window.__game.start('${u.id}')" style="flex:1;padding:10px;border:1px solid rgba(232,251,255,0.2);border-radius:4px;background:rgba(232,251,255,0.05);color:#e8fbff;cursor:pointer;font-family:var(--font-display);font-size:13px;">▶ 开始推进</button>
       </div>
+      <p style="margin:8px 0 0;font-size:11px;color:var(--muted);">💡 纯展示型 — 请在 Linear 中手动更新任务状态，刷新后自动同步</p>
     `;
   }
 

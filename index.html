@@ -95,9 +95,9 @@
       <aside class="command-panel">
         <section class="briefing-panel" id="linearConnect" style="border-left:3px solid #4da3ff;">
           <p class="eyebrow">系统连接</p>
-          <h2>Linear 同步</h2>
+          <h2>Linear 数据接入</h2>
           <div id="connectUI">
-            <p class="muted" style="margin-bottom:10px;">输入 Linear API Key 以同步真实任务数据。</p>
+            <p class="muted" style="margin-bottom:10px;">纯展示型 — 从 Linear 读取任务，游戏内操作不回写。<br>请在 Linear 中手动更改任务状态，刷新页面后自动同步。</p>
             <input type="password" id="apiKeyInput" placeholder="lin_api_..." style="width:100%;padding:8px 10px;border:1px solid rgba(172,219,255,0.25);border-radius:4px;background:rgba(2,5,12,0.6);color:#e8fbff;font-family:var(--font-ui);font-size:13px;box-sizing:border-box;" />
             <div style="display:flex;gap:8px;margin-top:10px;">
               <button id="btnConnect" style="flex:1;padding:8px;border:1px solid #4da3ff;border-radius:4px;background:rgba(77,163,255,0.15);color:#4da3ff;cursor:pointer;font-family:var(--font-display);font-size:13px;">🔗 连接</button>
@@ -108,7 +108,7 @@
         </section>
 
         <section class="briefing-panel">
-          <p class="eyebrow">Linear 同步预览</p>
+          <p class="eyebrow">任务清单</p>
           <h2>今日任务</h2>
           <div id="dailyBrief"></div>
         </section>
