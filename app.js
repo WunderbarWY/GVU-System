@@ -135,11 +135,12 @@ const LinearAPI = {
             identifier
             title
             description
-            state { name type }
+            state { id name type }
             priority
             dueDate
             estimate
             project { name }
+            team { id name }
             labels { nodes { name } }
             createdAt
             updatedAt
@@ -152,8 +153,51 @@ const LinearAPI = {
     return data.issues.nodes;
   },
 
+  async fetchWorkflowStates() {
+    const { data, errors } = await this.query(`
+      query {
+        workflowStates {
+          nodes {
+            id
+            name
+            type
+            team { id }
+          }
+        }
+      }
+    `);
+    if (errors) throw new Error(errors[0].message);
+    return data.workflowStates.nodes;
+  },
+
+  async updateIssueState(issueId, stateId) {
+    const { data, errors } = await this.query(`
+      mutation($id: String!, $stateId: String!) {
+        issueUpdate(id: $id, input: { stateId: $stateId }) {
+          success
+          issue { identifier state { name } }
+        }
+      }
+    `, { id: issueId, stateId });
+    if (errors) throw new Error(errors[0].message);
+    return data.issueUpdate;
+  },
+
+  getStateId(teamId, type) {
+    if (!this.workflowStates) throw new Error('工作流状态未加载');
+    const state = this.workflowStates.find(s =>
+      (s.team?.id === teamId || !teamId) && s.type === type
+    );
+    if (!state) throw new Error(`找不到 ${type} 状态`);
+    return state.id;
+  },
+
   async sync() {
-    const raw = await this.fetchIssues();
+    const [raw, states] = await Promise.all([
+      this.fetchIssues(),
+      this.fetchWorkflowStates(),
+    ]);
+    this.workflowStates = states;
     const mapped = mapLinearIssues(raw);
     Linear.issues = mapped.issues;
     Linear.done = mapped.done;
@@ -200,6 +244,7 @@ function mapLinearIssues(rawIssues) {
     const status = mapLinearState(issue.state?.name, issue.state?.type);
     const item = {
       id: issue.identifier,
+      linearId: issue.id,
       title: issue.title,
       priority: { 1: 'urgent', 2: 'high', 3: 'medium', 4: 'low', 0: 'low' }[issue.priority] || 'low',
       status,
@@ -207,6 +252,8 @@ function mapLinearIssues(rawIssues) {
       faction: detectFaction(issue),
       estimate: issue.estimate || 3,
       labels: (issue.labels?.nodes || []).map(l => l.name),
+      teamId: issue.team?.id,
+      stateId: issue.state?.id,
     };
 
     if (status === 'done' || status === 'canceled') {
@@ -424,10 +471,25 @@ function generateReport() {
 // ============================================
 // 完成任务 → 击沉敌舰
 // ============================================
-function completeMission(unitId) {
+async function completeMission(unitId) {
   const u = G.units.find(x => x.id === unitId);
   if (!u || u.faction === 'vanguard') return;
 
+  // 1. 先回写 Linear 状态
+  const statusEl = document.querySelector('#connectStatus');
+  try {
+    if (statusEl) { statusEl.textContent = '同步到 Linear...'; statusEl.style.color = '#ffd251'; }
+    const doneStateId = LinearAPI.getStateId(u.mission.teamId, 'completed');
+    await LinearAPI.updateIssueState(u.mission.linearId, doneStateId);
+    if (statusEl) { statusEl.textContent = '✓ Linear 已更新'; statusEl.style.color = '#17d7b6'; }
+  } catch (err) {
+    console.error('[GV] Linear update failed:', err);
+    if (statusEl) { statusEl.textContent = '× Linear 同步失败: ' + err.message; statusEl.style.color = '#ff3f52'; }
+    alert('击沉动画已播放，但同步到 Linear 失败：' + err.message + '\n请手动在 Linear 中标记完成。');
+    return;
+  }
+
+  // 2. 本地视觉效果
   warpJump(u.x, u.y, '#4da3ff');
   setTimeout(() => explode(u.x, u.y, FACTIONS[u.faction].color), 200);
 
@@ -485,9 +547,19 @@ function completeMission(unitId) {
   }, 650);
 }
 
-function startMission(unitId) {
+async function startMission(unitId) {
   const u = G.units.find(x => x.id === unitId);
   if (!u || u.faction === 'vanguard') return;
+
+  try {
+    const inProgressStateId = LinearAPI.getStateId(u.mission.teamId, 'started');
+    await LinearAPI.updateIssueState(u.mission.linearId, inProgressStateId);
+  } catch (err) {
+    console.error('[GV] Linear update failed:', err);
+    alert('开始推进失败: ' + err.message);
+    return;
+  }
+
   u.mission.status = 'in_progress';
   const issue = Linear.issues.find(i => i.id === u.mission.linearId);
   if (issue) issue.status = 'in_progress';
