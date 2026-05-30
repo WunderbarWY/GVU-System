@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
+"""
+银河先遣队作战指挥台 — 本地代理服务器
+使用 curl + 临时文件绕过 PIPE 导致的 SSL 问题
+"""
+
 import http.server
 import socketserver
 import subprocess
 import json
 import os
+import tempfile
 
 PORT = 5180
 LINEAR_API = "https://api.linear.app/graphql"
@@ -26,13 +32,32 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 body = self.rfile.read(content_len).decode('utf-8')
                 api_key = self.headers.get('X-Api-Key', '')
 
-                result = subprocess.run(
-                    ['curl', '-s', '-X', 'POST', LINEAR_API,
-                     '-H', 'Content-Type: application/json',
-                     '-H', f'Authorization: {api_key}',
-                     '-d', body, '--max-time', '15'],
-                    capture_output=True, text=True, timeout=20,
-                )
+                # 用临时文件绕过 capture_output PIPE 导致的 SSL 问题
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as fout:
+                    out_path = fout.name
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.err', delete=False) as ferr:
+                    err_path = ferr.name
+
+                try:
+                    result = subprocess.run(
+                        ['curl', '-s', '-X', 'POST', LINEAR_API,
+                         '-H', 'Content-Type: application/json',
+                         '-H', f'Authorization: {api_key}',
+                         '-d', body,
+                         '--max-time', '15',
+                         '-o', out_path],
+                        stderr=open(err_path, 'w'),
+                        timeout=20,
+                    )
+
+                    with open(out_path) as f:
+                        stdout = f.read()
+                    with open(err_path) as f:
+                        stderr = f.read()
+
+                finally:
+                    os.unlink(out_path)
+                    os.unlink(err_path)
 
                 if result.returncode != 0:
                     self.send_response(502)
@@ -40,7 +65,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     self.send_cors()
                     self.end_headers()
                     self.wfile.write(json.dumps({
-                        'errors': [{'message': f'Proxy error: rc={result.returncode} stderr={result.stderr}'}]
+                        'errors': [{'message': f'Proxy error: rc={result.returncode} stderr={stderr}'}]
                     }).encode())
                     return
 
@@ -48,7 +73,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self.send_header('Content-Type', 'application/json')
                 self.send_cors()
                 self.end_headers()
-                self.wfile.write(result.stdout.encode())
+                self.wfile.write(stdout.encode())
 
             except Exception as e:
                 self.send_response(500)
