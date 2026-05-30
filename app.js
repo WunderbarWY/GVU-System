@@ -185,10 +185,9 @@ const LinearAPI = {
 
   getStateId(teamId, type) {
     if (!this.workflowStates) throw new Error('工作流状态未加载');
-    const state = this.workflowStates.find(s =>
-      (s.team?.id === teamId || !teamId) && s.type === type
-    );
-    if (!state) throw new Error(`找不到 ${type} 状态`);
+    if (!teamId) throw new Error('任务没有所属团队，无法确定工作流状态');
+    const state = this.workflowStates.find(s => s.team?.id === teamId && s.type === type);
+    if (!state) throw new Error(`该团队没有 ${type} 状态，请在 Linear 中检查工作流设置`);
     return state.id;
   },
 
@@ -459,10 +458,10 @@ function generateReport() {
   return {
     narrative,
     work: {
-      done: Linear.done.map(i => ({ id: i.id, title: i.title })),
-      inProgress: inProg.map(i => ({ id: i.id, title: i.title, due: i.due, days: daysUntil(i.due) })),
-      todo: todo.filter(i => i.status === 'todo').map(i => ({ id: i.id, title: i.title, due: i.due, days: daysUntil(i.due) })),
-      overdue: odIssues.map(i => ({ id: i.id, title: i.title, days: daysOverdue(i.due) })),
+      done: Linear.done.map(i => ({ id: i.linearId, title: i.title })),
+      inProgress: inProg.map(i => ({ id: i.linearId, title: i.title, due: i.due, days: daysUntil(i.due) })),
+      todo: todo.filter(i => i.status === 'todo').map(i => ({ id: i.linearId, title: i.title, due: i.due, days: daysUntil(i.due) })),
+      overdue: odIssues.map(i => ({ id: i.linearId, title: i.title, days: daysOverdue(i.due) })),
     },
     counts: { done: Linear.done.length, todo: todo.length, overdue: odIssues.length, advancing: advancing.length, critical: critical.length },
   };
@@ -1215,10 +1214,25 @@ function initLinearUI() {
     location.reload();
   });
 
-  // 自动连接：有缓存 Key 且格式正确
-  if (LinearAPI.key && LinearAPI.key.startsWith('lin_api_')) {
-    tryConnect();
+  // 自动连接策略：先查服务器配置文件（跨端口持久化），再查 localStorage
+  async function autoConnect() {
+    try {
+      const res = await fetch('/api/config');
+      const cfg = await res.json();
+      if (cfg.apiKey && cfg.apiKey.startsWith('lin_api_')) {
+        input.value = cfg.apiKey;
+        LinearAPI.key = cfg.apiKey;
+        tryConnect();
+        return;
+      }
+    } catch (e) { /* ignore */ }
+
+    if (LinearAPI.key && LinearAPI.key.startsWith('lin_api_')) {
+      tryConnect();
+    }
   }
+
+  autoConnect();
 }
 
 // ============================================

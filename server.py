@@ -13,6 +13,7 @@ import tempfile
 
 PORT = 5180
 LINEAR_API = "https://api.linear.app/graphql"
+API_KEY_FILE = os.path.expanduser('~/.gv_linear_key')
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def do_OPTIONS(self):
@@ -85,7 +86,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 }).encode())
             return
 
-        self.do_GET()
+        if self.path == '/api/config':
+            key = ''
+            if os.path.exists(API_KEY_FILE):
+                try:
+                    with open(API_KEY_FILE, 'r') as f:
+                        key = f.read().strip()
+                except:
+                    pass
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_cors()
+            self.end_headers()
+            self.wfile.write(json.dumps({'apiKey': key}).encode())
+            return
+        super().do_GET()
 
     def end_headers(self):
         self.send_cors()
