@@ -185,9 +185,17 @@ const LinearAPI = {
 
   getStateId(teamId, type) {
     if (!this.workflowStates) throw new Error('工作流状态未加载');
-    if (!teamId) throw new Error('任务没有所属团队，无法确定工作流状态');
-    const state = this.workflowStates.find(s => s.team?.id === teamId && s.type === type);
-    if (!state) throw new Error(`该团队没有 ${type} 状态，请在 Linear 中检查工作流设置`);
+    let state;
+    if (teamId) {
+      state = this.workflowStates.find(s => s.team?.id === teamId && s.type === type);
+    } else {
+      // 任务无 team — fallback 到任意 team 的第一个匹配状态
+      state = this.workflowStates.find(s => s.type === type);
+    }
+    if (!state) {
+      const hint = teamId ? '该团队' : '所有工作流中';
+      throw new Error(`${hint}没有 ${type} 状态，请在 Linear 中检查工作流设置`);
+    }
     return state.id;
   },
 
