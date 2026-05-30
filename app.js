@@ -156,7 +156,7 @@ const LinearAPI = {
   async fetchWorkflowStates() {
     const { data, errors } = await this.query(`
       query {
-        workflowStates {
+        workflowStates(first: 250) {
           nodes {
             id
             name
@@ -167,6 +167,7 @@ const LinearAPI = {
       }
     `);
     if (errors) throw new Error(errors[0].message);
+    console.log('[GV] Loaded', data.workflowStates.nodes.length, 'workflow states');
     return data.workflowStates.nodes;
   },
 
@@ -183,19 +184,24 @@ const LinearAPI = {
     return data.issueUpdate;
   },
 
-  getStateId(teamId, type) {
+  getStateId(teamId, type, issueId) {
     if (!this.workflowStates) throw new Error('工作流状态未加载');
+    console.log('[GV] getStateId called — teamId:', teamId, 'type:', type, 'issueId:', issueId);
+    console.log('[GV] Available states for this team:', this.workflowStates
+      .filter(s => s.team?.id === teamId)
+      .map(s => ({ id: s.id, name: s.name, type: s.type })));
     let state;
     if (teamId) {
       state = this.workflowStates.find(s => s.team?.id === teamId && s.type === type);
     } else {
-      // 任务无 team — fallback 到任意 team 的第一个匹配状态
       state = this.workflowStates.find(s => s.type === type);
     }
     if (!state) {
+      console.log('[GV] FAILED to find state. All loaded states:', this.workflowStates.map(s => ({ id: s.id, name: s.name, type: s.type, teamId: s.team?.id })));
       const hint = teamId ? '该团队' : '所有工作流中';
       throw new Error(`${hint}没有 ${type} 状态，请在 Linear 中检查工作流设置`);
     }
+    console.log('[GV] Found state:', state.id, state.name, 'team:', state.team?.id);
     return state.id;
   },
 
@@ -486,7 +492,7 @@ async function completeMission(unitId) {
   const statusEl = document.querySelector('#connectStatus');
   try {
     if (statusEl) { statusEl.textContent = '同步到 Linear...'; statusEl.style.color = '#ffd251'; }
-    const doneStateId = LinearAPI.getStateId(u.mission.teamId, 'completed');
+    const doneStateId = LinearAPI.getStateId(u.mission.teamId, 'completed', u.mission.linearId);
     await LinearAPI.updateIssueState(u.mission.linearId, doneStateId);
     if (statusEl) { statusEl.textContent = '✓ Linear 已更新'; statusEl.style.color = '#17d7b6'; }
   } catch (err) {
@@ -559,7 +565,7 @@ async function startMission(unitId) {
   if (!u || u.faction === 'vanguard') return;
 
   try {
-    const inProgressStateId = LinearAPI.getStateId(u.mission.teamId, 'started');
+    const inProgressStateId = LinearAPI.getStateId(u.mission.teamId, 'started', u.mission.linearId);
     await LinearAPI.updateIssueState(u.mission.linearId, inProgressStateId);
   } catch (err) {
     console.error('[GV] Linear update failed:', err);
