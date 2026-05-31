@@ -216,6 +216,29 @@ button {
     rgba(5, 10, 18, 0.68);
 }
 
+.map-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.map-logo {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 0 6px rgba(77, 163, 255, 0.35));
+}
+
+.map-title-en {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 1px;
+  font-family: var(--font-display);
+  margin-top: 2px;
+}
+
 .eyebrow {
   margin: 0 0 8px;
   color: var(--muted);
@@ -543,8 +566,8 @@ h2 {
    ============================================ */
 .sci-fi-hud {
   position: absolute;
-  top: 78px;
-  left: 14px;
+  bottom: 14px;
+  right: 14px;
   z-index: 100;
   padding: 14px 18px;
   background: rgba(2, 6, 14, 0.92);
