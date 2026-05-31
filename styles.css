@@ -1831,6 +1831,19 @@ body::after {
   box-shadow: none !important;
 }
 
+.unit.is-destroying {
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.72);
+  opacity: 0;
+  filter:
+    saturate(0)
+    drop-shadow(0 0 18px var(--unit-color));
+  transition:
+    transform 420ms cubic-bezier(.16,1,.3,1),
+    opacity 420ms ease,
+    filter 420ms ease;
+}
+
 .unit-code,
 .unit-label {
   opacity: 0;
@@ -1902,7 +1915,7 @@ body::after {
     box-shadow:
       inset 2px 0 0 rgba(77, 163, 255, 0.14),
       0 24px 60px rgba(0, 0, 0, 0.38);
-    transform: translateZ(0);
+    animation: detailSlideIn 180ms cubic-bezier(.2,.8,.2,1) both;
   }
 }
 
@@ -1923,5 +1936,174 @@ body::after {
     box-shadow:
       inset 2px 0 0 rgba(77, 163, 255, 0.16),
       0 -20px 54px rgba(0, 0, 0, 0.46);
+    animation: detailRiseIn 180ms cubic-bezier(.2,.8,.2,1) both;
+  }
+}
+
+@keyframes detailSlideIn {
+  from {
+    opacity: 0;
+    transform: translate3d(18px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes detailRiseIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.tactical-strike {
+  position: absolute;
+  z-index: 80;
+  width: 132px;
+  height: 132px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  color: var(--strike-color);
+  mix-blend-mode: screen;
+}
+
+.strike-ring,
+.strike-ring-2,
+.strike-core,
+.strike-axis,
+.strike-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  pointer-events: none;
+}
+
+.strike-ring {
+  width: 92px;
+  height: 92px;
+  border: 1px solid color-mix(in srgb, var(--strike-color), white 22%);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 22px color-mix(in srgb, var(--strike-color), transparent 74%),
+    0 0 20px color-mix(in srgb, var(--strike-color), transparent 78%);
+  transform: translate(-50%, -50%) scale(0.48);
+  opacity: 0;
+  animation: strikeRing 760ms cubic-bezier(.16,1,.3,1) forwards;
+}
+
+.strike-ring-2 {
+  width: 126px;
+  height: 126px;
+  border-style: dashed;
+  border-color: rgba(224, 241, 255, 0.22);
+  animation-delay: 80ms;
+}
+
+.strike-axis {
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--strike-color), white 20%), transparent);
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  animation: strikeAxis 620ms ease-out forwards;
+}
+
+.strike-axis-x {
+  width: 132px;
+  height: 1px;
+}
+
+.strike-axis-y {
+  width: 1px;
+  height: 132px;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--strike-color), white 20%), transparent);
+}
+
+.strike-core {
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(235, 245, 255, 0.72);
+  background: var(--strike-color);
+  box-shadow: 0 0 18px var(--strike-color);
+  transform: translate(-50%, -50%) rotate(45deg) scale(0.6);
+  animation: strikeCore 720ms ease-out forwards;
+}
+
+.strike-label {
+  top: calc(50% + 54px);
+  padding: 4px 7px;
+  border: 1px solid rgba(235, 245, 255, 0.18);
+  color: rgba(234, 243, 250, 0.9);
+  background: rgba(1, 5, 10, 0.88);
+  font-family: var(--font-display);
+  font-size: 9px;
+  line-height: 1;
+  transform: translate(-50%, 8px);
+  opacity: 0;
+  box-shadow: 0 10px 22px rgba(0,0,0,0.34);
+  animation: strikeLabel 760ms ease-out forwards;
+}
+
+@keyframes strikeRing {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.42);
+  }
+  18% {
+    opacity: 0.92;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.18);
+  }
+}
+
+@keyframes strikeAxis {
+  0% {
+    opacity: 0;
+    clip-path: inset(0 50%);
+  }
+  22% {
+    opacity: 0.82;
+  }
+  100% {
+    opacity: 0;
+    clip-path: inset(0 0);
+  }
+}
+
+@keyframes strikeCore {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(45deg) scale(0.4);
+  }
+  24% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(45deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(45deg) scale(0.08);
+  }
+}
+
+@keyframes strikeLabel {
+  0%,
+  14% {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  28%,
+  70% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -6px);
   }
 }

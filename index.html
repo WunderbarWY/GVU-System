@@ -135,6 +135,21 @@
           <div id="dailyBrief"></div>
         </section>
 
+        <section class="briefing-panel" style="border-left:3px solid #ffd251;">
+          <p class="eyebrow">资源管理</p>
+          <div id="wipDisplay"></div>
+          <div style="margin-top:10px;">
+            <p style="font-size:11px;color:var(--muted);margin:0 0 6px;">部署新舰</p>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;">
+              <button data-deploy-cost="15" onclick="window.__game.deploy('raider', '')" style="padding:6px 10px;border:1px solid rgba(232,251,255,0.15);border-radius:4px;background:rgba(232,251,255,0.05);color:#e8fbff;font-family:var(--font-display);font-size:11px;cursor:pointer;">袭扰艇 15</button>
+              <button data-deploy-cost="30" onclick="window.__game.deploy('destroyer', '')" style="padding:6px 10px;border:1px solid rgba(232,251,255,0.15);border-radius:4px;background:rgba(232,251,255,0.05);color:#e8fbff;font-family:var(--font-display);font-size:11px;cursor:pointer;">驱逐舰 30</button>
+              <button data-deploy-cost="60" onclick="window.__game.deploy('cruiser', '')" style="padding:6px 10px;border:1px solid rgba(232,251,255,0.15);border-radius:4px;background:rgba(232,251,255,0.05);color:#e8fbff;font-family:var(--font-display);font-size:11px;cursor:pointer;">巡洋舰 60</button>
+              <button data-deploy-cost="100" onclick="window.__game.deploy('battleship', '')" style="padding:6px 10px;border:1px solid rgba(232,251,255,0.15);border-radius:4px;background:rgba(232,251,255,0.05);color:#e8fbff;font-family:var(--font-display);font-size:11px;cursor:pointer;">战列舰 100</button>
+              <button data-deploy-cost="200" onclick="window.__game.deploy('flagship', '')" style="padding:6px 10px;border:1px solid #ffd251;border-radius:4px;background:rgba(255,210,81,0.1);color:#ffd251;font-family:var(--font-display);font-size:11px;cursor:pointer;">旗舰 200</button>
+            </div>
+          </div>
+        </section>
+
         <section class="briefing-panel compact">
           <h2>势力</h2>
           <div class="factions" id="factions"></div>

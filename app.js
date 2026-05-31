@@ -39,13 +39,11 @@ const SHIP_CLASSES = {
   raider:     { label: '袭扰艇', size: 32, threat: 54, powerBase: 35 },
 };
 
-const NAME_POOL = {
-  prefixes: ['暗影','猎鹰','雷霆','幽冥','烈焰','霜狼','烈风','苍穹','绝影','天狼','冥河','碎星','狂澜','极光','陨铁','赤霄','寒鸦','炽羽'],
-  suffixes: ['号','舰','刃','影','矢','牙','翼','芒','痕','瞳','霆','陨'],
-  vanguard: ['晨曦','启明','守望','黎明','北辰','银翼','天穹','白虹','霜华','星耀'],
-  egov: ['翡翠','青岚','碧落','苍玉','琉璃','碧玺','青鸾','翠微'],
-  jupiter: ['金焰','熔核','日冕','耀斑','烬星','煌炎','炽阳','熔金'],
-  remnant: ['血月','赤瞳','猩红','烬灭','蚀骨','暗礁','枯骨','锈锚'],
+const NATO_NAMES = {
+  vanguard: ['Alpha','Beta','Gamma','Delta','Epsilon','Zeta','Eta','Theta','Iota','Kappa','Lambda','Mu','Nu','Xi','Omicron','Pi','Rho','Sigma','Tau','Upsilon','Phi','Chi','Psi','Omega','Orion','Draco','Cassiopeia','Andromeda','Perseus','Cygnus','Lyra','Aquila','Hercules','Pegasus','Phoenix','Leo','Scorpio','Virgo','Gemini','Aries','Taurus','Libra','Capricorn','Sagittarius','Cancer','Antares','Altair','Deneb','Vega','Spica','Arcturus','Betelgeuse','Rigel','Sirius','Canopus','Procyon','Achernar','Hadar','Fomalhaut','Pollux','Regulus','Castor','Aldebaran','Dubhe','Merak','Alioth','Mizar','Alkaid','Megrez','Phecda'],
+  egov: ['Beryl','Jade','Opal','Quartz','Amber','Coral','Garnet','Topaz','Sapphire','Emerald','Ruby','Amethyst','Pearl','Onyx','Obsidian','Malachite','Lapis','Turquoise','Agate','Jasper','Flint','Granite','Marble','Slate','Basalt','Pumice','Gypsum','Feldspar','Mica','Talc','Ivory','Jet','Zircon','Citrine','Tourmaline','Peridot','Alexandrite','Moonstone','Sunstone','Bloodstone','Carnelian','Chalcedony','Chrysoprase','Hematite','Magnetite','Pyrite','Galena','Bauxite','Magnetite','Graphite','Diamond'],
+  jupiter: ['Pulsar','Nova','Quasar','Nebula','Supernova','Comet','Asteroid','Meteor','Eclipse','Solstice','Equinox','Zenith','Nadir','Apex','Aurora','Corona','Prominence','Flare','Burst','Cluster','Void','Singularity','Horizon','Abyss','Cosmos','Galaxy','Orbit','Axis','Pole',' Meridian','Equator','Tropic','Zenith','Apogee','Perigee','Aphelion','Perihelion','Node','Libration','Precession','Parallax','Refraction','Aberration','Doppler','Redshift','Blueshift','Parallax','Nutation','Obliquity','Eccentricity'],
+  remnant: ['Gale','Tempest','Squall','Monsoon','Typhoon','Cyclone','Hurricane','Blizzard','Avalanche','Tsunami','Torrent','Deluge','Drought','Frost','Thaw','Mist','Fog','Haze','Smog','Dust','Ash','Ember','Spark','Flame','Blaze','Inferno','Scorch','Sear','Char','Cinder','Surge','Ripple','Tide','Current','Eddy','Vortex','Whirlwind','Dustdevil','Firestorm','Heatwave','Coldfront','Warmfront','Drizzle','Sleet','Hail','Icestorm','Snowdrift','Drift','Shift','Quake','Aftershock'],
 };
 
 const WAR_TEMPLATES = {
@@ -153,64 +151,8 @@ const LinearAPI = {
     return data.issues.nodes;
   },
 
-  async fetchWorkflowStates() {
-    const { data, errors } = await this.query(`
-      query {
-        workflowStates(first: 250) {
-          nodes {
-            id
-            name
-            type
-            team { id }
-          }
-        }
-      }
-    `);
-    if (errors) throw new Error(errors[0].message);
-    console.log('[GV] Loaded', data.workflowStates.nodes.length, 'workflow states');
-    return data.workflowStates.nodes;
-  },
-
-  async updateIssueState(issueId, stateId) {
-    const { data, errors } = await this.query(`
-      mutation($id: String!, $stateId: String!) {
-        issueUpdate(id: $id, input: { stateId: $stateId }) {
-          success
-          issue { identifier state { name } }
-        }
-      }
-    `, { id: issueId, stateId });
-    if (errors) throw new Error(errors[0].message);
-    return data.issueUpdate;
-  },
-
-  getStateId(teamId, type, issueId) {
-    if (!this.workflowStates) throw new Error('工作流状态未加载');
-    console.log('[GV] getStateId called — teamId:', teamId, 'type:', type, 'issueId:', issueId);
-    console.log('[GV] Available states for this team:', this.workflowStates
-      .filter(s => s.team?.id === teamId)
-      .map(s => ({ id: s.id, name: s.name, type: s.type })));
-    let state;
-    if (teamId) {
-      state = this.workflowStates.find(s => s.team?.id === teamId && s.type === type);
-    } else {
-      state = this.workflowStates.find(s => s.type === type);
-    }
-    if (!state) {
-      console.log('[GV] FAILED to find state. All loaded states:', this.workflowStates.map(s => ({ id: s.id, name: s.name, type: s.type, teamId: s.team?.id })));
-      const hint = teamId ? '该团队' : '所有工作流中';
-      throw new Error(`${hint}没有 ${type} 状态，请在 Linear 中检查工作流设置`);
-    }
-    console.log('[GV] Found state:', state.id, state.name, 'team:', state.team?.id);
-    return state.id;
-  },
-
   async sync() {
-    const [raw, states] = await Promise.all([
-      this.fetchIssues(),
-      this.fetchWorkflowStates(),
-    ]);
-    this.workflowStates = states;
+    const raw = await this.fetchIssues();
     const mapped = mapLinearIssues(raw);
     Linear.issues = mapped.issues;
     Linear.done = mapped.done;
@@ -280,6 +222,182 @@ function mapLinearIssues(rawIssues) {
 }
 
 // ============================================
+// WIP 工时系统（Work In Progress Points）
+// ============================================
+const DEPLOY_COSTS = {
+  raider: 15,
+  destroyer: 30,
+  cruiser: 60,
+  battleship: 100,
+  flagship: 200,
+};
+
+const WIPStore = {
+  _key: 'gv_wip',
+  load() {
+    try { return JSON.parse(localStorage.getItem(this._key)) || {}; } catch { return {}; }
+  },
+  save(data) { localStorage.setItem(this._key, JSON.stringify(data)); },
+
+  get() {
+    const data = this.load();
+    const today = new Date().toISOString().split('T')[0];
+    // 每日重置
+    if (data.date !== today) {
+      data.date = today;
+      data.todayOnline = 0;
+      data.dailyKillBonus = false;
+      data.killStreak = 0;
+    }
+    return {
+      total: data.total || 0,
+      todayOnline: data.todayOnline || 0,
+      dailyKillBonus: data.dailyKillBonus || false,
+      killStreak: data.killStreak || 0,
+      date: data.date || today,
+      deployed: data.deployed || [],
+    };
+  },
+
+  addOnline(minutes) {
+    const d = this.get();
+    const gain = Math.min(minutes, Math.max(0, 60 - d.todayOnline));
+    if (gain <= 0) return 0;
+    d.total += gain;
+    d.todayOnline += gain;
+    this.save(d);
+    return gain;
+  },
+
+  addKill(estimate) {
+    const d = this.get();
+    let gain = (estimate || 3) * 10;
+    d.killStreak = (d.killStreak || 0) + 1;
+    // Streak 加成
+    if (d.killStreak >= 5) gain = Math.round(gain * 1.5);
+    else if (d.killStreak >= 3) gain = Math.round(gain * 1.2);
+    // 每日首杀 bonus
+    if (!d.dailyKillBonus) {
+      gain += 50;
+      d.dailyKillBonus = true;
+    }
+    d.total += gain;
+    this.save(d);
+    return gain;
+  },
+
+  resetStreak() {
+    const d = this.get();
+    d.killStreak = 0;
+    this.save(d);
+  },
+
+  canDeploy(cost) {
+    return this.get().total >= cost;
+  },
+
+  spend(cost) {
+    const d = this.get();
+    if (d.total < cost) return false;
+    d.total -= cost;
+    this.save(d);
+    return true;
+  },
+
+  addDeployed(ship) {
+    const d = this.get();
+    d.deployed.push(ship);
+    this.save(d);
+  },
+
+  removeDeployed(id) {
+    const d = this.get();
+    d.deployed = d.deployed.filter(s => s.id !== id);
+    this.save(d);
+  },
+
+  getDeployed() {
+    return this.get().deployed;
+  },
+};
+
+// 在线计时器（每分钟 +1 WIP，每日上限 60）
+let _wipTimer = null;
+function startWipTimer() {
+  if (_wipTimer) clearInterval(_wipTimer);
+  let lastMin = Math.floor(Date.now() / 60000);
+  _wipTimer = setInterval(() => {
+    const nowMin = Math.floor(Date.now() / 60000);
+    const delta = nowMin - lastMin;
+    if (delta > 0) {
+      const gained = WIPStore.addOnline(delta);
+      if (gained > 0) updateWipUI();
+      lastMin = nowMin;
+    }
+  }, 10000); // 每 10 秒检查一次
+}
+
+// ============================================
+// 舰队部署系统
+// ============================================
+function deployShip(classType, customName) {
+  const cost = DEPLOY_COSTS[classType];
+  if (!cost) { alert('未知舰型'); return; }
+  if (!WIPStore.canDeploy(cost)) { alert(`WIP 不足，需要 ${cost} 点`); return; }
+
+  const used = new Set(G.units.map(x => x.name));
+  const name = customName?.trim() || genShipName('vanguard', used);
+  if (used.has(name)) { alert('该舰名已存在'); return; }
+
+  WIPStore.spend(cost);
+
+  const ship = {
+    id: genCode('vanguard', WIPStore.getDeployed().length + 1000),
+    name,
+    shipClass: classType,
+    faction: 'vanguard',
+    x: clamp(CONFIG.EARTH.x + rand(16) - 8, 10, 90),
+    y: clamp(CONFIG.EARTH.y + rand(12) - 6, 10, 90),
+    status: 'patrol',
+    power: SHIP_CLASSES[classType].powerBase + rand(20) - 5,
+    supply: rand(30) + 60,
+    morale: rand(20) + 70,
+    mission: { title: '巡逻中', status: 'reserve' },
+  };
+
+  WIPStore.addDeployed(ship);
+  G.units.push(ship);
+
+  updateWipUI();
+  renderUnits();
+  renderDetail(ship.id);
+}
+
+function updateWipUI() {
+  const d = WIPStore.get();
+  const el = document.querySelector('#wipDisplay');
+  if (el) {
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:18px;font-weight:700;color:#ffd251;">${d.total}</span>
+        <span style="font-size:11px;color:var(--muted);">WIP 工时</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+        今日在线 +${d.todayOnline}/60 | Streak: ${d.killStreak}
+      </div>
+    `;
+  }
+
+  // 更新部署按钮状态
+  document.querySelectorAll('[data-deploy-cost]').forEach(btn => {
+    const cost = parseInt(btn.dataset.deployCost, 10);
+    btn.disabled = d.total < cost;
+    btn.style.opacity = d.total < cost ? '0.4' : '1';
+    btn.style.cursor = d.total < cost ? 'not-allowed' : 'pointer';
+  });
+}
+
+// ============================================
 // 工具函数
 // ============================================
 function rand(n) { return Math.floor(Math.random() * n); }
@@ -304,10 +422,10 @@ function daysUntil(dateStr) {
 // 纯军事化命名系统
 // ============================================
 function genShipName(faction, used) {
-  const pool = NAME_POOL[faction] || NAME_POOL.prefixes;
+  const pool = NATO_NAMES[faction] || NATO_NAMES.vanguard;
   let name, tries = 0;
   do {
-    name = pick(pool) + pick(NAME_POOL.suffixes);
+    name = pick(pool) + '-' + (rand(99) + 1);
     tries++;
   } while (used.has(name) && tries < 100);
   used.add(name);
@@ -380,21 +498,19 @@ function syncLinearToGame() {
     });
   });
 
-  // 已完成 → 我方巡逻舰
-  Linear.done.forEach((issue, i) => {
-    units.push({
-      id: genCode('vanguard', i),
-      name: genShipName('vanguard', used),
-      shipClass: 'flagship',
-      faction: 'vanguard',
-      x: clamp(CONFIG.EARTH.x + rand(16) - 8, 10, 90),
-      y: clamp(CONFIG.EARTH.y + rand(12) - 6, 10, 90),
-      status: 'patrol',
-      power: rand(15) + 85,
-      supply: rand(25) + 70,
-      morale: rand(20) + 75,
-      mission: { title: issue.title, status: 'done', completedAt: issue.completedAt },
-    });
+  // 加载玩家手动部署的舰队
+  const deployed = WIPStore.getDeployed();
+  deployed.forEach((ship, i) => {
+    if (!used.has(ship.name)) {
+      used.add(ship.name);
+      units.push({
+        ...ship,
+        id: ship.id || genCode('vanguard', i + 1000),
+        faction: 'vanguard',
+        status: 'patrol',
+        advanceDist: distToEarth(ship.x, ship.y),
+      });
+    }
   });
 
   G.units = units;
@@ -491,9 +607,13 @@ async function completeMission(unitId) {
   // 纯展示型：不回写 Linear，仅在本地播放动画并更新状态
   // 用户需在 Linear 中手动标记完成，下次同步时游戏自动识别
 
-  // 1. 本地视觉效果
-  warpJump(u.x, u.y, '#4da3ff');
-  setTimeout(() => explode(u.x, u.y, FACTIONS[u.faction].color), 200);
+  const impact = unitStagePoint(unitId, u);
+  const unitEl = document.querySelector(`.unit[data-id="${cssEscape(unitId)}"]`);
+  unitEl?.classList.add('is-destroying');
+
+  // 1. 本地视觉效果：克制的战术锁定/失联反馈，避免廉价粒子爆炸
+  tacticalStrike(impact.x, impact.y, FACTIONS[u.faction].color);
+  renderDetail(null);
 
   // 战史记录
   G.warHistory.unshift({
@@ -525,33 +645,23 @@ async function completeMission(unitId) {
     Linear.done.push({ ...done, completedAt: new Date().toISOString().split('T')[0], faction: 'vanguard' });
   }
 
-  // 生成我方增援舰
-  const used = new Set(G.units.map(x => x.name));
-  G.units.push({
-    id: genCode('vanguard', G.units.length),
-    name: genShipName('vanguard', used),
-    shipClass: 'destroyer',
-    faction: 'vanguard',
-    x: clamp(CONFIG.EARTH.x + rand(12) - 6, 10, 90),
-    y: clamp(CONFIG.EARTH.y + rand(10) - 5, 10, 90),
-    status: 'patrol',
-    power: rand(20) + 55,
-    supply: rand(30) + 60,
-    morale: rand(20) + 70,
-    mission: { title: '增援舰队', status: 'reserve' },
-  });
+  // WIP 奖励
+  const wipGain = WIPStore.addKill(u.mission.estimate);
+  updateWipUI();
 
   // 延迟刷新
   setTimeout(() => {
     renderUnits();
     renderBriefing();
     renderDetail(null);
-  }, 650);
+  }, 720);
 
-  // 提示用户手动在 Linear 中操作
+  // 提示
   const statusEl = document.querySelector('#connectStatus');
   if (statusEl) {
-    statusEl.textContent = '⚡ 击沉动画已播放 — 请在 Linear 中手动标记该任务完成';
+    const streak = WIPStore.get().killStreak;
+    const streakText = streak >= 5 ? ' [Streak x1.5!]' : streak >= 3 ? ' [Streak x1.2]' : '';
+    statusEl.textContent = `+${wipGain} WIP${streakText} — 请在 Linear 中标记完成`;
     statusEl.style.color = '#ffd251';
     setTimeout(() => { statusEl.textContent = ''; }, 5000);
   }
@@ -574,54 +684,6 @@ async function startMission(unitId) {
     statusEl.style.color = '#ffd251';
     setTimeout(() => { statusEl.textContent = ''; }, 5000);
   }
-}
-
-// ============================================
-// Canvas 粒子爆炸特效
-// ============================================
-function explode(px, py, color) {
-  const canvas = document.querySelector('#starfield');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const stage = document.querySelector('#mapStage');
-  const rect = stage.getBoundingClientRect();
-  const x = (px / 100) * rect.width;
-  const y = (py / 100) * rect.height;
-
-  const particles = Array.from({ length: 45 }, (_, i) => {
-    const angle = (Math.PI * 2 * i) / 45 + (rand(40) - 20) * 0.02;
-    const speed = rand(6) + 2;
-    return {
-      x, y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      life: 1,
-      decay: (rand(20) + 12) / 1000,
-      size: rand(3) + 1,
-      color,
-    };
-  });
-
-  let frame = 0;
-  function tick() {
-    frame++;
-    let alive = false;
-    particles.forEach(p => {
-      if (p.life <= 0) return;
-      alive = true;
-      p.x += p.vx; p.y += p.vy;
-      p.vx *= 0.95; p.vy *= 0.95;
-      p.life -= p.decay;
-      ctx.globalAlpha = p.life;
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    if (alive && frame < 100) requestAnimationFrame(tick);
-    else drawStarfield();
-  }
-  tick();
 }
 
 // ============================================
@@ -924,6 +986,12 @@ function resetMap() { map.zoom = 0.32; map.panX = 0; map.panY = 0; applyMap(); }
 function initMap() {
   const stage = document.querySelector('#mapStage');
   if (!stage) return;
+  const stopDrag = e => {
+    if (!map.dragging) return;
+    map.dragging = false;
+    stage.classList.remove('is-panning');
+    try { stage.releasePointerCapture(e.pointerId); } catch {}
+  };
   document.querySelectorAll('[data-zoom]').forEach(b => {
     b.addEventListener('click', () => {
       const a = b.dataset.zoom;
@@ -932,7 +1000,14 @@ function initMap() {
       if (a === 'reset') resetMap();
     });
   });
-  stage.addEventListener('wheel', e => { e.preventDefault(); zoom(e.deltaY < 0 ? 0.12 : -0.12); }, { passive: false });
+  const onWheel = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+    if (!delta) return;
+    zoom(delta < 0 ? 0.12 : -0.12);
+  };
+  stage.addEventListener('wheel', onWheel, { passive: false, capture: true });
   stage.addEventListener('pointerdown', e => {
     if (e.target.closest('.unit, .map-controls')) return;
     map.dragging = true; map.sx = e.clientX; map.sy = e.clientY; map.ox = map.panX; map.oy = map.panY;
@@ -945,9 +1020,11 @@ function initMap() {
     map.panY = map.oy + e.clientY - map.sy;
     scheduleMap();
   });
-  stage.addEventListener('pointerup', e => {
-    if (!map.dragging) return;
-    map.dragging = false; stage.classList.remove('is-panning'); stage.releasePointerCapture(e.pointerId);
+  stage.addEventListener('pointerup', stopDrag);
+  stage.addEventListener('pointercancel', stopDrag);
+  stage.addEventListener('lostpointercapture', () => {
+    map.dragging = false;
+    stage.classList.remove('is-panning');
   });
 }
 
@@ -1089,6 +1166,57 @@ function spawnReinforcement(faction) {
   });
 }
 
+function cssEscape(value) {
+  if (window.CSS?.escape) return CSS.escape(value);
+  return String(value).replace(/["\\]/g, '\\$&');
+}
+
+function unitStagePoint(unitId, unit) {
+  const stage = document.querySelector('#mapStage');
+  if (!stage) return { x: 0, y: 0 };
+  const rect = stage.getBoundingClientRect();
+  const unitEl = document.querySelector(`.unit[data-id="${cssEscape(unitId)}"]`);
+  if (unitEl) {
+    const uRect = unitEl.getBoundingClientRect();
+    return {
+      x: uRect.left + uRect.width / 2 - rect.left,
+      y: uRect.top + uRect.height / 2 - rect.top,
+    };
+  }
+
+  const world = document.querySelector('#mapWorld');
+  const worldRect = world?.getBoundingClientRect();
+  if (worldRect) {
+    return {
+      x: worldRect.left + (unit.x / 100) * worldRect.width - rect.left,
+      y: worldRect.top + (unit.y / 100) * worldRect.height - rect.top,
+    };
+  }
+  return { x: rect.width / 2, y: rect.height / 2 };
+}
+
+// ============================================
+// 战术击沉效果
+// ============================================
+function tacticalStrike(x, y, color) {
+  const stage = document.querySelector('#mapStage');
+  if (!stage) return;
+
+  const strike = document.createElement('div');
+  strike.className = 'tactical-strike';
+  strike.style.cssText = `left:${x}px;top:${y}px;--strike-color:${color};`;
+  strike.innerHTML = `
+    <span class="strike-ring"></span>
+    <span class="strike-ring strike-ring-2"></span>
+    <span class="strike-axis strike-axis-x"></span>
+    <span class="strike-axis strike-axis-y"></span>
+    <span class="strike-core"></span>
+    <span class="strike-label">SIGNAL LOST</span>
+  `;
+  stage.appendChild(strike);
+  setTimeout(() => strike.remove(), 900);
+}
+
 // ============================================
 // 跃迁效果
 // ============================================
@@ -1115,72 +1243,6 @@ function warpJump(px, py, color) {
 }
 
 // ============================================
-// 升级粒子爆炸
-// ============================================
-function explode(px, py, color) {
-  const canvas = document.querySelector('#starfield');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const stage = document.querySelector('#mapStage');
-  const rect = stage.getBoundingClientRect();
-  const x = (px / 100) * rect.width;
-  const y = (py / 100) * rect.height;
-
-  // 主爆炸粒子
-  const particles = Array.from({ length: 60 }, (_, i) => {
-    const angle = (Math.PI * 2 * i) / 60 + (rand(40) - 20) * 0.02;
-    const speed = rand(8) + 3;
-    return {
-      x, y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      life: 1,
-      decay: (rand(15) + 10) / 1000,
-      size: rand(4) + 2,
-      color,
-    };
-  });
-
-  // 碎片
-  const debris = Array.from({ length: 20 }, () => ({
-    x, y,
-    vx: (rand(20) - 10) * 0.3,
-    vy: (rand(20) - 10) * 0.3,
-    life: 1,
-    decay: (rand(10) + 5) / 1000,
-    size: rand(3) + 1,
-    color: '#fff',
-  }));
-
-  let frame = 0;
-  function tick() {
-    frame++;
-    let alive = false;
-
-    [...particles, ...debris].forEach(p => {
-      if (p.life <= 0) return;
-      alive = true;
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vx *= 0.96;
-      p.vy *= 0.96;
-      p.life -= p.decay;
-      ctx.globalAlpha = p.life;
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    if (alive && frame < 120) {
-      requestAnimationFrame(tick);
-    } else {
-      drawStarfield();
-    }
-  }
-  tick();
-}
-
 // ============================================
 // Linear 连接 UI
 // ============================================
@@ -1213,8 +1275,7 @@ function initLinearUI() {
         renderWarZones();
         renderUnits();
         renderBriefing();
-        const firstEnemy = G.units.find(u => u.faction !== 'vanguard' && u.status !== 'destroyed');
-        if (firstEnemy) selectUnit(firstEnemy.id);
+        renderDetail(null);
       }, 300);
     } catch (err) {
       status.textContent = '× 连接失败: ' + err.message;
@@ -1278,12 +1339,12 @@ function boot() {
     initMap();
     applyMap();
 
+    showLoading('启动 WIP 计时器...', 85);
+    startWipTimer();
+    updateWipUI();
+
     showLoading('部署完成', 100);
-    setTimeout(() => {
-      hideLoading();
-      const first = G.units.find(u => u.faction !== 'vanguard' && u.status !== 'destroyed');
-      if (first) selectUnit(first.id);
-    }, 600);
+    setTimeout(() => hideLoading(), 600);
   } catch (err) {
     console.error('[GV] BOOT FAILED:', err);
     showLoading('系统启动失败: ' + err.message, 0);
@@ -1292,6 +1353,6 @@ function boot() {
   }
 }
 
-window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, G, Linear, LinearAPI };
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, deploy: deployShip, G, Linear, LinearAPI };
 window.addEventListener('resize', drawStarfield);
 boot();
