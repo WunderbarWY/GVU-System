@@ -25,6 +25,23 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key')
 
+    def do_GET(self):
+        if self.path == '/api/config' or self.path == '/api/config/':
+            key = ''
+            if os.path.exists(API_KEY_FILE):
+                try:
+                    with open(API_KEY_FILE, 'r') as f:
+                        key = f.read().strip()
+                except:
+                    pass
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_cors()
+            self.end_headers()
+            self.wfile.write(json.dumps({'apiKey': key}).encode())
+            return
+        super().do_GET()
+
     def do_POST(self):
         if self.path == '/api/linear' or self.path == '/api/linear/':
             try:

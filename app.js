@@ -111,9 +111,13 @@ const Linear = {
 // ============================================
 // Linear API 模块
 // ============================================
+function cleanKey(key) {
+  return (key || '').replace(/[^\x20-\x7E]/g, '').trim();
+}
+
 const LinearAPI = {
   endpoint: '/api/linear',
-  key: localStorage.getItem('gv_linear_key') || '',
+  key: cleanKey(localStorage.getItem('gv_linear_key')),
 
   async query(q, vars = {}) {
     const res = await fetch(this.endpoint, {
@@ -1294,7 +1298,7 @@ function initLinearUI() {
   if (LinearAPI.key) input.value = LinearAPI.key;
 
   async function tryConnect() {
-    const key = input.value.trim();
+    const key = cleanKey(input.value);
     if (!key) { status.textContent = '请输入 API Key'; status.style.color = '#ff3f52'; return; }
 
     status.textContent = '正在连接 Linear...';
@@ -1340,8 +1344,9 @@ function initLinearUI() {
       const res = await fetch('/api/config');
       const cfg = await res.json();
       if (cfg.apiKey && cfg.apiKey.startsWith('lin_api_')) {
-        input.value = cfg.apiKey;
-        LinearAPI.key = cfg.apiKey;
+        const clean = cleanKey(cfg.apiKey);
+        input.value = clean;
+        LinearAPI.key = clean;
         tryConnect();
         return;
       }
