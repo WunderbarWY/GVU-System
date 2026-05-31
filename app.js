@@ -24,10 +24,10 @@ const CONFIG = {
 };
 
 const FACTIONS = {
-  vanguard: { name: '银河先遣队', role: '玩家势力', domain: '已控制航道', color: '#4da3ff', glow: 'rgba(77,163,255,0.85)', territory: '地球、水星周围航道' },
-  egov: { name: '地球联合政府', role: '商业战线敌军', domain: '商业活动', color: '#17d7b6', glow: 'rgba(23,215,182,0.82)', territory: '月球、金星周围航道' },
-  jupiter: { name: '木星兵团', role: '创作战线敌军', domain: '创作线活动', color: '#ffd251', glow: 'rgba(255,210,81,0.78)', territory: '木星、土星航道' },
-  remnant: { name: '星际遗民', role: '混乱势力', domain: '杂事与拖延', color: '#ff3f52', glow: 'rgba(255,63,82,0.86)', territory: '冥王星、无人航道' },
+  vanguard: { name: '银河先遣队', role: '玩家势力', domain: '', color: '#4da3ff', glow: 'rgba(77,163,255,0.85)', territory: '地球、水星周围航道' },
+  egov: { name: '地球联合政府', role: '', domain: '', color: '#17d7b6', glow: 'rgba(23,215,182,0.82)', territory: '月球、金星周围航道' },
+  jupiter: { name: '木星兵团', role: '', domain: '', color: '#ffd251', glow: 'rgba(255,210,81,0.78)', territory: '木星、土星航道' },
+  remnant: { name: '星际遗民', role: '', domain: '', color: '#ff3f52', glow: 'rgba(255,63,82,0.86)', territory: '冥王星、无人航道' },
 };
 
 const SHIP_CLASSES = {
@@ -40,10 +40,10 @@ const SHIP_CLASSES = {
 };
 
 const NATO_NAMES = {
-  vanguard: ['Alpha','Beta','Gamma','Delta','Epsilon','Zeta','Eta','Theta','Iota','Kappa','Lambda','Mu','Nu','Xi','Omicron','Pi','Rho','Sigma','Tau','Upsilon','Phi','Chi','Psi','Omega','Orion','Draco','Cassiopeia','Andromeda','Perseus','Cygnus','Lyra','Aquila','Hercules','Pegasus','Phoenix','Leo','Scorpio','Virgo','Gemini','Aries','Taurus','Libra','Capricorn','Sagittarius','Cancer','Antares','Altair','Deneb','Vega','Spica','Arcturus','Betelgeuse','Rigel','Sirius','Canopus','Procyon','Achernar','Hadar','Fomalhaut','Pollux','Regulus','Castor','Aldebaran','Dubhe','Merak','Alioth','Mizar','Alkaid','Megrez','Phecda'],
-  egov: ['Beryl','Jade','Opal','Quartz','Amber','Coral','Garnet','Topaz','Sapphire','Emerald','Ruby','Amethyst','Pearl','Onyx','Obsidian','Malachite','Lapis','Turquoise','Agate','Jasper','Flint','Granite','Marble','Slate','Basalt','Pumice','Gypsum','Feldspar','Mica','Talc','Ivory','Jet','Zircon','Citrine','Tourmaline','Peridot','Alexandrite','Moonstone','Sunstone','Bloodstone','Carnelian','Chalcedony','Chrysoprase','Hematite','Magnetite','Pyrite','Galena','Bauxite','Magnetite','Graphite','Diamond'],
-  jupiter: ['Pulsar','Nova','Quasar','Nebula','Supernova','Comet','Asteroid','Meteor','Eclipse','Solstice','Equinox','Zenith','Nadir','Apex','Aurora','Corona','Prominence','Flare','Burst','Cluster','Void','Singularity','Horizon','Abyss','Cosmos','Galaxy','Orbit','Axis','Pole',' Meridian','Equator','Tropic','Zenith','Apogee','Perigee','Aphelion','Perihelion','Node','Libration','Precession','Parallax','Refraction','Aberration','Doppler','Redshift','Blueshift','Parallax','Nutation','Obliquity','Eccentricity'],
-  remnant: ['Gale','Tempest','Squall','Monsoon','Typhoon','Cyclone','Hurricane','Blizzard','Avalanche','Tsunami','Torrent','Deluge','Drought','Frost','Thaw','Mist','Fog','Haze','Smog','Dust','Ash','Ember','Spark','Flame','Blaze','Inferno','Scorch','Sear','Char','Cinder','Surge','Ripple','Tide','Current','Eddy','Vortex','Whirlwind','Dustdevil','Firestorm','Heatwave','Coldfront','Warmfront','Drizzle','Sleet','Hail','Icestorm','Snowdrift','Drift','Shift','Quake','Aftershock'],
+  vanguard: ['阿尔法','贝塔','伽马','德尔塔','艾普西隆','泽塔','伊塔','西塔','约塔','卡帕','拉姆达','缪','纽','克西','奥米克戎','派','柔','西格玛','陶','宇普西隆','斐','希','普西','欧米伽','猎户','天龙','仙后','仙女','英仙','天鹅','天琴','天鹰','武仙','飞马','凤凰','狮子','天蝎','室女','双子','白羊','金牛','天秤','摩羯','射手','巨蟹','心宿二','牛郎','天津四','织女','角宿一','大角','参宿四','参宿七','天狼','老人','南河三','水委一','马腹一','北落师门','北河三','轩辕十四','北河二','毕宿五','天枢','天璇','玉衡','开阳','摇光','天权','天玑'],
+  egov: ['翡翠','琥珀','珊瑚','石榴石','黄玉','蓝宝石','祖母绿','红宝石','紫水晶','珍珠','缟玛瑙','黑曜石','孔雀石','青金石','绿松石','玛瑙','碧玉','燧石','花岗岩','大理石','板岩','玄武岩','浮石','石膏','长石','云母','滑石','象牙','煤玉','锆石','黄水晶','电气石','橄榄石','变石','月光石','日光石','血石','红玉髓','玉髓','绿玉髓','赤铁矿','磁铁矿','黄铁矿','方铅矿','铝土矿','石墨','钻石','蛋白石','石英'],
+  jupiter: ['脉冲星','新星','类星体','星云','超新星','彗星','小行星','流星','日食','至日','分日','天顶','天底','顶点','极光','日冕','日珥','耀斑','爆发','星团','虚空','奇点','地平线','深渊','宇宙','星系','轨道','轴','极','子午线','赤道','回归线','远地点','近地点','远日点','近日点','交点','天平动','岁差','视差','折射','光行差','多普勒','红移','蓝移','章动','倾角','离心率'],
+  remnant: ['疾风','暴风雨','飑','季风','台风','气旋','飓风','暴风雪','雪崩','海啸','洪流','大洪水','干旱','霜冻','解冻','薄雾','浓雾','霾','烟雾','尘','灰烬','余烬','火花','火焰','烈焰','炼狱','焦土','灼烧','炭','煤渣',' surge','涟漪','潮汐','洋流','漩涡','涡旋','旋风','尘卷','火风暴','热浪','冷锋','暖锋','毛毛雨','冰雨','冰雹','冰暴','雪堆','漂移','变换','地震','余震'],
 };
 
 const WAR_TEMPLATES = {
@@ -168,17 +168,14 @@ function detectFaction(issue) {
     issue.title || '',
   ].join(' ').toLowerCase();
 
-  const biz = ['商业','business','客户','client','销售','sales','合作','partnership','合同','contract','报价','市场','marketing','提案','pitch','谈判','营收','revenue'];
   const cre = ['创作','creative','写作','write','小说','novel','设计','design','内容','content','文案','copy','视频','video','博客','blog','策划','编辑','产品','product'];
-  const ch = ['杂务','chore','日常','daily','行政','admin','邮件','email','清理','clean','维护','maint','报销','expense','整理','归档'];
 
-  for (const w of biz) if (text.includes(w)) return 'egov';
+  // 含"野居"字样 或 创作相关 → 木星兵团
+  if (text.includes('野居')) return 'jupiter';
   for (const w of cre) if (text.includes(w)) return 'jupiter';
-  for (const w of ch) if (text.includes(w)) return 'remnant';
 
-  if (issue.priority === 1) return 'egov';
-  if (issue.priority === 2) return 'jupiter';
-  return 'remnant';
+  // 其余全部 → 地球联合政府（星际遗民作为备用，不自动分配）
+  return 'egov';
 }
 
 function mapLinearState(name, type) {
@@ -373,8 +370,16 @@ function deployShip(classType, customName) {
   renderDetail(ship.id);
 }
 
+function formatTime(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
 function updateWipUI() {
   const d = WIPStore.get();
+
+  // 右侧面板
   const el = document.querySelector('#wipDisplay');
   if (el) {
     el.innerHTML = `
@@ -383,8 +388,18 @@ function updateWipUI() {
         <span style="font-size:11px;color:var(--muted);">WIP 工时</span>
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:2px;">
-        今日在线 +${d.todayOnline}/60 | Streak: ${d.killStreak}
+        今日在线 ${formatTime(d.todayOnline)} / 01:00 | Streak: ${d.killStreak}
       </div>
+    `;
+  }
+
+  // 地图 HUD
+  const hud = document.querySelector('#wipHUD');
+  if (hud) {
+    hud.innerHTML = `
+      <span style="font-size:13px;font-weight:700;color:#ffd251;">${d.total} WIP</span>
+      <span style="font-size:11px;color:var(--muted);">今日 ${formatTime(d.todayOnline)}</span>
+      <span style="font-size:11px;color:${d.killStreak >= 3 ? '#ff3f52' : 'var(--muted)'};">Streak ${d.killStreak}</span>
     `;
   }
 
@@ -725,8 +740,7 @@ function renderFactions() {
   el.innerHTML = Object.values(FACTIONS).map(f => `
     <div class="faction">
       <span class="swatch" style="--color:${f.color}"></span>
-      <div><strong>${f.name}</strong><span>${f.domain}</span></div>
-      <small>${f.role}</small>
+      <div><strong>${f.name}</strong></div>
     </div>
   `).join('');
 }
@@ -811,32 +825,6 @@ function renderBriefing() {
     html += r.work.todo.map(t => briefRow(t, '#ffd251', `剩${t.days}天`)).join('');
   }
   html += `</div>`;
-
-  // 战区控制度
-  const control = calculateControl();
-  html += `
-    <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(172,219,255,0.12);">
-      <p style="color:var(--muted);font-size:11px;margin:0 0 8px;font-family:var(--font-display);">战区控制度</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-        <div style="padding:6px 8px;border-radius:3px;background:rgba(77,163,255,0.08);border-left:2px solid #4da3ff;">
-          <span style="font-size:11px;color:var(--muted);">先遣队</span>
-          <span style="display:block;font-size:16px;font-family:var(--font-display);color:#4da3ff;">${control.vanguard.control}%</span>
-        </div>
-        <div style="padding:6px 8px;border-radius:3px;background:rgba(23,215,182,0.06);border-left:2px solid #17d7b6;">
-          <span style="font-size:11px;color:var(--muted);">商业线</span>
-          <span style="display:block;font-size:16px;font-family:var(--font-display);color:#17d7b6;">${control.egov.control}%</span>
-        </div>
-        <div style="padding:6px 8px;border-radius:3px;background:rgba(255,210,81,0.06);border-left:2px solid #ffd251;">
-          <span style="font-size:11px;color:var(--muted);">创作线</span>
-          <span style="display:block;font-size:16px;font-family:var(--font-display);color:#ffd251;">${control.jupiter.control}%</span>
-        </div>
-        <div style="padding:6px 8px;border-radius:3px;background:rgba(255,63,82,0.06);border-left:2px solid #ff3f52;">
-          <span style="font-size:11px;color:var(--muted);">混乱区</span>
-          <span style="display:block;font-size:16px;font-family:var(--font-display);color:#ff3f52;">${control.remnant.control}%</span>
-        </div>
-      </div>
-    </div>
-  `;
 
   el.innerHTML = html;
 
@@ -1093,33 +1081,6 @@ function renderWarZones() {
     `;
     mapStage?.appendChild(aura);
   });
-}
-
-// ============================================
-// 战区控制度系统
-// ============================================
-function calculateControl() {
-  const enemies = G.units.filter(u => u.faction !== 'vanguard' && u.status !== 'destroyed');
-  const total = enemies.length + G.units.filter(u => u.faction === 'vanguard').length;
-
-  const control = {
-    vanguard: { control: 0, ships: 0 },
-    egov: { control: 0, ships: 0 },
-    jupiter: { control: 0, ships: 0 },
-    remnant: { control: 0, ships: 0 },
-  };
-
-  G.units.forEach(u => {
-    if (u.status !== 'destroyed') {
-      control[u.faction].ships++;
-    }
-  });
-
-  Object.keys(control).forEach(f => {
-    control[f].control = total > 0 ? Math.round((control[f].ships / total) * 100) : 0;
-  });
-
-  return control;
 }
 
 // ============================================
