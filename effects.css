@@ -309,3 +309,105 @@
   animation: none;
   opacity: 0.5;
 }
+
+/* ============================================================
+   v2.3 战史系统 — Combat Log 样式
+   ============================================================ */
+
+.wh-stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(232,251,255,0.06);
+}
+
+.wh-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 48px;
+}
+
+.wh-stat-val {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ff3f52;
+  font-family: var(--font-display);
+  text-shadow: 0 0 8px rgba(255,63,82,0.25);
+}
+
+.wh-stat-label {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.wh-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wh-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(232,251,255,0.04);
+}
+
+.wh-item:last-child {
+  border-bottom: none;
+}
+
+.wh-time {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: "Courier New", monospace;
+  min-width: 32px;
+  opacity: 0.6;
+}
+
+.wh-time.today {
+  color: #ffd251;
+  opacity: 1;
+}
+
+.wh-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.wh-text {
+  flex: 1;
+  color: rgba(232,251,255,0.8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wh-text strong {
+  font-weight: 600;
+}
+
+.wh-class {
+  font-size: 9px;
+  color: var(--muted);
+  margin-left: 4px;
+  opacity: 0.7;
+}
+
+.wh-wip {
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffd251;
+  font-family: var(--font-display);
+  min-width: 28px;
+  text-align: right;
+}

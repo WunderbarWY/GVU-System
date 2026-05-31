@@ -6,6 +6,34 @@
 
 ---
 
+## 2026-05-31 — v2.3 战史系统（Combat Log + 统计面板）
+
+### 新增的
+- **WarHistoryStore**：localStorage 持久化战史记录
+  - `recordKill(unit, wipEarned)` — 击沉时自动记录（飞船名/舰型/势力/位置/WIP）
+  - `recordDeploy(ship)` — 部署时自动记录
+  - `recordSync(added, removed)` — Linear 同步时自动记录新威胁/撤离
+  - 统计：`totalKills`、`todayKills`、`todayWip`、`byFaction`
+  - 最多保留 50 条记录，自动淘汰旧记录
+- **战史面板 UI**：右侧面板新增"战史记录"区域（红色左边框）
+  - 顶部统计行：今日击沉 / 总计 / 今日 WIP
+  - 记录列表：时间线样式，彩色状态点区分事件类型
+    - 红色点 = 击沉敌舰
+    - 蓝色点 = 部署友舰
+    - 黄色点 = 新威胁探测
+    - 青色点 = 敌舰撤离
+  - 今日记录时间高亮金色
+- **自动记录时机**：
+  - `completeMission()` → `WarHistoryStore.recordKill()` + `renderWarHistory()`
+  - `deployShip()` → `WarHistoryStore.recordDeploy()` + `renderWarHistory()`
+  - `StarshipSync.applyIncremental()` → `WarHistoryStore.recordSync()` + `renderWarHistory()`
+
+### 暴露到全局
+- `window.__game.WarHistoryStore` — 调试接口
+- `window.__game.renderWarHistory` — 手动刷新面板
+
+---
+
 ## 2026-05-31 — v2.2 飞船动画系统（rAF 游戏循环 + 轨道预留）
 
 ### 新增的

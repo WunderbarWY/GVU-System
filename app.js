@@ -359,6 +359,122 @@ const WIPStore = {
   },
 };
 
+// ============================================
+// 战史系统 v2.3 — 战斗记录与统计
+// ============================================
+const WarHistoryStore = {
+  _key: 'gv_war_history',
+  _maxRecords: 50,
+
+  load() {
+    try { return JSON.parse(localStorage.getItem(this._key)) || { records: [], stats: {} }; } catch { return { records: [], stats: {} }; }
+  },
+  save(data) { localStorage.setItem(this._key, JSON.stringify(data)); },
+
+  get() {
+    const data = this.load();
+    const today = new Date().toISOString().split('T')[0];
+    if (!data.records) data.records = [];
+    if (!data.stats) data.stats = {};
+    if (data.stats.date !== today) {
+      data.stats.date = today;
+      data.stats.todayKills = 0;
+      data.stats.todayWip = 0;
+    }
+    return data;
+  },
+
+  // 记录一次击沉
+  recordKill(unit, wipEarned) {
+    const data = this.get();
+    const now = new Date();
+    data.records.unshift({
+      id: 'wh-k-' + now.getTime(),
+      type: 'kill',
+      time: now.toISOString(),
+      shipName: unit.name,
+      shipClass: SHIP_CLASSES[unit.shipClass]?.label || unit.shipClass,
+      faction: unit.faction,
+      factionName: FACTIONS[unit.faction]?.name || unit.faction,
+      missionTitle: unit.mission?.title || '',
+      missionId: unit.mission?.linearId || '',
+      wipEarned: wipEarned || 0,
+      location: nearestPlanet(unit.x, unit.y),
+    });
+    if (data.records.length > this._maxRecords) data.records.pop();
+
+    data.stats.totalKills = (data.stats.totalKills || 0) + 1;
+    data.stats.todayKills = (data.stats.todayKills || 0) + 1;
+    data.stats.todayWip = (data.stats.todayWip || 0) + (wipEarned || 0);
+    this._incFactionStat(data.stats, unit.faction);
+    this.save(data);
+    return data;
+  },
+
+  // 记录一次部署
+  recordDeploy(ship) {
+    const data = this.get();
+    const now = new Date();
+    data.records.unshift({
+      id: 'wh-d-' + now.getTime(),
+      type: 'deploy',
+      time: now.toISOString(),
+      shipName: ship.name,
+      shipClass: SHIP_CLASSES[ship.shipClass]?.label || ship.shipClass,
+      faction: 'vanguard',
+      factionName: FACTIONS.vanguard.name,
+      wipSpent: DEPLOY_COSTS[ship.shipClass] || 0,
+    });
+    if (data.records.length > this._maxRecords) data.records.pop();
+    this.save(data);
+    return data;
+  },
+
+  // 记录同步事件（新威胁/撤离）
+  recordSync(added, removed) {
+    const data = this.get();
+    const now = new Date();
+    if (added > 0) {
+      data.records.unshift({
+        id: 'wh-s-' + now.getTime(),
+        type: 'sync-in',
+        time: now.toISOString(),
+        count: added,
+        desc: `探测到 ${added} 艘新敌舰`,
+      });
+    }
+    if (removed > 0) {
+      data.records.unshift({
+        id: 'wh-s-' + (now.getTime() + 1),
+        type: 'sync-out',
+        time: now.toISOString(),
+        count: removed,
+        desc: `${removed} 艘敌舰已撤离`,
+      });
+    }
+    while (data.records.length > this._maxRecords) data.records.pop();
+    this.save(data);
+    return data;
+  },
+
+  _incFactionStat(stats, faction) {
+    if (!stats.byFaction) stats.byFaction = {};
+    stats.byFaction[faction] = (stats.byFaction[faction] || 0) + 1;
+  },
+
+  getStats() {
+    return this.get().stats;
+  },
+
+  getRecords(limit = 8) {
+    return this.get().records.slice(0, limit);
+  },
+
+  clear() {
+    this.save({ records: [], stats: {} });
+  },
+};
+
 // 在线计时器（每分钟 +1 WIP，每日上限 60）
 let _wipTimer = null;
 function startWipTimer() {
@@ -410,6 +526,9 @@ function deployShip(classType, customName) {
 
   WIPStore.addDeployed(ship);
   G.units.push(ship);
+
+  WarHistoryStore.recordDeploy(ship);
+  renderWarHistory();
 
   updateWipUI();
   renderUnits();
@@ -871,6 +990,8 @@ const StarshipSync = {
     renderBriefing();
     if (diff.added.length > 0 || diff.removed.length > 0) {
       showSyncToast(diff.added.length, diff.removed.length);
+      WarHistoryStore.recordSync(diff.added.length, diff.removed.length);
+      renderWarHistory();
     }
   },
 };
@@ -1130,6 +1251,75 @@ function generateReport() {
 }
 
 // ============================================
+// 战史面板渲染 v2.3
+// ============================================
+function renderWarHistory() {
+  const el = document.querySelector('#warHistoryDisplay');
+  if (!el) return;
+
+  const stats = WarHistoryStore.getStats();
+  const records = WarHistoryStore.getRecords(6);
+  const today = new Date().toISOString().split('T')[0];
+
+  let html = '';
+
+  // 统计行
+  html += `<div class="wh-stats">`;
+  html += `<div class="wh-stat"><span class="wh-stat-val">${stats.todayKills || 0}</span><span class="wh-stat-label">今日击沉</span></div>`;
+  html += `<div class="wh-stat"><span class="wh-stat-val">${stats.totalKills || 0}</span><span class="wh-stat-label">总计</span></div>`;
+  html += `<div class="wh-stat"><span class="wh-stat-val">${stats.todayWip || 0}</span><span class="wh-stat-label">今日WIP</span></div>`;
+  html += `</div>`;
+
+  // 记录列表
+  if (records.length === 0) {
+    html += `<p class="muted" style="font-size:12px;margin-top:8px;">暂无战史记录</p>`;
+  } else {
+    html += `<div class="wh-list">`;
+    for (const r of records) {
+      const time = new Date(r.time);
+      const timeStr = `${String(time.getHours()).padStart(2,'0')}:${String(time.getMinutes()).padStart(2,'0')}`;
+      const isToday = r.time.startsWith(today);
+
+      if (r.type === 'kill') {
+        const fcolor = FACTIONS[r.faction]?.color || '#e8fbff';
+        html += `
+          <div class="wh-item kill">
+            <span class="wh-time${isToday ? ' today' : ''}">${timeStr}</span>
+            <span class="wh-dot" style="background:${fcolor};box-shadow:0 0 6px ${fcolor}40;"></span>
+            <span class="wh-text">击沉 <strong style="color:${fcolor}">${r.shipName}</strong> <span class="wh-class">${r.shipClass}</span></span>
+            ${r.wipEarned ? `<span class="wh-wip">+${r.wipEarned}</span>` : ''}
+          </div>`;
+      } else if (r.type === 'deploy') {
+        html += `
+          <div class="wh-item deploy">
+            <span class="wh-time${isToday ? ' today' : ''}">${timeStr}</span>
+            <span class="wh-dot" style="background:#4da3ff;box-shadow:0 0 6px rgba(77,163,255,0.25);"></span>
+            <span class="wh-text">部署 <strong style="color:#4da3ff">${r.shipName}</strong> <span class="wh-class">${r.shipClass}</span></span>
+            <span class="wh-wip" style="color:#ff3f52;">-${r.wipSpent || 0}</span>
+          </div>`;
+      } else if (r.type === 'sync-in') {
+        html += `
+          <div class="wh-item sync">
+            <span class="wh-time${isToday ? ' today' : ''}">${timeStr}</span>
+            <span class="wh-dot" style="background:#ffd251;box-shadow:0 0 6px rgba(255,210,81,0.25);"></span>
+            <span class="wh-text">${r.desc}</span>
+          </div>`;
+      } else if (r.type === 'sync-out') {
+        html += `
+          <div class="wh-item sync">
+            <span class="wh-time${isToday ? ' today' : ''}">${timeStr}</span>
+            <span class="wh-dot" style="background:#17d7b6;box-shadow:0 0 6px rgba(23,215,182,0.25);"></span>
+            <span class="wh-text">${r.desc}</span>
+          </div>`;
+      }
+    }
+    html += `</div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+// ============================================
 // 同步状态 Toast 通知
 // ============================================
 function showSyncToast(added, removed) {
@@ -1204,6 +1394,10 @@ async function completeMission(unitId) {
   // WIP 奖励
   const wipGain = WIPStore.addKill(u.mission.estimate);
   updateWipUI();
+
+  // 战史记录（持久化）
+  WarHistoryStore.recordKill(u, wipGain);
+  renderWarHistory();
 
   // 延迟刷新
   setTimeout(() => {
@@ -1957,6 +2151,7 @@ function boot() {
     renderWarZones();
     renderUnits();
     renderBriefing();
+    renderWarHistory();
     initMap();
     applyMap();
 
@@ -1977,6 +2172,6 @@ function boot() {
   }
 }
 
-window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, deploy: deployShip, G, Linear, LinearAPI, StarshipSync, AnimationEngine };
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, deploy: deployShip, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory };
 window.addEventListener('resize', drawStarfield);
 boot();
