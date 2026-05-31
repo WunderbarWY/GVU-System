@@ -222,11 +222,11 @@ function mapLinearIssues(rawIssues) {
 // WIP 工时系统（Work In Progress Points）
 // ============================================
 const DEPLOY_COSTS = {
-  raider: 15,
-  destroyer: 30,
-  cruiser: 60,
-  battleship: 100,
-  flagship: 200,
+  raider: 30,
+  destroyer: 60,
+  cruiser: 120,
+  battleship: 220,
+  flagship: 450,
 };
 
 const WIPStore = {
@@ -343,8 +343,13 @@ function deployShip(classType, customName) {
   if (!WIPStore.canDeploy(cost)) { alert(`WIP 不足，需要 ${cost} 点`); return; }
 
   const used = new Set(G.units.map(x => x.name));
-  const name = customName?.trim() || genShipName('vanguard', used);
-  if (used.has(name)) { alert('该舰名已存在'); return; }
+  let name = customName?.trim();
+  if (name) {
+    // 自定义名字才检查重复
+    if (used.has(name)) { alert('该舰名已存在'); return; }
+  } else {
+    name = genShipName('vanguard', used);
+  }
 
   WIPStore.spend(cost);
 
@@ -446,6 +451,8 @@ function genShipName(faction, used) {
     name = pick(pool) + '-' + (rand(99) + 1);
     tries++;
   } while (used.has(name) && tries < 100);
+  // 100 次全冲突则追加随机后缀确保唯一
+  if (used.has(name)) name += '-' + (rand(999) + 1);
   used.add(name);
   return name;
 }
