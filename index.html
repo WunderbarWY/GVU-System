@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>银河先遣队作战指挥台</title>
-    <link rel="stylesheet" href="./styles.css?v=unitpreview-2" />
-    <link rel="stylesheet" href="./effects.css?v=unitpreview-2" />
+    <link rel="stylesheet" href="./styles.css?v=shipmotion-1" />
+    <link rel="stylesheet" href="./effects.css?v=shipmotion-1" />
   </head>
   <body>
     <!-- 加载画面 -->
@@ -163,11 +163,11 @@
           <div style="margin-top:10px;">
             <p style="font-size:11px;color:var(--muted);margin:0 0 6px;">部署新舰</p>
             <div style="display:flex;gap:4px;flex-wrap:wrap;">
-              <button data-deploy-cost="30" onclick="window.__game.deploy('raider', '')" style="padding:6px 10px;border:1px solid rgba(232,251,255,0.15);border-radius:4px;background:rgba(232,251,255,0.05);color:#e8fbff;font-family:var(--font-display);font-size:11px;cursor:pointer;">袭扰艇 30</button>
-              <button data-deploy-cost="60" onclick="window.__game.deploy('destroyer', '')" style="padding:6px 10px;border:1px solid rgba(232,251,255,0.15);border-radius:4px;background:rgba(232,251,255,0.05);color:#e8fbff;font-family:var(--font-display);font-size:11px;cursor:pointer;">驱逐舰 60</button>
-              <button data-deploy-cost="120" onclick="window.__game.deploy('cruiser', '')" style="padding:6px 10px;border:1px solid rgba(232,251,255,0.15);border-radius:4px;background:rgba(232,251,255,0.05);color:#e8fbff;font-family:var(--font-display);font-size:11px;cursor:pointer;">巡洋舰 120</button>
-              <button data-deploy-cost="220" onclick="window.__game.deploy('battleship', '')" style="padding:6px 10px;border:1px solid rgba(232,251,255,0.15);border-radius:4px;background:rgba(232,251,255,0.05);color:#e8fbff;font-family:var(--font-display);font-size:11px;cursor:pointer;">战列舰 220</button>
-              <button data-deploy-cost="450" onclick="window.__game.deploy('flagship', '')" style="padding:6px 10px;border:1px solid #ffd251;border-radius:4px;background:rgba(255,210,81,0.1);color:#ffd251;font-family:var(--font-display);font-size:11px;cursor:pointer;">旗舰 450</button>
+              <button data-deploy-cost="30" onclick="window.__game.openDeployModal('raider')" style="padding:6px 10px;border:1px solid rgba(232,251,255,0.15);border-radius:4px;background:rgba(232,251,255,0.05);color:#e8fbff;font-family:var(--font-display);font-size:11px;cursor:pointer;">袭扰艇 30</button>
+              <button data-deploy-cost="60" onclick="window.__game.openDeployModal('destroyer')" style="padding:6px 10px;border:1px solid rgba(232,251,255,0.15);border-radius:4px;background:rgba(232,251,255,0.05);color:#e8fbff;font-family:var(--font-display);font-size:11px;cursor:pointer;">驱逐舰 60</button>
+              <button data-deploy-cost="120" onclick="window.__game.openDeployModal('cruiser')" style="padding:6px 10px;border:1px solid rgba(232,251,255,0.15);border-radius:4px;background:rgba(232,251,255,0.05);color:#e8fbff;font-family:var(--font-display);font-size:11px;cursor:pointer;">巡洋舰 120</button>
+              <button data-deploy-cost="220" onclick="window.__game.openDeployModal('battleship')" style="padding:6px 10px;border:1px solid rgba(232,251,255,0.15);border-radius:4px;background:rgba(232,251,255,0.05);color:#e8fbff;font-family:var(--font-display);font-size:11px;cursor:pointer;">战列舰 220</button>
+              <button data-deploy-cost="450" onclick="window.__game.openDeployModal('flagship')" style="padding:6px 10px;border:1px solid #ffd251;border-radius:4px;background:rgba(255,210,81,0.1);color:#ffd251;font-family:var(--font-display);font-size:11px;cursor:pointer;">旗舰 450</button>
             </div>
           </div>
         </section>
@@ -190,6 +190,59 @@
       </aside>
     </main>
 
-    <script src="./app.js?v=unitpreview-2"></script>
+    <!-- 舰船部署弹窗 -->
+    <div id="deployModal" class="deploy-modal" style="display:none;">
+      <div class="deploy-backdrop"></div>
+      <div class="deploy-card">
+        <div class="deploy-header">
+          <span class="deploy-badge">WIP 消耗 <strong id="deployCostBadge">30</strong></span>
+          <h3>舰船部署</h3>
+          <button class="deploy-close" onclick="window.__game.closeDeployModal()">✕</button>
+        </div>
+        <div class="deploy-body">
+          <div class="deploy-preview">
+            <div class="deploy-ship-icon" id="deployShipIcon"></div>
+            <div class="deploy-class-label" id="deployClassLabel">袭扰艇</div>
+          </div>
+          <div class="deploy-fields">
+            <div class="deploy-field">
+              <label>舰名</label>
+              <div class="deploy-input-wrap">
+                <input type="text" id="deployName" placeholder="输入舰名" maxlength="12" />
+                <button class="deploy-random" onclick="window.__game.randomDeployName()" title="随机命名">🎲</button>
+              </div>
+            </div>
+            <div class="deploy-field">
+              <label>指挥官</label>
+              <input type="text" id="deployCommander" placeholder="输入指挥官姓名" maxlength="12" />
+            </div>
+            <div class="deploy-field">
+              <label>所属编队</label>
+              <select id="deploySquadron">
+                <option value="第一特遣队">第一特遣队 — 地球轨道防御</option>
+                <option value="第二巡逻队">第二巡逻队 — 外围警戒</option>
+                <option value="深空侦察队">深空侦察队 — 前沿探测</option>
+                <option value="机动打击群">机动打击群 — 快速反应</option>
+              </select>
+            </div>
+            <div class="deploy-field">
+              <label>部署扇区</label>
+              <div class="deploy-sectors" id="deploySectors">
+                <button class="sector-btn active" data-dx="-8" data-dy="-6" onclick="window.__game.selectDeploySector(this)">α 北天区</button>
+                <button class="sector-btn" data-dx="8" data-dy="-6" onclick="window.__game.selectDeploySector(this)">β 东天区</button>
+                <button class="sector-btn" data-dx="-8" data-dy="6" onclick="window.__game.selectDeploySector(this)">γ 西天区</button>
+                <button class="sector-btn" data-dx="8" data-dy="6" onclick="window.__game.selectDeploySector(this)">δ 南天区</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="deploy-footer">
+          <button class="deploy-cancel" onclick="window.__game.closeDeployModal()">取消</button>
+          <button class="deploy-confirm" onclick="window.__game.confirmDeploy()">确认部署</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="./app.js?v=shipmotion-1"></script>
   </body>
 </html>

@@ -494,45 +494,194 @@ function startWipTimer() {
 // ============================================
 // 舰队部署系统
 // ============================================
-function deployShip(classType, customName) {
-  const cost = DEPLOY_COSTS[classType];
-  if (!cost) { alert('未知舰型'); return; }
-  if (!WIPStore.canDeploy(cost)) { alert(`WIP 不足，需要 ${cost} 点`); return; }
+// ============================================
+// 沉浸式舰船部署系统 v2.4
+// ============================================
+let _deployState = { classType: '', cost: 0, dx: -8, dy: -6 };
 
-  const used = new Set(G.units.map(x => x.name));
-  let name = customName?.trim();
-  if (name) {
-    // 自定义名字才检查重复
-    if (used.has(name)) { alert('该舰名已存在'); return; }
-  } else {
-    name = genShipName('vanguard', used);
+function openDeployModal(classType) {
+  const cost = DEPLOY_COSTS[classType];
+  if (!cost) return;
+  if (!WIPStore.canDeploy(cost)) {
+    const statusEl = document.querySelector('#connectStatus');
+    if (statusEl) { statusEl.textContent = `WIP 不足，需要 ${cost} 点`; statusEl.style.color = '#ff3f52'; }
+    return;
   }
 
-  WIPStore.spend(cost);
+  _deployState = { classType, cost, dx: -8, dy: -6 };
 
-  const ship = {
+  // 更新弹窗内容
+  document.getElementById('deployClassLabel').textContent = SHIP_CLASSES[classType].label;
+  document.getElementById('deployCostBadge').textContent = cost;
+  document.getElementById('deployShipIcon').innerHTML = shipIcon(classType);
+
+  // 随机生成默认舰名
+  const used = new Set(G.units.map(x => x.name));
+  document.getElementById('deployName').value = genShipName('vanguard', used);
+  document.getElementById('deployCommander').value = '';
+
+  // 重置扇区选择
+  document.querySelectorAll('#deploySectors .sector-btn').forEach((b, i) => {
+    b.classList.toggle('active', i === 0);
+  });
+  _deployState.dx = -8; _deployState.dy = -6;
+
+  // 显示弹窗
+  const modal = document.getElementById('deployModal');
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => modal.classList.add('is-open'));
+}
+
+function closeDeployModal() {
+  const modal = document.getElementById('deployModal');
+  if (!modal) return;
+  modal.classList.remove('is-open');
+  setTimeout(() => { modal.style.display = 'none'; }, 280);
+}
+
+function randomDeployName() {
+  const used = new Set(G.units.map(x => x.name));
+  document.getElementById('deployName').value = genShipName('vanguard', used);
+}
+
+function selectDeploySector(btn) {
+  document.querySelectorAll('#deploySectors .sector-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _deployState.dx = parseFloat(btn.dataset.dx);
+  _deployState.dy = parseFloat(btn.dataset.dy);
+}
+
+function confirmDeploy() {
+  const name = document.getElementById('deployName').value.trim();
+  const commander = document.getElementById('deployCommander').value.trim();
+  const squadron = document.getElementById('deploySquadron').value;
+
+  if (!name) {
+    const statusEl = document.querySelector('#connectStatus');
+    if (statusEl) { statusEl.textContent = '请输入舰名'; statusEl.style.color = '#ff3f52'; }
+    return;
+  }
+
+  const used = new Set(G.units.map(x => x.name));
+  if (used.has(name)) {
+    const statusEl = document.querySelector('#connectStatus');
+    if (statusEl) { statusEl.textContent = '该舰名已存在'; statusEl.style.color = '#ff3f52'; }
+    return;
+  }
+
+  closeDeployModal();
+
+  // 构建飞船数据
+  const ship = buildShipForDeploy(_deployState.classType, name, commander, squadron);
+
+  // 播放部署动画
+  playDeployAnimation(ship);
+}
+
+function buildShipForDeploy(classType, name, commander, squadron) {
+  WIPStore.spend(_deployState.cost);
+
+  return {
     id: genCode('vanguard', WIPStore.getDeployed().length + 1000),
     name,
     shipClass: classType,
     faction: 'vanguard',
-    x: clamp(CONFIG.EARTH.x + rand(16) - 8, 10, 90),
-    y: clamp(CONFIG.EARTH.y + rand(12) - 6, 10, 90),
+    x: clamp(CONFIG.EARTH.x + _deployState.dx + rand(6) - 3, 10, 90),
+    y: clamp(CONFIG.EARTH.y + _deployState.dy + rand(6) - 3, 10, 90),
     status: 'patrol',
     power: SHIP_CLASSES[classType].powerBase + rand(20) - 5,
     supply: rand(30) + 60,
     morale: rand(20) + 70,
+    commander: commander || '未指定',
+    squadron: squadron || '第一特遣队',
     mission: { title: '巡逻中', status: 'reserve' },
   };
+}
 
-  WIPStore.addDeployed(ship);
+function playDeployAnimation(ship) {
+  const layer = document.querySelector('#unitLayer');
+  const world = document.querySelector('#mapWorld');
+  if (!layer || !world) return;
+
+  const f = FACTIONS.vanguard;
+  const startX = CONFIG.EARTH.x;
+  const startY = CONFIG.EARTH.y;
+
+  // 1. 跃迁轨迹（光束）
+  const trail = document.createElement('div');
+  trail.className = 'deploy-beam';
+  const angle = Math.atan2(ship.y - startY, ship.x - startX) * 180 / Math.PI;
+  const dist = Math.hypot(ship.x - startX, ship.y - startY);
+  trail.style.cssText = `left:${startX}%;top:${startY}%;width:${dist * 1.2}%;transform:rotate(${angle}deg);`;
+  world.appendChild(trail);
+
+  // 2. 发射点闪光
+  StarshipSync.createWarpFlash(startX, startY, f.color);
+
+  // 3. 创建飞船 DOM（初始在地球，缩小隐藏）
+  const el = document.createElement('button');
+  el.className = `unit ship-${ship.shipClass} patrol is-deploying`;
+  el.dataset.id = ship.id;
+  el.type = 'button';
+  el.style.cssText = `left:${startX}%;top:${startY}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:#4da3ff;--ship-size:${SHIP_CLASSES[ship.shipClass]?.size || 34}px;color:${f.color};opacity:0;transform:translate(-50%,-50%) scale(0.2);`;
+  el.innerHTML = `
+    ${shipIcon(ship.shipClass)}
+    <span class="engine-flame deploy-boost" style="background:linear-gradient(180deg, ${f.color}, transparent);"></span>
+    <span class="unit-code">${ship.id}</span>
+    <span class="unit-label">${ship.name}</span>
+  `;
+  layer.appendChild(el);
+
+  // 下一帧触发动画
+  requestAnimationFrame(() => {
+    el.style.transition = 'left 1.6s cubic-bezier(.25,.8,.25,1), top 1.6s cubic-bezier(.25,.8,.25,1), opacity 0.7s ease 0.1s, transform 0.7s cubic-bezier(.2,.8,.2,1) 0.1s';
+    el.style.left = ship.x + '%';
+    el.style.top = ship.y + '%';
+    el.style.opacity = '1';
+    el.style.transform = 'translate(-50%, -50%) scale(1)';
+  });
+
+  // 到达后完成部署
+  setTimeout(() => {
+    // 到达闪光
+    StarshipSync.createWarpFlash(ship.x, ship.y, f.color);
+
+    // 清理动画类
+    el.classList.remove('is-deploying');
+    el.style.transition = '';
+
+    // 引擎恢复正常
+    const flame = el.querySelector('.engine-flame');
+    if (flame) flame.classList.remove('deploy-boost');
+
+    // 轨迹淡出
+    trail.style.opacity = '0';
+    trail.style.transition = 'opacity 0.6s ease';
+    setTimeout(() => trail.remove(), 600);
+
+    // 加入游戏状态
+    finalizeDeploy(ship, el);
+  }, 1700);
+}
+
+function finalizeDeploy(ship, el) {
   G.units.push(ship);
-
+  WIPStore.addDeployed(ship);
   WarHistoryStore.recordDeploy(ship);
   renderWarHistory();
-
   updateWipUI();
-  renderUnits();
   renderDetail(ship.id);
+
+  // 更新 AnimationEngine 缓存
+  AnimationEngine.elCache.set(ship.id, { unit: el, pulse: null, trail: null });
+
+  // 通知
+  const statusEl = document.querySelector('#connectStatus');
+  if (statusEl) {
+    statusEl.textContent = `${ship.name} 已部署至 ${ship.squadron}`;
+    statusEl.style.color = '#17d7b6';
+    setTimeout(() => { statusEl.textContent = ''; }, 4000);
+  }
 }
 
 function formatTime(minutes) {
@@ -1096,9 +1245,9 @@ const AnimationEngine = {
     if (!d) {
       d = {
         phase: Math.random() * Math.PI * 2,
-        ampX: (0.1 + Math.random() * 0.15),
-        ampY: (0.15 + Math.random() * 0.2),
-        freq: (0.25 + Math.random() * 0.35),
+        ampX: (0.28 + Math.random() * 0.34),
+        ampY: (0.24 + Math.random() * 0.32),
+        freq: (0.38 + Math.random() * 0.45),
       };
       this.driftMap.set(unit.id, d);
     }
@@ -1124,6 +1273,21 @@ const AnimationEngine = {
 
     const rx = unit.x + (unit._driftX || 0);
     const ry = unit.y + (unit._driftY || 0);
+    const lastX = unit._renderX ?? rx;
+    const lastY = unit._renderY ?? ry;
+    const vx = rx - lastX;
+    const vy = ry - lastY;
+    const moving = Math.hypot(vx, vy) > 0.002;
+
+    if (moving) {
+      const heading = Math.atan2(vy, vx) * 180 / Math.PI;
+      cached.unit.style.setProperty('--ship-heading', `${heading + 90}deg`);
+      cached.unit.style.setProperty('--motion-opacity', unit.status === 'advancing' ? '0.78' : '0.46');
+      if (cached.trail) {
+        cached.trail.style.setProperty('--angle', `${heading}deg`);
+        cached.trail.style.setProperty('--trail-alpha', unit.status === 'advancing' ? '0.62' : '0.4');
+      }
+    }
 
     cached.unit.style.left = rx + '%';
     cached.unit.style.top = ry + '%';
@@ -1136,6 +1300,8 @@ const AnimationEngine = {
       cached.trail.style.left = (rx - 1.4) + '%';
       cached.trail.style.top = (ry + 1.1) + '%';
     }
+    unit._renderX = rx;
+    unit._renderY = ry;
   },
 
   // ---------- 轨道系统接口（预留） ----------
@@ -1551,8 +1717,8 @@ function renderUnits() {
     const angle = u.faction === 'remnant' ? '-28deg' : u.faction === 'jupiter' ? '18deg' : '-12deg';
 
     return `
-      ${!isV ? `<span class="threat-pulse" style="left:${u.x}%;top:${u.y}%;--radius:${threat}px;--unit-color:${crit ? '#ff3f52' : f.color}"></span>` : ''}
-      ${!isV ? `<span class="unit-trail" style="left:${u.x - 1.4}%;top:${u.y + 1.1}%;--trail-width:${54 + u.power * 0.32}px;--angle:${angle};--unit-color:${f.color}"></span>` : ''}
+      ${!isV ? `<span class="threat-pulse" data-unit-id="${u.id}" style="left:${u.x}%;top:${u.y}%;--radius:${threat}px;--unit-color:${crit ? '#ff3f52' : f.color}"></span>` : ''}
+      ${!isV ? `<span class="unit-trail" data-unit-id="${u.id}" style="left:${u.x - 1.4}%;top:${u.y + 1.1}%;--trail-width:${54 + u.power * 0.32}px;--angle:${angle};--unit-color:${f.color}"></span>` : ''}
       <button class="unit ship-${u.shipClass} ${u.status} ${G.selectedId === u.id ? 'is-selected' : ''}"
         data-id="${u.id}" type="button"
         style="left:${u.x}%;top:${u.y}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};--ship-size:${SHIP_CLASSES[u.shipClass]?.size || 34}px;color:${f.color}">
@@ -1784,6 +1950,10 @@ function renderDetail(id) {
       <div class="tag-pills">
         <span class="tag-pill">${SHIP_CLASSES[u.shipClass].label}</span>
         <span class="tag-pill">${u.status === 'patrol' ? '巡逻' : u.status}</span>
+      </div>
+      <div class="vanguard-info">
+        <div class="vg-row"><span class="vg-label">指挥官</span><span class="vg-value">${u.commander || '未指定'}</span></div>
+        <div class="vg-row"><span class="vg-label">所属编队</span><span class="vg-value">${u.squadron || '第一特遣队'}</span></div>
       </div>
       <p style="color:var(--muted);font-size:12px;margin-top:10px;">银河先遣队 ${SHIP_CLASSES[u.shipClass].label}，${u.status === 'patrol' ? '正在地球周围巡逻' : '待命'}。</p>
     `;
@@ -2227,6 +2397,6 @@ function boot() {
   }
 }
 
-window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, deploy: deployShip, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory };
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, deploy: deployShip, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory };
 window.addEventListener('resize', drawStarfield);
 boot();

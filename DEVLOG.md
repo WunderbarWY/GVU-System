@@ -6,6 +6,34 @@
 
 ---
 
+## 2026-05-31 — v2.4 沉浸式舰船部署系统
+
+### 新增的
+- **部署弹窗**：点击部署按钮不再直接生成飞船，而是打开科幻风格创建面板
+  - 舰型预览（飞船 SVG 图标 + 舰型名称）
+  - 舰名输入（支持自定义，🎲 按钮随机生成 NATO 中文名）
+  - 指挥官输入
+  - 所属编队选择（第一特遣队 / 第二巡逻队 / 深空侦察队 / 机动打击群）
+  - 部署扇区选择（α北天区 / β东天区 / γ西天区 / δ南天区）
+  - WIP 消耗实时显示
+- **部署动画**：从地球发射跃迁光束，飞船沿轨迹飞入目标扇区
+  - `deploy-beam` 光束轨迹（scaleX 动画）
+  - 飞船初始在地球位置，scale 0.2 + opacity 0
+  - 1.6s cubic-bezier 平滑移动到目标位置
+  - 到达时 warpFlash 闪光 + 引擎恢复正常
+  - 完整动画时长约 1.7s
+- **飞船数据扩展**：新增 `commander`（指挥官）和 `squadron`（所属编队）字段
+- **详情面板扩展**：友方飞船详情新增指挥官和编队信息行（蓝色左边框）
+
+### 暴露到全局
+- `window.__game.openDeployModal(classType)`
+- `window.__game.closeDeployModal()`
+- `window.__game.randomDeployName()`
+- `window.__game.selectDeploySector(btn)`
+- `window.__game.confirmDeploy()`
+
+---
+
 ## 2026-05-31 — v2.3.1 点击系统稳定性修复
 
 ### 修复的问题

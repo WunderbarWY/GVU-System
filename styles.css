@@ -2071,6 +2071,9 @@ body::after {
   stroke: color-mix(in srgb, var(--unit-color), white 58%);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
+  transform: rotate(var(--ship-heading, 0deg));
+  transform-origin: center;
+  transition: transform 520ms cubic-bezier(.2,.8,.2,1);
   filter:
     drop-shadow(0 0 5px color-mix(in srgb, var(--unit-color), transparent 45%))
     drop-shadow(0 2px 3px rgba(0,0,0,0.72));
@@ -2152,8 +2155,48 @@ body::after {
 }
 
 .unit-trail {
-  opacity: 0.26;
-  filter: none;
+  height: 2px;
+  opacity: var(--trail-alpha, 0.4);
+  background:
+    linear-gradient(90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--unit-color), transparent 74%) 38%,
+      color-mix(in srgb, var(--unit-color), white 16%) 78%,
+      transparent 100%);
+  filter:
+    drop-shadow(0 0 5px color-mix(in srgb, var(--unit-color), transparent 42%))
+    drop-shadow(0 0 12px color-mix(in srgb, var(--unit-color), transparent 68%));
+  mix-blend-mode: screen;
+}
+
+.unit-trail::after {
+  content: "";
+  position: absolute;
+  right: 10%;
+  top: 50%;
+  width: 34%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--unit-color), white 34%), transparent);
+  opacity: 0.75;
+  transform: translateY(-50%);
+  animation: coursePulse 1.35s linear infinite;
+}
+
+@keyframes coursePulse {
+  0% { translate: -70% 0; opacity: 0; }
+  22% { opacity: 0.86; }
+  100% { translate: 52% 0; opacity: 0; }
+}
+
+.unit.advancing .engine-flame {
+  width: 10px;
+  height: 22px;
+  opacity: var(--motion-opacity, 0.78);
+  filter: blur(2px) drop-shadow(0 0 8px var(--unit-color));
+}
+
+.unit.stationed .engine-flame {
+  opacity: var(--motion-opacity, 0.38);
 }
 
 .threat-pulse {
