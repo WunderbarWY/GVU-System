@@ -6,6 +6,32 @@
 
 ---
 
+## 2026-05-31 — v2.2 飞船动画系统（rAF 游戏循环 + 轨道预留）
+
+### 新增的
+- **AnimationEngine**：`requestAnimationFrame` 驱动的游戏主循环
+  - `start()/stop()` 控制循环生命周期
+  - `warmCache()` 预热 DOM 引用，避免每帧 querySelector
+  - `tick(now)`：计算 dt，更新所有飞船位置，刷新 DOM
+- **敌方飞船自主移动**：
+  - 逾期飞船持续向地球推进（速度 = `od * ADVANCE_RATE * 0.006`）
+  - 推进到 `CRITICAL_DISTANCE` 内停止（不会重叠地球）
+- **漂移系统（替代 CSS shipFloat）**：
+  - 每艘飞船独立的正弦波漂移参数（phase/ampX/ampY/freq）
+  - 选中时漂移幅度自动减小到 20%（聚焦感）
+  - 友方漂移幅度 ×0.6（更稳重）
+- **轨道系统预留接口**：
+  - `registerOrbit(unitId, cx, cy, radius, speed)` — 单飞船圆形轨道
+  - `registerFactionOrbit(faction, radius, speed)` — 批量按势力注册轨道
+  - `unregisterOrbit(unitId)` / `clearAllOrbits()` — 清理
+  - 轨道上的飞船位置 = `cx + cos(θ)*r, cy + sin(θ)*r`
+
+### 改的
+- **移除 CSS shipFloat**：`effects.css` 中的 `animation: shipFloat` 已注释掉，完全由 JS 驱动
+- **transform 冲突解决**：CSS animation 和 JS rAF 不再抢 transform，统一由 AnimationEngine 控制
+
+---
+
 ## 2026-05-31 — v2.1 Create星舰系统（实时同步引擎）
 
 ### 新增的

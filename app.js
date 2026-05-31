@@ -876,6 +876,179 @@ const StarshipSync = {
 };
 
 // ============================================
+// Animation Engine v2.2 — 飞船自主移动 + 轨道系统预留
+// 用 rAF 驱动所有飞船动画，替代纯 CSS shipFloat
+// ============================================
+const AnimationEngine = {
+  frameId: null,
+  lastTime: 0,
+  running: false,
+  orbitMap: new Map(),      // unitId -> { cx, cy, radius, angle, speed }
+  driftMap: new Map(),      // unitId -> { phase, ampX, ampY, freq, speed }
+  elCache: new Map(),       // unitId -> { unit, pulse, trail }
+
+  start() {
+    if (this.running) return;
+    this.running = true;
+    this.lastTime = performance.now();
+    this.warmCache();
+    this.frameId = requestAnimationFrame(t => this.tick(t));
+    console.log('[GV] AnimationEngine started');
+  },
+
+  stop() {
+    this.running = false;
+    if (this.frameId) cancelAnimationFrame(this.frameId);
+    this.frameId = null;
+  },
+
+  warmCache() {
+    // 预热 DOM 缓存，避免每帧 querySelector
+    this.elCache.clear();
+    G.units.forEach(unit => {
+      if (unit.status === 'destroyed') return;
+      const u = document.querySelector(`.unit[data-id="${cssEscape(unit.id)}"]`);
+      if (u) {
+        const p = document.querySelector(`.threat-pulse[data-unit-id="${cssEscape(unit.id)}"]`);
+        const t = document.querySelector(`.unit-trail[data-unit-id="${cssEscape(unit.id)}"]`);
+        this.elCache.set(unit.id, { unit: u, pulse: p, trail: t });
+      }
+    });
+  },
+
+  tick(now) {
+    if (!this.running) return;
+    const dt = Math.min((now - this.lastTime) / 1000, 0.1); // cap at 100ms
+    this.lastTime = now;
+
+    G.units.forEach(unit => {
+      if (unit.status === 'destroyed') return;
+      if (unit.faction === 'vanguard') {
+        this.updateVanguard(unit, dt);
+      } else {
+        this.updateEnemy(unit, dt);
+      }
+      this.updateDOM(unit);
+    });
+
+    this.frameId = requestAnimationFrame(t => this.tick(t));
+  },
+
+  // ---------- 友方飞船 ----------
+  updateVanguard(unit, dt) {
+    const orbit = this.orbitMap.get(unit.id);
+    if (orbit) {
+      // 轨道运动
+      orbit.angle += orbit.speed * dt;
+      unit.x = orbit.cx + Math.cos(orbit.angle) * orbit.radius;
+      unit.y = orbit.cy + Math.sin(orbit.angle) * orbit.radius;
+    }
+    // 友方也有漂移，但幅度更小
+    this.applyDrift(unit, dt, 0.6);
+    unit.advanceDist = distToEarth(unit.x, unit.y);
+  },
+
+  // ---------- 敌方飞船 ----------
+  updateEnemy(unit, dt) {
+    const od = unit.mission?.overdue || 0;
+
+    // 逾期飞船持续向地球推进
+    if (od > 0 && unit.advanceDist > CONFIG.CRITICAL_DISTANCE) {
+      const dx = CONFIG.EARTH.x - unit.x;
+      const dy = CONFIG.EARTH.y - unit.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const speed = od * CONFIG.ADVANCE_RATE * 0.006;
+      unit.x += (dx / d) * speed * dt * 60;
+      unit.y += (dy / d) * speed * dt * 60;
+      unit.x = clamp(unit.x, 5, 95);
+      unit.y = clamp(unit.y, 5, 95);
+      unit.advanceDist = distToEarth(unit.x, unit.y);
+    }
+
+    // 巡逻漂移（替代 CSS shipFloat）
+    this.applyDrift(unit, dt, 1.0);
+  },
+
+  // ---------- 漂移系统（替代 CSS shipFloat） ----------
+  applyDrift(unit, dt, scale = 1.0) {
+    let d = this.driftMap.get(unit.id);
+    if (!d) {
+      d = {
+        phase: Math.random() * Math.PI * 2,
+        ampX: (0.1 + Math.random() * 0.15),
+        ampY: (0.15 + Math.random() * 0.2),
+        freq: (0.25 + Math.random() * 0.35),
+      };
+      this.driftMap.set(unit.id, d);
+    }
+    // 选中时漂移减小
+    const selectedScale = (G.selectedId === unit.id) ? 0.2 : 1.0;
+    d.phase += d.freq * dt;
+    unit._driftX = Math.sin(d.phase) * d.ampX * scale * selectedScale;
+    unit._driftY = Math.cos(d.phase * 0.73) * d.ampY * scale * selectedScale;
+  },
+
+  // ---------- DOM 更新 ----------
+  updateDOM(unit) {
+    const cached = this.elCache.get(unit.id);
+    if (!cached || !cached.unit.isConnected) {
+      // 缓存失效，尝试重建
+      const u = document.querySelector(`.unit[data-id="${cssEscape(unit.id)}"]`);
+      if (!u) return;
+      const p = document.querySelector(`.threat-pulse[data-unit-id="${cssEscape(unit.id)}"]`);
+      const t = document.querySelector(`.unit-trail[data-unit-id="${cssEscape(unit.id)}"]`);
+      this.elCache.set(unit.id, { unit: u, pulse: p, trail: t });
+      return this.updateDOM(unit); // 递归一次
+    }
+
+    const rx = unit.x + (unit._driftX || 0);
+    const ry = unit.y + (unit._driftY || 0);
+
+    cached.unit.style.left = rx + '%';
+    cached.unit.style.top = ry + '%';
+
+    if (cached.pulse) {
+      cached.pulse.style.left = rx + '%';
+      cached.pulse.style.top = ry + '%';
+    }
+    if (cached.trail) {
+      cached.trail.style.left = (rx - 1.4) + '%';
+      cached.trail.style.top = (ry + 1.1) + '%';
+    }
+  },
+
+  // ---------- 轨道系统接口（预留） ----------
+  registerOrbit(unitId, centerX, centerY, radius, speed = 0.4) {
+    this.orbitMap.set(unitId, {
+      cx: centerX, cy: centerY, radius,
+      angle: Math.random() * Math.PI * 2,
+      speed,
+    });
+    console.log('[GV] Orbit registered:', unitId, 'r=', radius, 'speed=', speed);
+  },
+
+  unregisterOrbit(unitId) {
+    this.orbitMap.delete(unitId);
+  },
+
+  // 批量注册轨道（按势力区域）
+  registerFactionOrbit(faction, radius = 12, speed = 0.3) {
+    const zone = spawnZone(faction);
+    const cx = (zone.x[0] + zone.x[1]) / 2;
+    const cy = (zone.y[0] + zone.y[1]) / 2;
+    G.units.filter(u => u.faction === faction && u.status !== 'destroyed').forEach((u, i) => {
+      const r = radius + i * 3;
+      const spd = speed * (0.8 + Math.random() * 0.4);
+      this.registerOrbit(u.id, cx, cy, r, spd);
+    });
+  },
+
+  clearAllOrbits() {
+    this.orbitMap.clear();
+  },
+};
+
+// ============================================
 // 敌军反扑引擎
 // ============================================
 function processAdvance() {
@@ -1791,6 +1964,9 @@ function boot() {
     startWipTimer();
     updateWipUI();
 
+    showLoading('启动飞船动画引擎...', 92);
+    AnimationEngine.start();
+
     showLoading('部署完成', 100);
     setTimeout(() => hideLoading(), 600);
   } catch (err) {
@@ -1801,6 +1977,6 @@ function boot() {
   }
 }
 
-window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, deploy: deployShip, G, Linear, LinearAPI, StarshipSync };
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, deploy: deployShip, G, Linear, LinearAPI, StarshipSync, AnimationEngine };
 window.addEventListener('resize', drawStarfield);
 boot();

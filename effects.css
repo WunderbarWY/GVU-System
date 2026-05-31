@@ -34,23 +34,9 @@
   animation: routeFlow 7s linear infinite;
 }
 
-/* ---------- 舰船浮动 ---------- */
-@keyframes shipFloat {
-  0%, 100% { transform: translate(-50%, -50%) translateY(0px); }
-  25% { transform: translate(-50%, -50%) translateY(-2px); }
-  75% { transform: translate(-50%, -50%) translateY(1px); }
-}
-
-.unit {
-  animation: shipFloat 7s ease-in-out infinite;
-}
-
-.unit:hover,
-.unit.is-selected,
-.map-stage.is-panning .unit {
-  animation: none;
-}
-
+/* ---------- 舰船浮动（已由 AnimationEngine v2.2 JS 驱动替代） ---------- */
+/* .unit { animation: shipFloat 7s ease-in-out infinite; } */
+/* 保留 paused 规则用于其他动画 */
 .map-stage.is-panning .route,
 .map-stage.is-panning .threat-pulse,
 .map-stage.is-panning .faction-aura,
