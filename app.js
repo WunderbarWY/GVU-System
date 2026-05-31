@@ -116,16 +116,25 @@ function cleanKey(key) {
 }
 
 const LinearAPI = {
-  endpoint: '/api/linear',
+  endpoint: () => (window.location.origin || '') + '/api/linear',
   key: cleanKey(localStorage.getItem('gv_linear_key')),
 
   async query(q, vars = {}) {
-    const res = await fetch(this.endpoint, {
+    const url = this.endpoint();
+    const body = JSON.stringify({ query: q, variables: vars });
+    console.log('[GV] POST', url, 'key length:', this.key.length);
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Api-Key': this.key },
-      body: JSON.stringify({ query: q, variables: vars }),
+      body,
     });
-    return res.json();
+    const text = await res.text();
+    console.log('[GV] response status:', res.status, 'type:', res.headers.get('content-type'), 'body first 80:', text.slice(0, 80));
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error(`Server returned HTML instead of JSON (status ${res.status}). URL: ${url}. Body: ${text.slice(0, 100)}`);
+    }
   },
 
   async fetchIssues() {
@@ -730,12 +739,57 @@ function drawStarfield() {
   c.height = r.height * ratio;
   ctx.scale(ratio, ratio);
   ctx.clearRect(0, 0, r.width, r.height);
-  for (let i = 0; i < 220; i++) {
-    ctx.fillStyle = `rgba(232,251,255,${rand(70) * 0.01 + 0.12})`;
+
+  const seedRand = (() => {
+    let seed = 928371;
+    return () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+  })();
+
+  const addGlow = (x, y, radius, color) => {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    g.addColorStop(0, color);
+    g.addColorStop(0.42, color.replace(/[\d.]+\)$/u, '0.045)'));
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.arc(rand(r.width), rand(r.height), rand(16) * 0.1 + 0.3, 0, Math.PI * 2);
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  addGlow(r.width * 0.22, r.height * 0.36, r.width * 0.34, 'rgba(53,92,126,0.12)');
+  addGlow(r.width * 0.72, r.height * 0.58, r.width * 0.28, 'rgba(31,82,91,0.08)');
+  addGlow(r.width * 0.48, r.height * 0.5, r.width * 0.18, 'rgba(160,112,52,0.06)');
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (let i = 0; i < 360; i++) {
+    const depth = seedRand();
+    const x = seedRand() * r.width;
+    const y = seedRand() * r.height;
+    const size = 0.25 + depth * 1.15;
+    const alpha = 0.05 + depth * 0.34;
+    const tint = seedRand() > 0.82 ? '190,222,245' : '218,232,242';
+    ctx.fillStyle = `rgba(${tint},${alpha})`;
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  for (let i = 0; i < 42; i++) {
+    const x = seedRand() * r.width;
+    const y = seedRand() * r.height;
+    const length = 10 + seedRand() * 34;
+    ctx.strokeStyle = `rgba(120,154,184,${0.018 + seedRand() * 0.035})`;
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + length, y + (seedRand() - 0.5) * 6);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function renderPlanets() {
@@ -1341,7 +1395,8 @@ function initLinearUI() {
   // 自动连接策略：先查服务器配置文件（跨端口持久化），再查 localStorage
   async function autoConnect() {
     try {
-      const res = await fetch('/api/config');
+      const configUrl = (window.location.origin || '') + '/api/config';
+      const res = await fetch(configUrl);
       const cfg = await res.json();
       if (cfg.apiKey && cfg.apiKey.startsWith('lin_api_')) {
         const clean = cleanKey(cfg.apiKey);
