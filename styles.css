@@ -247,6 +247,148 @@ button {
   text-transform: uppercase;
 }
 
+/* ============================================
+   任务详情面板 — 新排版
+   ============================================ */
+.mission-card {
+  padding: 12px 14px;
+  margin: 12px 0;
+  background: rgba(4, 10, 20, 0.6);
+  border-left: 3px solid var(--accent, #4da3ff);
+  border-radius: 0 4px 4px 0;
+}
+
+.mission-card .mission-title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: #e8fbff;
+  line-height: 1.5;
+}
+
+.mission-card .mission-meta {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-display);
+}
+
+.countdown-bar {
+  padding: 8px 12px;
+  margin: 10px 0;
+  background: rgba(4, 10, 20, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color, #17d7b6);
+  font-family: var(--font-display);
+  letter-spacing: 0.5px;
+}
+
+.tag-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.tag-pill {
+  padding: 4px 10px;
+  border-radius: 3px;
+  background: rgba(77, 163, 255, 0.1);
+  border: 1px solid rgba(77, 163, 255, 0.2);
+  font-size: 11px;
+  color: #a8c4e0;
+  font-family: var(--font-display);
+}
+
+.tag-pill.urgent {
+  background: rgba(255, 63, 82, 0.12);
+  border-color: rgba(255, 63, 82, 0.35);
+  color: #ff8a94;
+}
+
+.tag-pill.high {
+  background: rgba(255, 210, 81, 0.1);
+  border-color: rgba(255, 210, 81, 0.3);
+  color: #ffe08a;
+}
+
+.mission-desc {
+  margin: 12px 0;
+  padding: 10px 0;
+  border-top: 1px solid rgba(137, 174, 205, 0.1);
+}
+
+.mission-desc .desc-label {
+  margin: 0 0 6px;
+  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--font-display);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.mission-desc .desc-text {
+  margin: 0;
+  font-size: 12px;
+  color: #9fb5c8;
+  line-height: 1.7;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 10px 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(137, 174, 205, 0.1);
+}
+
+.info-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.info-grid > div span {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--font-display);
+  letter-spacing: 0.5px;
+}
+
+.info-grid > div strong {
+  font-size: 13px;
+  color: #e8fbff;
+  font-weight: 600;
+}
+
+.history-block {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(137, 174, 205, 0.1);
+}
+
+.history-block .history-label {
+  margin: 0 0 6px;
+  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--font-display);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.history-block .history-item {
+  margin: 3px 0;
+  font-size: 12px;
+  color: #7890a4;
+}
+
 h1,
 h2,
 p {
@@ -2088,6 +2230,69 @@ body::after {
   transform: translate(-50%, -50%);
   color: var(--strike-color);
   mix-blend-mode: screen;
+}
+
+/* v4.3 Route clarity + click-through fix */
+.routes,
+.routes *,
+.route,
+.route * {
+  pointer-events: none !important;
+}
+
+.routes {
+  z-index: 1;
+  overflow: visible;
+  mix-blend-mode: screen;
+}
+
+#unitLayer {
+  z-index: 6;
+}
+
+.route {
+  marker-end: none;
+  vector-effect: non-scaling-stroke;
+  stroke-width: 1.05;
+  stroke-dasharray: 7 18;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.28;
+  filter: none !important;
+  animation: routeFlow 22s linear infinite;
+}
+
+.route-vanguard {
+  stroke: color-mix(in srgb, var(--vanguard), transparent 18%);
+  opacity: 0.36;
+}
+
+.route-egov {
+  stroke: color-mix(in srgb, var(--egov), transparent 22%);
+  opacity: 0.34;
+}
+
+.route-jupiter {
+  stroke: color-mix(in srgb, var(--jupiter), transparent 22%);
+  opacity: 0.32;
+}
+
+.route-remnant {
+  stroke: color-mix(in srgb, var(--remnant), transparent 18%);
+  opacity: 0.34;
+}
+
+.route-neutral {
+  stroke: rgba(135, 158, 178, 0.36);
+  stroke-dasharray: 4 26;
+  opacity: 0.14 !important;
+}
+
+.map-stage:not(.is-panning) .route-vanguard,
+.map-stage:not(.is-panning) .route-egov,
+.map-stage:not(.is-panning) .route-jupiter,
+.map-stage:not(.is-panning) .route-remnant {
+  filter: drop-shadow(0 0 2px currentColor) !important;
 }
 
 .strike-ring,

@@ -198,6 +198,7 @@ function mapLinearIssues(rawIssues) {
       id: issue.identifier,
       linearId: issue.id,
       title: issue.title,
+      description: issue.description || '',
       priority: { 1: 'urgent', 2: 'high', 3: 'medium', 4: 'low', 0: 'low' }[issue.priority] || 'low',
       status,
       due: issue.dueDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
@@ -794,9 +795,13 @@ function renderUnits() {
     `;
   }).join('');
 
-  layer.querySelectorAll('.unit').forEach(btn => {
-    btn.addEventListener('click', () => selectUnit(btn.dataset.id));
-  });
+  layer.onclick = e => {
+    const btn = e.target.closest('.unit');
+    if (!btn || !layer.contains(btn)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    selectUnit(btn.dataset.id);
+  };
 }
 
 function renderBriefing() {
@@ -856,6 +861,39 @@ function selectByMission(linearId) {
   if (u) selectUnit(u.id);
 }
 
+function unitFromPoint(clientX, clientY) {
+  const direct = document.elementsFromPoint(clientX, clientY)
+    .map(el => el.closest?.('.unit'))
+    .find(Boolean);
+  if (direct) return direct;
+
+  let best = null;
+  let bestDist = Infinity;
+  document.querySelectorAll('.unit').forEach(unit => {
+    const rect = unit.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dist = Math.hypot(clientX - cx, clientY - cy);
+    if (dist < bestDist) {
+      best = unit;
+      bestDist = dist;
+    }
+  });
+  return bestDist <= 44 ? best : null;
+}
+
+function selectUnitAtPoint(e) {
+  if (e.target.closest?.('.map-controls, .unit-detail, .command-panel, button:not(.unit)')) return false;
+  const unit = unitFromPoint(e.clientX, e.clientY);
+  if (!unit) return false;
+  e.preventDefault();
+  e.stopPropagation();
+  map.dragging = false;
+  document.querySelector('#mapStage')?.classList.remove('is-panning');
+  selectUnit(unit.dataset.id);
+  return true;
+}
+
 function renderDetail(id) {
   const panel = document.querySelector('#unitDetail');
   if (!panel) return;
@@ -864,7 +902,7 @@ function renderDetail(id) {
     panel.innerHTML = `
       <p class="eyebrow">单位详情</p>
       <h2>请选择舰队</h2>
-      <p class="muted">点击地图上的作战单位，查看它对应的 Linear 待办、战斗力、补给与风险。</p>
+      <p class="muted">点击地图上的作战单位，查看对应的 Linear 任务详情。</p>
     `;
     return;
   }
@@ -874,6 +912,22 @@ function renderDetail(id) {
   const isV = u.faction === 'vanguard';
   const od = u.mission?.overdue || 0;
 
+  // 倒计时文案
+  let countdownText = '', countdownColor = '#17d7b6';
+  if (u.mission?.due) {
+    const days = daysUntil(u.mission.due);
+    if (od > 0) {
+      countdownText = `已逾期 ${od} 天`;
+      countdownColor = '#ff3f52';
+    } else if (days === 0) {
+      countdownText = '今日截止';
+      countdownColor = '#ffd251';
+    } else {
+      countdownText = `距离截止还有 ${days} 天`;
+      countdownColor = days <= 2 ? '#ffd251' : '#17d7b6';
+    }
+  }
+
   let html = `
     <p class="eyebrow">${u.id} / ${f.name} / ${SHIP_CLASSES[u.shipClass].label}</p>
     <h2 class="unit-title" style="--unit-color:${f.color}">${u.name}</h2>
@@ -881,45 +935,63 @@ function renderDetail(id) {
 
   if (!isV && u.mission) {
     const m = u.mission;
+    const priorityLabel = { urgent: '紧急', high: '高优', medium: '普通', low: '低优' }[m.priority] || m.priority;
+    const priorityClass = m.priority === 'urgent' ? 'urgent' : m.priority === 'high' ? 'high' : '';
+
     html += `
-      <div style="border-left:3px solid ${f.color};padding-left:12px;margin:12px 0;">
-        <p style="margin:0 0 4px;font-size:14px;color:#e8fbff;">${m.title}</p>
-        <p style="margin:0;color:var(--muted);font-size:12px;">${m.linearId} · ${m.priority} · 预估${m.estimate}点</p>
+      <div class="mission-card" style="--accent:${f.color}">
+        <p class="mission-title">${m.title}</p>
+        <p class="mission-meta">${m.linearId} · 预估 ${m.estimate || 3} 点</p>
       </div>
-      ${od > 0 ? `<p style="color:#ff3f52;font-size:13px;margin:8px 0;">⚠ 已逾期 ${od} 天 — 敌军正在向地球推进</p>` : ''}
     `;
-  } else if (isV) {
-    html += `<p style="color:#4da3ff;font-size:13px;">银河先遣队巡逻中。选择敌军舰队可查看对应任务详情。</p>`;
-  }
 
-  html += `
-    <div class="tag-row">
-      <span class="tag">${u.name}</span>
-      <span class="tag">${SHIP_CLASSES[u.shipClass].label}</span>
-      <span class="tag">${u.status === 'advancing' ? '推进中' : u.status === 'stationed' ? '驻防' : u.status === 'patrol' ? '巡逻' : u.status}</span>
-      <span class="tag">战力 ${u.power}</span>
-    </div>
-    ${meter('战斗力', u.power, f.color)}
-    ${meter('补给', u.supply, f.color)}
-    ${meter('士气', u.morale, f.color)}
-  `;
+    if (countdownText) {
+      html += `<div class="countdown-bar" style="--color:${countdownColor}">${countdownText}</div>`;
+    }
 
-  if (!isV && u.status !== 'destroyed') {
+    // 标签
+    const allLabels = [priorityLabel, ...(m.labels || [])];
+    if (allLabels.length) {
+      html += `<div class="tag-pills">${allLabels.map(l => `<span class="tag-pill ${priorityClass}">${l}</span>`).join('')}</div>`;
+    }
+
+    // 描述
+    if (m.description) {
+      const desc = m.description.replace(/<[^>]+>/g, '').trim();
+      if (desc) {
+        html += `
+          <div class="mission-desc">
+            <p class="desc-label">任务描述</p>
+            <p class="desc-text">${desc.length > 200 ? desc.slice(0, 200) + '…' : desc}</p>
+          </div>
+        `;
+      }
+    }
+
+    // 信息行
     html += `
-      <div style="margin-top:14px;display:flex;gap:8px;">
-        <button onclick="window.__game.complete('${u.id}')" style="flex:1;padding:10px;border:1px solid #4da3ff;border-radius:4px;background:rgba(77,163,255,0.14);color:#4da3ff;cursor:pointer;font-family:var(--font-display);font-size:13px;">✓ 完成任务</button>
-        <button onclick="window.__game.start('${u.id}')" style="flex:1;padding:10px;border:1px solid rgba(232,251,255,0.2);border-radius:4px;background:rgba(232,251,255,0.05);color:#e8fbff;cursor:pointer;font-family:var(--font-display);font-size:13px;">▶ 开始推进</button>
+      <div class="info-grid">
+        <div><span>截止日期</span><strong>${m.due || '—'}</strong></div>
+        <div><span>预估工时</span><strong>${m.estimate || 3} 点</strong></div>
       </div>
-      <p style="margin:8px 0 0;font-size:11px;color:var(--muted);">💡 纯展示型 — 请在 Linear 中手动更新任务状态，刷新后自动同步</p>
+    `;
+
+  } else if (isV) {
+    html += `
+      <div class="tag-pills">
+        <span class="tag-pill">${SHIP_CLASSES[u.shipClass].label}</span>
+        <span class="tag-pill">${u.status === 'patrol' ? '巡逻' : u.status}</span>
+      </div>
+      <p style="color:var(--muted);font-size:12px;margin-top:10px;">银河先遣队 ${SHIP_CLASSES[u.shipClass].label}，${u.status === 'patrol' ? '正在地球周围巡逻' : '待命'}。</p>
     `;
   }
 
   // 相关战史
   const hist = G.warHistory.filter(h => h.missionId === u.mission?.linearId).slice(0, 3);
   if (hist.length) {
-    html += `<div style="margin-top:14px;"><p style="color:var(--muted);font-size:11px;margin-bottom:6px;font-family:var(--font-display);">作战记录</p>`;
+    html += `<div class="history-block"><p class="history-label">作战记录</p>`;
     hist.forEach(h => {
-      html += `<p style="font-size:12px;color:#7890a4;margin:3px 0;">· 第${h.turn}日 ${h.shipName} 于 ${h.location}</p>`;
+      html += `<p class="history-item">· 第${h.turn}日 ${h.shipName} 于 ${h.location}</p>`;
     });
     html += `</div>`;
   }
@@ -968,7 +1040,9 @@ function initMap() {
     if (!map.dragging) return;
     map.dragging = false;
     stage.classList.remove('is-panning');
-    try { stage.releasePointerCapture(e.pointerId); } catch {}
+    if (e?.pointerId != null) {
+      try { stage.releasePointerCapture(e.pointerId); } catch {}
+    }
   };
   document.querySelectorAll('[data-zoom]').forEach(b => {
     b.addEventListener('click', () => {
@@ -986,6 +1060,7 @@ function initMap() {
     zoom(delta < 0 ? 0.12 : -0.12);
   };
   stage.addEventListener('wheel', onWheel, { passive: false, capture: true });
+  stage.addEventListener('click', selectUnitAtPoint, { capture: true });
   stage.addEventListener('pointerdown', e => {
     if (e.target.closest('.unit, .map-controls')) return;
     map.dragging = true; map.sx = e.clientX; map.sy = e.clientY; map.ox = map.panX; map.oy = map.panY;
@@ -1001,6 +1076,12 @@ function initMap() {
   stage.addEventListener('pointerup', stopDrag);
   stage.addEventListener('pointercancel', stopDrag);
   stage.addEventListener('lostpointercapture', () => {
+    map.dragging = false;
+    stage.classList.remove('is-panning');
+  });
+  window.addEventListener('pointerup', stopDrag);
+  window.addEventListener('pointercancel', stopDrag);
+  window.addEventListener('blur', () => {
     map.dragging = false;
     stage.classList.remove('is-panning');
   });
@@ -1045,14 +1126,21 @@ const EXTRA_ROUTES = [
 function renderWarZones() {
   const svg = document.querySelector('.routes');
   if (!svg) return;
+  svg.style.pointerEvents = 'none';
+  svg.querySelectorAll('[data-dynamic-route="true"]').forEach(el => el.remove());
+  document.querySelectorAll('.faction-aura').forEach(el => el.remove());
 
   // 添加额外航道
   EXTRA_ROUTES.forEach((route, i) => {
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', route.d);
     path.setAttribute('class', 'route route-neutral');
+    path.setAttribute('data-dynamic-route', 'true');
     path.setAttribute('style', 'opacity:0.2;');
     svg.appendChild(path);
+  });
+  svg.querySelectorAll('*').forEach(el => {
+    el.setAttribute('pointer-events', 'none');
   });
 
   // 添加势力光环
