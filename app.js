@@ -804,13 +804,7 @@ function renderBriefing() {
   if (!el) return;
   const r = generateReport();
 
-  let html = `<p style="margin-bottom:10px;color:#e8fbff;line-height:1.6;">${r.narrative}</p>`;
-
-  if (r.counts.critical > 0) {
-    html += `<p style="color:#ff3f52;font-size:13px;margin-bottom:12px;font-family:var(--font-display);">⚠ 防线告急：${r.counts.critical} 支敌军进入高危区域</p>`;
-  } else if (r.counts.advancing > 0) {
-    html += `<p style="color:#ffd251;font-size:13px;margin-bottom:12px;font-family:var(--font-display);">▲ ${r.counts.advancing} 支敌军正在推进</p>`;
-  }
+  let html = '';
 
   // 统计面板
   html += `
@@ -837,20 +831,6 @@ function renderBriefing() {
   html += `</div>`;
 
   el.innerHTML = html;
-
-  const state = document.querySelector('#frontlineState');
-  if (state) {
-    if (r.counts.critical > 0) {
-      state.textContent = `防线告急 · ${r.counts.critical}支逼近`;
-      state.style.color = '#ff3f52';
-    } else if (r.counts.advancing > 0) {
-      state.textContent = `${r.counts.advancing}支敌军推进中`;
-      state.style.color = '#ffd251';
-    } else {
-      state.textContent = '近地防线稳定';
-      state.style.color = '#e8fbff';
-    }
-  }
 }
 
 function briefRow(t, color, label) {
