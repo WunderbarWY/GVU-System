@@ -1555,7 +1555,6 @@ function renderUnits() {
       ${!isV ? `<span class="unit-trail" style="left:${u.x - 1.4}%;top:${u.y + 1.1}%;--trail-width:${54 + u.power * 0.32}px;--angle:${angle};--unit-color:${f.color}"></span>` : ''}
       <button class="unit ship-${u.shipClass} ${u.status} ${G.selectedId === u.id ? 'is-selected' : ''}"
         data-id="${u.id}" type="button"
-        onclick="window.__game.selectUnit('${u.id}')"
         style="left:${u.x}%;top:${u.y}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};--ship-size:${SHIP_CLASSES[u.shipClass]?.size || 34}px;color:${f.color}">
         ${shipIcon(u.shipClass)}
         <span class="engine-flame" style="background:linear-gradient(180deg, ${f.color}, transparent);"></span>
@@ -1564,6 +1563,18 @@ function renderUnits() {
       </button>
     `;
   }).join('');
+
+  // 可靠的事件委托：只绑定一次，永远不会丢失
+  if (!layer._gvClickBound) {
+    layer._gvClickBound = true;
+    layer.addEventListener('click', e => {
+      const btn = e.target.closest('.unit');
+      if (!btn || !layer.contains(btn)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      selectUnit(btn.dataset.id);
+    });
+  }
 }
 
 function renderBriefing() {
@@ -1623,6 +1634,22 @@ function selectByMission(linearId) {
   if (u) selectUnit(u.id);
 }
 
+function previewUnit(id) {
+  const u = G.units.find(x => x.id === id && x.status !== 'destroyed');
+  if (!u) return;
+  document.querySelectorAll('.unit').forEach(b => b.classList.toggle('is-previewed', b.dataset.id === id));
+  renderDetail(id);
+}
+
+function clearUnitPreview(id) {
+  document.querySelectorAll('.unit').forEach(b => b.classList.remove('is-previewed'));
+  if (G.selectedId) {
+    renderDetail(G.selectedId);
+    return;
+  }
+  renderDetail(null);
+}
+
 function unitFromPoint(clientX, clientY) {
   const direct = document.elementsFromPoint(clientX, clientY)
     .map(el => el.closest?.('.unit'))
@@ -1651,6 +1678,9 @@ const CLICK_DRAG_THRESHOLD = 6;
 let _clickStart = { x: 0, y: 0, time: 0 };
 
 function selectUnitAtPoint(e) {
+  // 如果直接点击了飞船，让 layer 事件委托处理（避免双重触发）
+  if (e.target.closest?.('.unit')) return false;
+
   // 拖拽距离检测：如果 pointerdown 后移动超过阈值，不触发点击
   const dx = e.clientX - _clickStart.x;
   const dy = e.clientY - _clickStart.y;
@@ -1785,7 +1815,7 @@ function meter(label, value, color) {
 // ============================================
 // 地图控制（保留 Codex 全部交互）
 // ============================================
-const map = { zoom: 0.32, panX: 0, panY: 0, dragging: false, sx: 0, sy: 0, ox: 0, oy: 0, frame: 0 };
+const map = { zoom: 0.32, panX: 0, panY: 0, dragging: false, sx: 0, sy: 0, ox: 0, oy: 0, frame: 0, hoverId: null };
 function applyMap() {
   const w = document.querySelector('#mapWorld');
   const l = document.querySelector('#zoomLabel');
@@ -1848,10 +1878,24 @@ function initMap() {
     stage.setPointerCapture(e.pointerId);
   });
   stage.addEventListener('pointermove', e => {
-    if (!map.dragging) return;
+    if (!map.dragging) {
+      if (e.target.closest?.('.map-controls, .unit-detail, .command-panel')) return;
+      const unit = unitFromPoint(e.clientX, e.clientY);
+      const id = unit?.dataset.id || null;
+      if (id !== map.hoverId) {
+        map.hoverId = id;
+        if (id) previewUnit(id);
+        else clearUnitPreview();
+      }
+      return;
+    }
     map.panX = map.ox + e.clientX - map.sx;
     map.panY = map.oy + e.clientY - map.sy;
     scheduleMap();
+  });
+  stage.addEventListener('pointerleave', () => {
+    map.hoverId = null;
+    clearUnitPreview();
   });
   stage.addEventListener('pointerup', stopDrag);
   stage.addEventListener('pointercancel', stopDrag);
@@ -2183,6 +2227,6 @@ function boot() {
   }
 }
 
-window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, deploy: deployShip, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory };
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, deploy: deployShip, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory };
 window.addEventListener('resize', drawStarfield);
 boot();

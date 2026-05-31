@@ -18,6 +18,11 @@
 - **`unitFromPoint` 缩放阈值问题**：固定 44px 阈值在远距缩放下过小，导致点击空白处附近无法选中飞船
   - 修复：阈值改为 `44 / Math.max(map.zoom, 0.3)`，缩得越小阈值越大
 
+### 紧急修复（点击完全失效）
+- **根因**：内联 `onclick` + `selectUnitAtPoint` 的 `stopPropagation()` 产生冲突，且 `renderUnits` 重建 DOM 时内联事件处理器丢失
+  - 修复：回滚到可靠的 `addEventListener` 事件委托（`layer._gvClickBound` 标志确保只绑定一次），移除所有内联事件处理器
+  - `selectUnitAtPoint` 增加 `e.target.closest('.unit')` 检查，直接点击飞船时直接 return（让事件委托处理）
+
 ---
 
 ## 2026-05-31 — v2.3 战史系统（Combat Log + 统计面板）

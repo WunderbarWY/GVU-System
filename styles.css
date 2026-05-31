@@ -2084,7 +2084,8 @@ body::after {
 .ship-raider { --ship-size: 32px; }
 
 .unit:hover,
-.unit.is-selected {
+.unit.is-selected,
+.unit.is-previewed {
   transform: translate(-50%, -50%) scale(1.16);
   filter: drop-shadow(0 0 13px color-mix(in srgb, var(--unit-color), transparent 16%));
   box-shadow: none !important;
@@ -2139,7 +2140,9 @@ body::after {
 .unit:hover .unit-code,
 .unit:hover .unit-label,
 .unit.is-selected .unit-code,
-.unit.is-selected .unit-label {
+.unit.is-selected .unit-label,
+.unit.is-previewed .unit-code,
+.unit.is-previewed .unit-label {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
