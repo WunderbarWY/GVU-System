@@ -52,7 +52,6 @@
           </div>
           <div class="status-clock">
             <span>第 <span id="turnCounter">05</span> 作战日</span>
-            <div id="wipHUD" style="display:flex;align-items:center;gap:10px;margin:4px 0;"></div>
             <strong id="frontlineState">近地防线稳定</strong>
           </div>
         </div>
@@ -76,6 +75,27 @@
             <button type="button" data-zoom="reset" aria-label="重置星图">1:1</button>
             <span id="zoomLabel">100%</span>
           </div>
+          <!-- 科幻 WIP 时钟 HUD -->
+          <div class="sci-fi-hud" id="sciFiHud">
+            <div class="hud-corner tl"></div>
+            <div class="hud-corner tr"></div>
+            <div class="hud-corner bl"></div>
+            <div class="hud-corner br"></div>
+            <div class="hud-label">TODAY SESSION</div>
+            <div class="hud-time" id="hudTime">00:00</div>
+            <div class="hud-divider"></div>
+            <div class="hud-wip-row">
+              <div class="hud-wip-block">
+                <span class="hud-wip-value" id="hudWipTotal">0</span>
+                <span class="hud-wip-label">WIP</span>
+              </div>
+              <div class="hud-wip-block">
+                <span class="hud-wip-value" id="hudStreak">0</span>
+                <span class="hud-wip-label">STREAK</span>
+              </div>
+            </div>
+          </div>
+
           <div class="map-world" id="mapWorld">
             <div class="sun" aria-hidden="true"></div>
             <div class="orbit orbit-mercury"></div>

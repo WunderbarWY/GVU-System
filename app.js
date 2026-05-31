@@ -393,14 +393,17 @@ function updateWipUI() {
     `;
   }
 
-  // 地图 HUD
-  const hud = document.querySelector('#wipHUD');
-  if (hud) {
-    hud.innerHTML = `
-      <span style="font-size:13px;font-weight:700;color:#ffd251;">${d.total} WIP</span>
-      <span style="font-size:11px;color:var(--muted);">今日 ${formatTime(d.todayOnline)}</span>
-      <span style="font-size:11px;color:${d.killStreak >= 3 ? '#ff3f52' : 'var(--muted)'};">Streak ${d.killStreak}</span>
-    `;
+  // 地图科幻 HUD
+  const hudTime = document.querySelector('#hudTime');
+  if (hudTime) hudTime.textContent = formatTime(d.todayOnline);
+
+  const hudWip = document.querySelector('#hudWipTotal');
+  if (hudWip) hudWip.textContent = d.total;
+
+  const hudStreak = document.querySelector('#hudStreak');
+  if (hudStreak) {
+    hudStreak.textContent = d.killStreak;
+    hudStreak.classList.toggle('alert', d.killStreak >= 3);
   }
 
   // 更新部署按钮状态
