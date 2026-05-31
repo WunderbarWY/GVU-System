@@ -31,12 +31,12 @@ const FACTIONS = {
 };
 
 const SHIP_CLASSES = {
-  flagship:   { label: '旗舰', size: 36, threat: 120, powerBase: 90 },
-  battleship: { label: '战列舰', size: 33, threat: 100, powerBase: 80 },
-  carrier:    { label: '母舰', size: 33, threat: 90, powerBase: 70 },
-  cruiser:    { label: '巡洋舰', size: 30, threat: 80, powerBase: 65 },
-  destroyer:  { label: '驱逐舰', size: 27, threat: 60, powerBase: 50 },
-  raider:     { label: '袭扰艇', size: 25, threat: 45, powerBase: 35 },
+  flagship:   { label: '旗舰', size: 78, threat: 150, powerBase: 90 },
+  battleship: { label: '战列舰', size: 66, threat: 125, powerBase: 80 },
+  carrier:    { label: '母舰', size: 58, threat: 112, powerBase: 70 },
+  cruiser:    { label: '巡洋舰', size: 50, threat: 94, powerBase: 65 },
+  destroyer:  { label: '驱逐舰', size: 40, threat: 72, powerBase: 50 },
+  raider:     { label: '袭扰艇', size: 32, threat: 54, powerBase: 35 },
 };
 
 const NAME_POOL = {
@@ -75,13 +75,13 @@ const WAR_TEMPLATES = {
 };
 
 const PLANETS = [
-  { name: '水星前哨', x: 37, y: 51, size: 24, color: '#9fb5c8', glow: 'rgba(77,163,255,.55)' },
-  { name: '金星航道', x: 70, y: 29, size: 40, color: '#17d7b6', glow: 'rgba(23,215,182,.6)' },
-  { name: '地球司令部', x: 25, y: 48, size: 56, color: '#4da3ff', glow: 'rgba(77,163,255,.72)' },
-  { name: '月球封锁线', x: 49, y: 40, size: 18, color: '#c8fff6', glow: 'rgba(23,215,182,.72)' },
-  { name: '木星船坞', x: 76, y: 64, size: 86, color: '#ffd251', glow: 'rgba(255,210,81,.62)' },
-  { name: '土星议庭', x: 58, y: 74, size: 70, color: '#d7b14a', glow: 'rgba(255,210,81,.5)', ring: true },
-  { name: '冥王星暗港', x: 22, y: 82, size: 30, color: '#ff3f52', glow: 'rgba(255,63,82,.6)' },
+  { name: '水星前哨', x: 36, y: 50, size: 28, color: '#9fb5c8', glow: 'rgba(77,163,255,.42)' },
+  { name: '金星航道', x: 76, y: 22, size: 48, color: '#17d7b6', glow: 'rgba(23,215,182,.45)' },
+  { name: '地球司令部', x: 22, y: 47, size: 68, color: '#4da3ff', glow: 'rgba(77,163,255,.56)' },
+  { name: '月球封锁线', x: 50, y: 38, size: 20, color: '#c8fff6', glow: 'rgba(23,215,182,.48)' },
+  { name: '木星船坞', x: 85, y: 63, size: 118, color: '#ffd251', glow: 'rgba(255,210,81,.48)' },
+  { name: '土星议庭', x: 55, y: 82, size: 92, color: '#d7b14a', glow: 'rgba(255,210,81,.36)', ring: true },
+  { name: '冥王星暗港', x: 13, y: 88, size: 36, color: '#ff3f52', glow: 'rgba(255,63,82,.4)' },
 ];
 
 // ============================================
@@ -327,9 +327,9 @@ function priorityToClass(p) {
 
 function spawnZone(faction) {
   return {
-    egov: { x: [55, 82], y: [18, 42] },
-    jupiter: { x: [58, 88], y: [55, 82] },
-    remnant: { x: [12, 42], y: [68, 92] },
+    egov: { x: [58, 90], y: [12, 42] },
+    jupiter: { x: [55, 92], y: [54, 88] },
+    remnant: { x: [6, 40], y: [66, 96] },
   }[faction] || { x: [50, 80], y: [50, 80] };
 }
 
@@ -671,12 +671,12 @@ function renderFactions() {
 
 function shipIcon(cls) {
   const p = {
-    flagship: '<path d="M50 6 L68 36 L88 48 L66 54 L58 88 L50 76 L42 88 L34 54 L12 48 L32 36 Z"/><path d="M50 19 L50 68"/><path d="M35 47 L65 47"/>',
-    battleship: '<path d="M50 8 L75 38 L82 66 L59 60 L50 88 L41 60 L18 66 L25 38 Z"/><path d="M33 41 L67 41"/><path d="M39 57 L61 57"/>',
-    carrier: '<path d="M50 10 L84 42 L74 74 L54 65 L50 90 L46 65 L26 74 L16 42 Z"/><path d="M28 45 L72 45"/><path d="M33 57 L67 57"/><path d="M42 31 L58 31"/>',
-    cruiser: '<path d="M50 9 L70 34 L77 61 L58 58 L50 86 L42 58 L23 61 L30 34 Z"/><path d="M38 39 L62 39"/>',
-    destroyer: '<path d="M50 8 L66 35 L71 58 L56 55 L50 84 L44 55 L29 58 L34 35 Z"/><path d="M39 43 L61 43"/>',
-    raider: '<path d="M50 12 L72 52 L58 50 L50 84 L42 50 L28 52 Z"/><path d="M35 38 L22 31"/><path d="M65 38 L78 31"/>',
+    flagship: '<path d="M50 3 L64 24 L88 37 L74 53 L65 84 L50 96 L35 84 L26 53 L12 37 L36 24 Z"/><path d="M50 16 L50 78"/><path d="M28 43 L72 43"/><path d="M36 61 L64 61"/>',
+    battleship: '<path d="M50 5 L74 35 L82 66 L61 61 L50 93 L39 61 L18 66 L26 35 Z"/><path d="M33 39 L67 39"/><path d="M35 56 L65 56"/><path d="M42 72 L58 72"/>',
+    carrier: '<path d="M50 7 L86 38 L77 76 L56 67 L50 94 L44 67 L23 76 L14 38 Z"/><path d="M24 43 L76 43"/><path d="M28 57 L72 57"/><path d="M36 31 L64 31"/>',
+    cruiser: '<path d="M50 7 L68 31 L76 61 L58 58 L50 90 L42 58 L24 61 L32 31 Z"/><path d="M37 39 L63 39"/><path d="M41 56 L59 56"/>',
+    destroyer: '<path d="M50 8 L64 34 L70 60 L56 56 L50 86 L44 56 L30 60 L36 34 Z"/><path d="M39 43 L61 43"/>',
+    raider: '<path d="M50 12 L70 53 L57 50 L50 85 L43 50 L30 53 Z"/><path d="M36 38 L24 32"/><path d="M64 38 L76 32"/>',
   };
   return `<svg class="ship-icon" viewBox="0 0 100 100" aria-hidden="true">${p[cls] || p.destroyer}</svg>`;
 }
@@ -689,22 +689,21 @@ function renderUnits() {
   layer.innerHTML = active.map(u => {
     const f = FACTIONS[u.faction];
     const isV = u.faction === 'vanguard';
-    const threat = isV ? 56 : 58 + u.power * 0.45;
+    const threat = isV ? 72 : 72 + u.power * 0.58;
     const crit = !isV && u.advanceDist < CONFIG.CRITICAL_DISTANCE;
     const adv = u.status === 'advancing';
     const angle = u.faction === 'remnant' ? '-28deg' : u.faction === 'jupiter' ? '18deg' : '-12deg';
 
     return `
       ${!isV ? `<span class="threat-pulse" style="left:${u.x}%;top:${u.y}%;--radius:${threat}px;--unit-color:${crit ? '#ff3f52' : f.color}"></span>` : ''}
-      ${!isV ? `<span class="unit-trail" style="left:${u.x - 1.4}%;top:${u.y + 1.1}%;--trail-width:${40 + u.power * 0.25}px;--angle:${angle};--unit-color:${f.color}"></span>` : ''}
+      ${!isV ? `<span class="unit-trail" style="left:${u.x - 1.4}%;top:${u.y + 1.1}%;--trail-width:${54 + u.power * 0.32}px;--angle:${angle};--unit-color:${f.color}"></span>` : ''}
       <button class="unit ship-${u.shipClass} ${u.status} ${G.selectedId === u.id ? 'is-selected' : ''}"
         data-id="${u.id}" type="button"
-        style="left:${u.x}%;top:${u.y}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};color:${f.color}">
+        style="left:${u.x}%;top:${u.y}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};--ship-size:${SHIP_CLASSES[u.shipClass]?.size || 34}px;color:${f.color}">
         ${shipIcon(u.shipClass)}
         <span class="engine-flame" style="background:linear-gradient(180deg, ${f.color}, transparent);"></span>
         <span class="unit-code">${u.id}</span>
-        <span class="unit-label">${u.name}${crit ? ' ⚠' : ''}</span>
-        ${!isV ? `<span class="status-chip" style="--status-color:${adv ? '#ff3f52' : '#4da3ff'}"></span>` : ''}
+        <span class="unit-label">${u.name}</span>
       </button>
     `;
   }).join('');
@@ -820,6 +819,7 @@ function selectByMission(linearId) {
 function renderDetail(id) {
   const panel = document.querySelector('#unitDetail');
   if (!panel) return;
+  panel.classList.toggle('has-selection', Boolean(id));
   if (!id) {
     panel.innerHTML = `
       <p class="eyebrow">单位详情</p>
@@ -900,7 +900,7 @@ function meter(label, value, color) {
 // ============================================
 // 地图控制（保留 Codex 全部交互）
 // ============================================
-const map = { zoom: 0.58, panX: 0, panY: 0, dragging: false, sx: 0, sy: 0, ox: 0, oy: 0, frame: 0 };
+const map = { zoom: 0.32, panX: 0, panY: 0, dragging: false, sx: 0, sy: 0, ox: 0, oy: 0, frame: 0 };
 function applyMap() {
   const w = document.querySelector('#mapWorld');
   const l = document.querySelector('#zoomLabel');
@@ -919,8 +919,8 @@ function scheduleMap() {
     applyMap();
   });
 }
-function zoom(d) { map.zoom = clamp(map.zoom + d, 0.35, 2.4); scheduleMap(); }
-function resetMap() { map.zoom = 0.58; map.panX = 0; map.panY = 0; applyMap(); }
+function zoom(d) { map.zoom = clamp(map.zoom + d, 0.26, 2.4); scheduleMap(); }
+function resetMap() { map.zoom = 0.32; map.panX = 0; map.panY = 0; applyMap(); }
 function initMap() {
   const stage = document.querySelector('#mapStage');
   if (!stage) return;
