@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-05-31 — v2.3.1 点击系统稳定性修复
+
+### 修复的问题
+- **双重事件绑定冲突**：`renderUnits()` 的 `layer.onclick` 事件委托 + `initMap()` 的 `stage.capture click` 同时存在，导致偶发重复触发或遗漏
+  - 修复：移除 `layer.onclick`，改为每个飞船按钮直接内联 `onclick="window.__game.selectUnit('...')"`
+- **threat-pulse 穿透误拖拽**：威胁圈是 `pointer-events:none`，pointerdown 事件穿透到 `#mapStage`，误开始拖拽
+  - 修复：`pointerdown` 中用 `document.elementsFromPoint` 检查点击位置是否有飞船，有则直接 return 不开始拖拽
+- **拖拽/点击冲突**：轻微移动鼠标后释放，click 事件仍然触发选中
+  - 修复：`selectUnitAtPoint` 增加拖拽距离检测（`CLICK_DRAG_THRESHOLD = 6px`），pointerdown 和 click 之间移动超过 6px 不算点击
+- **`unitFromPoint` 缩放阈值问题**：固定 44px 阈值在远距缩放下过小，导致点击空白处附近无法选中飞船
+  - 修复：阈值改为 `44 / Math.max(map.zoom, 0.3)`，缩得越小阈值越大
+
+---
+
 ## 2026-05-31 — v2.3 战史系统（Combat Log + 统计面板）
 
 ### 新增的

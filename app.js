@@ -1555,6 +1555,7 @@ function renderUnits() {
       ${!isV ? `<span class="unit-trail" style="left:${u.x - 1.4}%;top:${u.y + 1.1}%;--trail-width:${54 + u.power * 0.32}px;--angle:${angle};--unit-color:${f.color}"></span>` : ''}
       <button class="unit ship-${u.shipClass} ${u.status} ${G.selectedId === u.id ? 'is-selected' : ''}"
         data-id="${u.id}" type="button"
+        onclick="window.__game.selectUnit('${u.id}')"
         style="left:${u.x}%;top:${u.y}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};--ship-size:${SHIP_CLASSES[u.shipClass]?.size || 34}px;color:${f.color}">
         ${shipIcon(u.shipClass)}
         <span class="engine-flame" style="background:linear-gradient(180deg, ${f.color}, transparent);"></span>
@@ -1563,14 +1564,6 @@ function renderUnits() {
       </button>
     `;
   }).join('');
-
-  layer.onclick = e => {
-    const btn = e.target.closest('.unit');
-    if (!btn || !layer.contains(btn)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    selectUnit(btn.dataset.id);
-  };
 }
 
 function renderBriefing() {
@@ -1648,10 +1641,21 @@ function unitFromPoint(clientX, clientY) {
       bestDist = dist;
     }
   });
-  return bestDist <= 44 ? best : null;
+  // 缩放感知阈值：缩得越小小，阈值越大（确保远距缩放下也能点到）
+  const threshold = 44 / Math.max(map.zoom, 0.3);
+  return bestDist <= threshold ? best : null;
 }
 
+// 拖拽距离检测 — click 和 pointerdown 之间移动超过此距离不算点击
+const CLICK_DRAG_THRESHOLD = 6;
+let _clickStart = { x: 0, y: 0, time: 0 };
+
 function selectUnitAtPoint(e) {
+  // 拖拽距离检测：如果 pointerdown 后移动超过阈值，不触发点击
+  const dx = e.clientX - _clickStart.x;
+  const dy = e.clientY - _clickStart.y;
+  if (Math.hypot(dx, dy) > CLICK_DRAG_THRESHOLD) return false;
+
   if (e.target.closest?.('.map-controls, .unit-detail, .command-panel, button:not(.unit)')) return false;
   const unit = unitFromPoint(e.clientX, e.clientY);
   if (!unit) return false;
@@ -1831,7 +1835,14 @@ function initMap() {
   stage.addEventListener('wheel', onWheel, { passive: false, capture: true });
   stage.addEventListener('click', selectUnitAtPoint, { capture: true });
   stage.addEventListener('pointerdown', e => {
-    if (e.target.closest('.unit, .map-controls')) return;
+    // 记录 click 起点（用于拖拽距离检测）
+    _clickStart = { x: e.clientX, y: e.clientY, time: Date.now() };
+
+    // 用 elementsFromPoint 检查点击位置是否有飞船（避免 threat-pulse 等 pointer-events:none 元素穿透）
+    const hasUnit = document.elementsFromPoint(e.clientX, e.clientY)
+      .some(el => el.closest?.('.unit'));
+    if (hasUnit || e.target.closest('.unit, .map-controls')) return;
+
     map.dragging = true; map.sx = e.clientX; map.sy = e.clientY; map.ox = map.panX; map.oy = map.panY;
     stage.classList.add('is-panning');
     stage.setPointerCapture(e.pointerId);
