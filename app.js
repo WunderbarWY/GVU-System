@@ -116,11 +116,37 @@ function cleanKey(key) {
 }
 
 const LinearAPI = {
-  endpoint: () => (window.location.origin || '') + '/api/linear',
+  endpoint: 'http://localhost:5180/api/linear',
   key: cleanKey(localStorage.getItem('gv_linear_key')),
+  pollingId: null,
+  isPolling: false,
+  lastSyncTime: 0,
+
+  startPolling(interval = 30000) {
+    this.stopPolling();
+    this.isPolling = true;
+    this.pollingId = setInterval(async () => {
+      if (!this.key) { this.stopPolling(); return; }
+      try {
+        await this.sync();
+        StarshipSync.applyIncremental();
+      } catch (err) {
+        console.error('[GV] Polling sync failed:', err);
+      }
+    }, interval);
+    console.log('[GV] Auto-sync polling started:', interval + 'ms');
+  },
+
+  stopPolling() {
+    if (this.pollingId) {
+      clearInterval(this.pollingId);
+      this.pollingId = null;
+    }
+    this.isPolling = false;
+  },
 
   async query(q, vars = {}) {
-    const url = this.endpoint();
+    const url = this.endpoint;
     const body = JSON.stringify({ query: q, variables: vars });
     console.log('[GV] POST', url, 'key length:', this.key.length);
     const res = await fetch(url, {
@@ -169,6 +195,7 @@ const LinearAPI = {
     const mapped = mapLinearIssues(raw);
     Linear.issues = mapped.issues;
     Linear.done = mapped.done;
+    this.lastSyncTime = Date.now();
     localStorage.setItem('gv_linear_sync', Date.now());
     return mapped;
   },
@@ -556,6 +583,299 @@ function syncLinearToGame() {
 }
 
 // ============================================
+// Starship Sync — 实时差异同步引擎 v2.1
+// 核心职责：轮询检测 Linear 任务变化，丝滑增量渲染
+// ============================================
+const StarshipSync = {
+  // ---------- 差异检测 ----------
+  diff(oldIssues, newIssues) {
+    const oldMap = new Map((oldIssues || []).map(i => [i.id, i]));
+    const newMap = new Map((newIssues || []).map(i => [i.id, i]));
+    const added = [];
+    const removed = [];
+    const changed = [];
+
+    for (const [id, issue] of newMap) {
+      if (!oldMap.has(id)) added.push(issue);
+    }
+    for (const [id, issue] of oldMap) {
+      if (!newMap.has(id)) removed.push(issue);
+    }
+    for (const [id, newIssue] of newMap) {
+      const oldIssue = oldMap.get(id);
+      if (oldIssue) {
+        const hasChanged = (
+          oldIssue.priority !== newIssue.priority ||
+          oldIssue.status !== newIssue.status ||
+          oldIssue.due !== newIssue.due ||
+          oldIssue.faction !== newIssue.faction ||
+          oldIssue.title !== newIssue.title ||
+          oldIssue.estimate !== newIssue.estimate
+        );
+        if (hasChanged) changed.push({ old: oldIssue, new: newIssue });
+      }
+    }
+    return { added, removed, changed };
+  },
+
+  // ---------- 创建飞船数据 ----------
+  createUnit(issue, index, usedNames) {
+    const cls = priorityToClass(issue.priority);
+    const zone = spawnZone(issue.faction);
+    const od = daysOverdue(issue.due);
+    let x = rand(zone.x[1] - zone.x[0]) + zone.x[0];
+    let y = rand(zone.y[1] - zone.y[0]) + zone.y[0];
+
+    if (od > 0) {
+      const dx = CONFIG.EARTH.x - x, dy = CONFIG.EARTH.y - y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const adv = od * CONFIG.ADVANCE_RATE;
+      x += (dx / d) * adv;
+      y += (dy / d) * adv;
+    }
+    x = clamp(x, 5, 95);
+    y = clamp(y, 5, 95);
+
+    return {
+      id: genCode(issue.faction, index),
+      name: genShipName(issue.faction, usedNames),
+      shipClass: cls,
+      faction: issue.faction,
+      x, y,
+      status: od > 0 ? 'advancing' : 'stationed',
+      advanceDist: distToEarth(x, y),
+      power: SHIP_CLASSES[cls].powerBase + rand(25) - 10,
+      supply: rand(55) + 40,
+      morale: od > 0 ? rand(30) + 30 : rand(40) + 50,
+      mission: {
+        linearId: issue.id,
+        title: issue.title,
+        priority: issue.priority,
+        due: issue.due,
+        status: issue.status,
+        estimate: issue.estimate,
+        labels: issue.labels,
+        overdue: od,
+      },
+    };
+  },
+
+  // ---------- 新飞船入场动画 ----------
+  spawnAnimation(unit) {
+    const layer = document.querySelector('#unitLayer');
+    if (!layer) return;
+    const f = FACTIONS[unit.faction];
+    const isV = unit.faction === 'vanguard';
+    const threat = isV ? 72 : 72 + unit.power * 0.58;
+    const crit = !isV && unit.advanceDist < CONFIG.CRITICAL_DISTANCE;
+    const adv = unit.status === 'advancing';
+    const angle = unit.faction === 'remnant' ? '-28deg' : unit.faction === 'jupiter' ? '18deg' : '-12deg';
+
+    // 从势力基地边缘飞入的起点
+    const zone = spawnZone(unit.faction);
+    const startX = zone.x[0] + (zone.x[1] - zone.x[0]) * 0.3 + rand(20);
+    const startY = zone.y[0] + (zone.y[1] - zone.y[0]) * 0.3 + rand(20);
+
+    // 创建威胁圈
+    if (!isV) {
+      const pulse = document.createElement('span');
+      pulse.className = `threat-pulse spawn-in`;
+      pulse.dataset.unitId = unit.id;
+      pulse.style.cssText = `left:${unit.x}%;top:${unit.y}%;--radius:${threat}px;--unit-color:${crit ? '#ff3f52' : f.color};transition:left 1.4s cubic-bezier(.2,.8,.2,1),top 1.4s cubic-bezier(.2,.8,.2,1);`;
+      layer.appendChild(pulse);
+
+      const trail = document.createElement('span');
+      trail.className = `unit-trail spawn-in`;
+      trail.dataset.unitId = unit.id;
+      trail.style.cssText = `left:${unit.x - 1.4}%;top:${unit.y + 1.1}%;--trail-width:${54 + unit.power * 0.32}px;--angle:${angle};--unit-color:${f.color};transition:left 1.4s cubic-bezier(.2,.8,.2,1),top 1.4s cubic-bezier(.2,.8,.2,1);`;
+      layer.appendChild(trail);
+    }
+
+    // 创建飞船 DOM
+    const el = document.createElement('button');
+    el.className = `unit ship-${unit.shipClass} ${unit.status} is-spawning`;
+    el.dataset.id = unit.id;
+    el.type = 'button';
+    el.style.cssText = `left:${startX}%;top:${startY}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};--ship-size:${SHIP_CLASSES[unit.shipClass]?.size || 34}px;color:${f.color};transition:left 1.4s cubic-bezier(.2,.8,.2,1),top 1.4s cubic-bezier(.2,.8,.2,1),opacity 600ms ease,transform 600ms cubic-bezier(.2,.8,.2,1);`;
+    el.innerHTML = `
+      ${shipIcon(unit.shipClass)}
+      <span class="engine-flame" style="background:linear-gradient(180deg, ${f.color}, transparent);"></span>
+      <span class="unit-code">${unit.id}</span>
+      <span class="unit-label">${unit.name}</span>
+    `;
+    layer.appendChild(el);
+
+    // 跃迁闪光
+    this.createWarpFlash(unit.x, unit.y, f.color);
+
+    // 下一帧触发移动动画
+    requestAnimationFrame(() => {
+      el.style.left = unit.x + '%';
+      el.style.top = unit.y + '%';
+      if (!isV) {
+        const p = layer.querySelector(`.threat-pulse[data-unit-id="${cssEscape(unit.id)}"]`);
+        const t = layer.querySelector(`.unit-trail[data-unit-id="${cssEscape(unit.id)}"]`);
+        if (p) { p.style.left = unit.x + '%'; p.style.top = unit.y + '%'; }
+        if (t) { t.style.left = (unit.x - 1.4) + '%'; t.style.top = (unit.y + 1.1) + '%'; }
+      }
+    });
+
+    // 动画结束后移除 spawning 标记
+    setTimeout(() => {
+      el.classList.remove('is-spawning');
+      // 清除 transition 避免影响后续 shipFloat 动画
+      el.style.transition = '';
+      if (!isV) {
+        const p = layer.querySelector(`.threat-pulse[data-unit-id="${cssEscape(unit.id)}"]`);
+        const t = layer.querySelector(`.unit-trail[data-unit-id="${cssEscape(unit.id)}"]`);
+        if (p) p.style.transition = '';
+        if (t) t.style.transition = '';
+      }
+    }, 1500);
+  },
+
+  // ---------- 离场动画 ----------
+  despawnAnimation(unitId) {
+    const el = document.querySelector(`.unit[data-id="${cssEscape(unitId)}"]`);
+    if (el) {
+      el.classList.add('is-destroying');
+      setTimeout(() => {
+        el.remove();
+        document.querySelectorAll(`.threat-pulse[data-unit-id="${cssEscape(unitId)}"], .unit-trail[data-unit-id="${cssEscape(unitId)}"]`).forEach(e => e.remove());
+      }, 500);
+    }
+  },
+
+  // ---------- 更新已有飞船 ----------
+  updateUnit(unit, issue) {
+    const oldClass = unit.shipClass;
+    const oldStatus = unit.status;
+    unit.shipClass = priorityToClass(issue.priority);
+    unit.mission.title = issue.title;
+    unit.mission.priority = issue.priority;
+    unit.mission.status = issue.status;
+    unit.mission.due = issue.due;
+    unit.mission.estimate = issue.estimate;
+    unit.mission.labels = issue.labels;
+
+    const od = daysOverdue(issue.due);
+    unit.status = od > 0 ? 'advancing' : 'stationed';
+    unit.mission.overdue = od;
+    unit.advanceDist = distToEarth(unit.x, unit.y);
+
+    const el = document.querySelector(`.unit[data-id="${cssEscape(unit.id)}"]`);
+    if (!el) return;
+
+    // 更新舰型
+    if (oldClass !== unit.shipClass) {
+      el.classList.remove(`ship-${oldClass}`);
+      el.classList.add(`ship-${unit.shipClass}`);
+      el.style.setProperty('--ship-size', (SHIP_CLASSES[unit.shipClass]?.size || 34) + 'px');
+      const icon = el.querySelector('.ship-icon');
+      if (icon) icon.outerHTML = shipIcon(unit.shipClass);
+    }
+
+    // 更新状态类
+    if (oldStatus !== unit.status) {
+      el.classList.remove(oldStatus);
+      el.classList.add(unit.status);
+      el.style.setProperty('--status-color', unit.status === 'advancing' ? '#ff3f52' : '#4da3ff');
+    }
+
+    // 如果逾期推进导致位置变化，平滑移动
+    if (od > 0) {
+      const zone = spawnZone(issue.faction);
+      let nx = rand(zone.x[1] - zone.x[0]) + zone.x[0];
+      let ny = rand(zone.y[1] - zone.y[0]) + zone.y[0];
+      const dx = CONFIG.EARTH.x - nx, dy = CONFIG.EARTH.y - ny;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const adv = od * CONFIG.ADVANCE_RATE;
+      nx += (dx / d) * adv;
+      ny += (dy / d) * adv;
+      nx = clamp(nx, 5, 95);
+      ny = clamp(ny, 5, 95);
+
+      if (Math.abs(nx - unit.x) > 1.5 || Math.abs(ny - unit.y) > 1.5) {
+        unit.x = nx;
+        unit.y = ny;
+        el.style.transition = 'left 1.5s cubic-bezier(.2,.8,.2,1), top 1.5s cubic-bezier(.2,.8,.2,1)';
+        el.style.left = nx + '%';
+        el.style.top = ny + '%';
+        const p = document.querySelector(`.threat-pulse[data-unit-id="${cssEscape(unit.id)}"]`);
+        const t = document.querySelector(`.unit-trail[data-unit-id="${cssEscape(unit.id)}"]`);
+        if (p) { p.style.transition = el.style.transition; p.style.left = nx + '%'; p.style.top = ny + '%'; }
+        if (t) { t.style.transition = el.style.transition; t.style.left = (nx - 1.4) + '%'; t.style.top = (ny + 1.1) + '%'; }
+        setTimeout(() => {
+          el.style.transition = '';
+          if (p) p.style.transition = '';
+          if (t) t.style.transition = '';
+        }, 1600);
+      }
+    }
+
+    unit.advanceDist = distToEarth(unit.x, unit.y);
+  },
+
+  // ---------- 跃迁闪光 ----------
+  createWarpFlash(x, y, color) {
+    const world = document.querySelector('#mapWorld');
+    if (!world) return;
+    const flash = document.createElement('div');
+    flash.className = 'warp-effect';
+    flash.style.cssText = `left:${x}%;top:${y}%;width:70px;height:70px;background:radial-gradient(circle, ${color} 0%, transparent 70%);`;
+    world.appendChild(flash);
+    setTimeout(() => flash.remove(), 850);
+  },
+
+  // ---------- 增量同步入口 ----------
+  applyIncremental() {
+    const oldIssues = G._lastSyncedIssues || [];
+    const newIssues = Linear.issues;
+    G._lastSyncedIssues = JSON.parse(JSON.stringify(newIssues));
+
+    const diff = this.diff(oldIssues, newIssues);
+    if (diff.added.length === 0 && diff.removed.length === 0 && diff.changed.length === 0) return;
+
+    // 新增飞船
+    const used = new Set(G.units.map(u => u.name));
+    const enemyCount = G.units.filter(u => u.faction !== 'vanguard').length;
+    diff.added.forEach((issue, i) => {
+      const unit = this.createUnit(issue, enemyCount + i, used);
+      G.units.push(unit);
+      this.spawnAnimation(unit);
+    });
+
+    // 移除飞船（播放离场动画）
+    diff.removed.forEach(issue => {
+      const unit = G.units.find(u => u.mission?.linearId === issue.id);
+      if (unit && unit.status !== 'destroyed') {
+        this.despawnAnimation(unit.id);
+        unit.status = 'destroyed';
+      }
+    });
+
+    // 更新飞船属性
+    diff.changed.forEach(({ new: newIssue }) => {
+      const unit = G.units.find(u => u.mission?.linearId === newIssue.id);
+      if (unit && unit.status !== 'destroyed') {
+        this.updateUnit(unit, newIssue);
+      }
+    });
+
+    // 延迟清理已摧毁单位
+    setTimeout(() => {
+      G.units = G.units.filter(u => u.status !== 'destroyed');
+    }, 600);
+
+    // 刷新面板
+    renderBriefing();
+    if (diff.added.length > 0 || diff.removed.length > 0) {
+      showSyncToast(diff.added.length, diff.removed.length);
+    }
+  },
+};
+
+// ============================================
 // 敌军反扑引擎
 // ============================================
 function processAdvance() {
@@ -634,6 +954,30 @@ function generateReport() {
     },
     counts: { done: Linear.done.length, todo: todo.length, overdue: odIssues.length, advancing: advancing.length, critical: critical.length },
   };
+}
+
+// ============================================
+// 同步状态 Toast 通知
+// ============================================
+function showSyncToast(added, removed) {
+  const hud = document.querySelector('#sciFiHud');
+  if (!hud) return;
+  let msg = '';
+  if (added > 0 && removed > 0) msg = `+${added} 新威胁 / -${removed} 已清除`;
+  else if (added > 0) msg = `探测到 ${added} 艘新敌舰`;
+  else if (removed > 0) msg = `${removed} 艘敌舰已撤离`;
+  if (!msg) return;
+
+  const toast = document.createElement('div');
+  toast.className = 'sync-toast';
+  toast.textContent = msg;
+  hud.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 500ms ease';
+    setTimeout(() => toast.remove(), 550);
+  }, 2200);
 }
 
 // ============================================
@@ -1365,6 +1709,11 @@ function initLinearUI() {
       status.textContent = '✓ 已连接，任务已同步';
       status.style.color = '#17d7b6';
 
+      // 保存初始 issues 快照用于差异检测
+      G._lastSyncedIssues = JSON.parse(JSON.stringify(Linear.issues));
+      // 启动自动轮询（30秒间隔）
+      LinearAPI.startPolling(30000);
+
       setTimeout(() => {
         syncLinearToGame();
         processAdvance();
@@ -1452,6 +1801,6 @@ function boot() {
   }
 }
 
-window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, deploy: deployShip, G, Linear, LinearAPI };
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, deploy: deployShip, G, Linear, LinearAPI, StarshipSync };
 window.addEventListener('resize', drawStarfield);
 boot();

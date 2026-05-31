@@ -6,6 +6,32 @@
 
 ---
 
+## 2026-05-31 — v2.1 Create星舰系统（实时同步引擎）
+
+### 新增的
+- **自动轮询同步**：`LinearAPI.startPolling(30000)`，每 30 秒自动拉取 Linear 数据
+  - 连接成功后自动启动，断开/退出时自动停止
+  - `sync()` 记录 `lastSyncTime` 时间戳
+- **StarshipSync 差异检测引擎**：
+  - `diff(oldIssues, newIssues)` → 返回 `{added, removed, changed}`
+  - `createUnit(issue, index, usedNames)` → 从任务数据创建飞船对象
+  - `applyIncremental()` → 增量同步入口，只更新变化的部分
+- **丝滑入场动画**：新飞船从势力基地边缘跃迁到目标位置
+  - `spawnAnimation(unit)`：创建 DOM + warpFlash 跃迁闪光 + CSS 过渡移动（1.4s cubic-bezier）
+  - `is-spawning` 类触发 `spawnAppear` keyframe（缩放 0.2→1.12→1 + 模糊消失）
+  - 威胁圈和尾迹同步淡入
+- **平滑离场动画**：任务完成/取消时，`despawnAnimation()` 播放 `is-destroying` 收缩消失
+- **属性变更追踪**：优先级、逾期状态等变化时，飞船自动平滑移动到新位置（1.5s 过渡）
+- **同步 Toast 通知**：右下角 HUD 弹出 `+N 新威胁` / `-N 已清除` 提示
+- **CSS 新增**：`spawnAppear`、`fadeInPulse`、`toastRise`、`syncPulse` keyframes
+
+### 架构说明
+- 全量同步（`syncLinearToGame`）仅在 boot / 手动连接时执行一次
+- 轮询触发的增量同步不走 `renderUnits()` 全量刷新，直接操作 DOM
+- `G._lastSyncedIssues` 保存上次同步的快照用于 diff
+
+---
+
 ## 2026-05-31 — v4.0 大改版
 
 ### 改动的

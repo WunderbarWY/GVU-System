@@ -244,3 +244,82 @@
   background-size: 120px 120px, 120px 120px, 480px 480px, 480px 480px;
   mask-image: radial-gradient(circle at 50% 50%, black 0 40%, transparent 80%);
 }
+
+/* ============================================================
+   v2.1 Starship Sync — 实时同步动画系统
+   ============================================================ */
+
+/* ---------- 新飞船入场动画 ---------- */
+@keyframes spawnAppear {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.2); filter: blur(4px); }
+  35%  { opacity: 0.85; transform: translate(-50%, -50%) scale(1.12); filter: blur(0); }
+  60%  { opacity: 1; transform: translate(-50%, -50%) scale(0.96); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.unit.is-spawning {
+  animation: spawnAppear 1.2s cubic-bezier(.2,.8,.2,1) forwards,
+             shipFloat 7s ease-in-out infinite 1.2s;
+}
+
+/* 威胁圈和尾迹入场淡入 */
+.threat-pulse.spawn-in,
+.unit-trail.spawn-in {
+  opacity: 0;
+  animation: fadeInPulse 1s ease 0.6s forwards;
+}
+
+@keyframes fadeInPulse {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ---------- 同步 Toast 通知 ---------- */
+.sync-toast {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: #17d7b6;
+  text-shadow: 0 0 8px rgba(23,215,182,0.4);
+  padding: 4px 12px;
+  background: rgba(2,6,14,0.85);
+  border: 1px solid rgba(23,215,182,0.25);
+  border-radius: 2px;
+  animation: toastRise 350ms cubic-bezier(.2,.8,.2,1) both;
+  pointer-events: none;
+}
+
+@keyframes toastRise {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ---------- 同步状态指示灯（HUD 角标） ---------- */
+@keyframes syncPulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+
+.sync-indicator {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #17d7b6;
+  box-shadow: 0 0 6px rgba(23,215,182,0.5);
+  animation: syncPulse 1.5s ease-in-out infinite;
+}
+
+.sync-indicator.idle {
+  background: #4da3ff;
+  box-shadow: 0 0 6px rgba(77,163,255,0.3);
+  animation: none;
+  opacity: 0.5;
+}
