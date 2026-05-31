@@ -18,7 +18,6 @@ API_KEY_FILE = os.path.expanduser('~/.gv_linear_key')
 class Handler(http.server.SimpleHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
-        self.send_cors()
         self.end_headers()
 
     def send_cors(self):
@@ -27,7 +26,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key')
 
     def do_POST(self):
-        if self.path == '/api/linear':
+        if self.path == '/api/linear' or self.path == '/api/linear/':
             try:
                 content_len = int(self.headers.get('Content-Length', 0))
                 body = self.rfile.read(content_len).decode('utf-8')
@@ -86,7 +85,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 }).encode())
             return
 
-        if self.path == '/api/config':
+        if self.path == '/api/config' or self.path == '/api/config/':
             key = ''
             if os.path.exists(API_KEY_FILE):
                 try:
@@ -100,7 +99,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({'apiKey': key}).encode())
             return
-        super().do_GET()
+        # 未知 POST 路径 — 返回 JSON 错误而不是 HTML
+        self.send_response(404)
+        self.send_header('Content-Type', 'application/json')
+        self.send_cors()
+        self.end_headers()
+        self.wfile.write(json.dumps({'errors': [{'message': f'Unknown endpoint: {self.path}'}]}).encode())
 
     def end_headers(self):
         self.send_cors()
