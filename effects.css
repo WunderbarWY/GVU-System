@@ -11,10 +11,11 @@
   pointer-events: none;
   z-index: 50;
   background:
-    linear-gradient(180deg, rgba(18,16,16,0) 50%, rgba(0,0,0,0.12) 50%);
-  background-size: 100% 3px;
-  opacity: 0.25;
-  mix-blend-mode: multiply;
+    linear-gradient(180deg, rgba(18,16,16,0) 50%, rgba(0,0,0,0.08) 50%),
+    linear-gradient(90deg, rgba(77,163,255,0.018), transparent 22%, transparent 78%, rgba(77,163,255,0.012));
+  background-size: 100% 4px, 100% 100%;
+  opacity: 0.18;
+  mix-blend-mode: soft-light;
 }
 
 .crt-vignette {
@@ -22,7 +23,7 @@
   inset: 0;
   pointer-events: none;
   z-index: 51;
-  background: radial-gradient(circle at 50% 50%, transparent 60%, rgba(0,0,0,0.4) 100%);
+  background: radial-gradient(circle at 50% 50%, transparent 58%, rgba(0,0,0,0.52) 100%);
 }
 
 /* ---------- 航道流动 ---------- */
@@ -30,7 +31,7 @@
   to { stroke-dashoffset: -36; }
 }
 .route {
-  animation: routeFlow 2.5s linear infinite;
+  animation: routeFlow 7s linear infinite;
 }
 
 /* ---------- 舰船浮动 ---------- */
@@ -41,7 +42,7 @@
 }
 
 .unit {
-  animation: shipFloat 4s ease-in-out infinite;
+  animation: shipFloat 7s ease-in-out infinite;
 }
 
 .unit:hover,
@@ -73,7 +74,7 @@
 .threat-pulse.critical {
   border-width: 2px;
   border-style: dashed;
-  animation: criticalPulse 0.6s ease-in-out infinite;
+  animation: criticalPulse 1.1s ease-in-out infinite;
 }
 
 @keyframes criticalPulse {
@@ -84,17 +85,15 @@
 /* ---------- 霓虹文字 ---------- */
 .neon-glow {
   text-shadow:
-    0 0 4px currentColor,
-    0 0 12px currentColor,
-    0 0 24px currentColor;
+    0 0 3px currentColor,
+    0 0 10px color-mix(in srgb, currentColor, transparent 25%);
 }
 
 .neon-glow-strong {
   text-shadow:
-    0 0 2px #fff,
+    0 0 1px #fff,
     0 0 8px currentColor,
-    0 0 16px currentColor,
-    0 0 32px currentColor;
+    0 0 18px color-mix(in srgb, currentColor, transparent 25%);
 }
 
 /* ---------- 数据流文字 ---------- */
@@ -119,8 +118,8 @@
   align-items: center;
   justify-content: center;
   background:
-    radial-gradient(circle at 30% 30%, rgba(77,163,255,0.08), transparent 50%),
-    radial-gradient(circle at 70% 70%, rgba(255,63,82,0.06), transparent 50%),
+    radial-gradient(circle at 30% 30%, rgba(77,163,255,0.055), transparent 50%),
+    radial-gradient(circle at 70% 70%, rgba(255,63,82,0.035), transparent 50%),
     #02050c;
   font-family: var(--font-display);
   transition: opacity 800ms ease, visibility 800ms ease;
@@ -134,7 +133,7 @@
 
 .loading-logo {
   font-size: 28px;
-  color: var(--vanguard);
+  color: var(--vanguard-cold);
   letter-spacing: 4px;
   margin-bottom: 30px;
 }
@@ -183,7 +182,7 @@
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
-  animation: warZonePulse 3s ease-in-out infinite;
+  animation: warZonePulse 4.6s ease-in-out infinite;
 }
 
 @keyframes warZonePulse {
@@ -202,7 +201,7 @@
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
-  animation: auraBreathe 4s ease-in-out infinite;
+  animation: auraBreathe 6s ease-in-out infinite;
 }
 
 @keyframes auraBreathe {
@@ -230,8 +229,10 @@
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(90deg, rgba(77,163,255,0.03) 1px, transparent 1px),
-    linear-gradient(rgba(77,163,255,0.03) 1px, transparent 1px);
-  background-size: 120px 120px;
+    linear-gradient(90deg, rgba(137,174,205,0.035) 1px, transparent 1px),
+    linear-gradient(rgba(137,174,205,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(77,163,255,0.035) 1px, transparent 1px),
+    linear-gradient(rgba(77,163,255,0.035) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 480px 480px, 480px 480px;
   mask-image: radial-gradient(circle at 50% 50%, black 0 40%, transparent 80%);
 }
