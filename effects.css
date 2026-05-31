@@ -46,8 +46,16 @@
 }
 
 .unit:hover,
-.unit.is-selected {
+.unit.is-selected,
+.map-stage.is-panning .unit {
   animation: none;
+}
+
+.map-stage.is-panning .route,
+.map-stage.is-panning .threat-pulse,
+.map-stage.is-panning .faction-aura,
+.map-stage.is-panning .war-zone {
+  animation-play-state: paused;
 }
 
 /* ---------- 引擎尾焰 ---------- */

@@ -900,7 +900,7 @@ function meter(label, value, color) {
 // ============================================
 // 地图控制（保留 Codex 全部交互）
 // ============================================
-const map = { zoom: 0.58, panX: 0, panY: 0, dragging: false, sx: 0, sy: 0, ox: 0, oy: 0 };
+const map = { zoom: 0.58, panX: 0, panY: 0, dragging: false, sx: 0, sy: 0, ox: 0, oy: 0, frame: 0 };
 function applyMap() {
   const w = document.querySelector('#mapWorld');
   const l = document.querySelector('#zoomLabel');
@@ -908,9 +908,18 @@ function applyMap() {
   w.style.setProperty('--zoom', map.zoom.toFixed(2));
   w.style.setProperty('--pan-x', `${Math.round(map.panX)}px`);
   w.style.setProperty('--pan-y', `${Math.round(map.panY)}px`);
+  w.style.transform = `translate3d(-50%, -50%, 0) translate3d(${Math.round(map.panX)}px, ${Math.round(map.panY)}px, 0) scale(${map.zoom.toFixed(2)})`;
   if (l) l.textContent = `${Math.round(map.zoom * 100)}%`;
 }
-function zoom(d) { map.zoom = clamp(map.zoom + d, 0.35, 2.4); applyMap(); }
+function scheduleMap() {
+  if (map.frame) return;
+  const nextFrame = window.requestAnimationFrame || ((callback) => window.setTimeout(callback, 16));
+  map.frame = nextFrame(() => {
+    map.frame = 0;
+    applyMap();
+  });
+}
+function zoom(d) { map.zoom = clamp(map.zoom + d, 0.35, 2.4); scheduleMap(); }
 function resetMap() { map.zoom = 0.58; map.panX = 0; map.panY = 0; applyMap(); }
 function initMap() {
   const stage = document.querySelector('#mapStage');
@@ -934,7 +943,7 @@ function initMap() {
     if (!map.dragging) return;
     map.panX = map.ox + e.clientX - map.sx;
     map.panY = map.oy + e.clientY - map.sy;
-    applyMap();
+    scheduleMap();
   });
   stage.addEventListener('pointerup', e => {
     if (!map.dragging) return;
