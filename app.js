@@ -2650,31 +2650,31 @@ function doLogin() {
     btn.querySelector('.login-btn-text').textContent = '验证中...';
   }
 
-  // 800ms 后切换为欢迎动画
+  // 300ms 后切换为欢迎动画（缩短等待）
   setTimeout(() => {
     if (form) {
       form.style.opacity = '0';
-      form.style.transition = 'opacity 400ms ease';
-      setTimeout(() => { form.style.display = 'none'; }, 400);
+      form.style.transition = 'opacity 300ms ease';
+      setTimeout(() => { form.style.display = 'none'; }, 300);
     }
     if (welcome) {
       welcome.style.display = 'block';
       welcome.style.opacity = '0';
       requestAnimationFrame(() => {
         welcome.style.opacity = '1';
-        welcome.style.transition = 'opacity 500ms ease';
+        welcome.style.transition = 'opacity 350ms ease';
       });
     }
 
-    // 打字机效果
-    typeWriter(line, '欢迎回来，指挥官。', 55, () => {
+    // 打字机效果 — 加速（大船庄重，登录动画不该拖节奏）
+    typeWriter(line, '欢迎回来，指挥官。', 32, () => {
       setTimeout(() => {
-        typeWriter(sub, '战术系统已上线。', 45, () => {
-          setTimeout(finishLogin, 1000);
+        typeWriter(sub, '战术系统已上线。', 26, () => {
+          setTimeout(finishLogin, 350);
         });
-      }, 300);
+      }, 120);
     });
-  }, 700);
+  }, 300);
 }
 
 function typeWriter(el, text, speed, callback) {
@@ -2699,7 +2699,7 @@ function finishLogin() {
     screen.classList.add('is-done');
   }
   // 启动主系统
-  setTimeout(bootMain, 600);
+  setTimeout(bootMain, 250);
 }
 
 // Space 键跳过登录动画
@@ -2709,7 +2709,7 @@ document.addEventListener('keydown', e => {
     _loginSkip = true;
     const screen = document.querySelector('#loginScreen');
     if (screen) screen.classList.add('is-done');
-    setTimeout(bootMain, 200);
+    setTimeout(bootMain, 120);
   }
 });
 
@@ -2747,7 +2747,8 @@ function bootMain() {
 
     showLoading('部署完成', 100);
     PerformanceMonitor.start();
-    setTimeout(() => hideLoading(), 600);
+    // bootMain 执行很快，150ms 后淡出 loading screen
+    setTimeout(() => hideLoading(), 150);
   } catch (err) {
     console.error('[GV] BOOT FAILED:', err);
     showLoading('系统启动失败: ' + err.message, 0);

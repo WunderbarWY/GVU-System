@@ -115,7 +115,7 @@
     radial-gradient(circle at 70% 70%, rgba(255,63,82,0.035), transparent 50%),
     #02050c;
   font-family: var(--font-display);
-  transition: opacity 800ms ease, visibility 800ms ease;
+  transition: opacity 400ms ease, visibility 400ms ease;
 }
 
 .loading-screen.is-hidden {
@@ -162,7 +162,7 @@
   width: 0%;
   background: linear-gradient(90deg, transparent, var(--vanguard), var(--vanguard-cold));
   box-shadow: 0 0 12px var(--vanguard);
-  transition: width 200ms ease-out;
+  transition: width 300ms ease-out;
 }
 
 @keyframes blink {
