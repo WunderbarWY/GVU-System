@@ -2637,6 +2637,7 @@ let _loginSkip = false;
 function doLogin() {
   if (_loginSkip) return;
   _loginSkip = true;
+  console.log('[GV] doLogin start');
 
   const btn = document.querySelector('#loginBtn');
   const form = document.querySelector('#loginForm');
@@ -2652,6 +2653,7 @@ function doLogin() {
 
   // 300ms 后切换为欢迎动画（缩短等待）
   setTimeout(() => {
+    console.log('[GV] login welcome screen');
     if (form) {
       form.style.opacity = '0';
       form.style.transition = 'opacity 300ms ease';
@@ -2694,6 +2696,7 @@ function typeWriter(el, text, speed, callback) {
 }
 
 function finishLogin() {
+  console.log('[GV] finishLogin');
   const screen = document.querySelector('#loginScreen');
   if (screen) {
     screen.classList.add('is-done');
@@ -2707,6 +2710,7 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Space' && !_loginSkip) {
     e.preventDefault();
     _loginSkip = true;
+    console.log('[GV] Space skip');
     const screen = document.querySelector('#loginScreen');
     if (screen) screen.classList.add('is-done');
     setTimeout(bootMain, 120);
@@ -2717,38 +2721,62 @@ document.addEventListener('keydown', e => {
 // 主系统启动
 // ============================================
 function bootMain() {
+  console.log('[GV] bootMain start');
+  const _bootSteps = [];
+  function step(name, fn) {
+    _bootSteps.push(name);
+    try {
+      const t0 = performance.now();
+      fn();
+      const t1 = performance.now();
+      if (t1 - t0 > 10) console.log(`[GV] boot step ${name}: ${(t1-t0).toFixed(1)}ms`);
+    } catch (e) {
+      console.error(`[GV] BOOT STEP FAILED [${name}]:`, e);
+      throw e;
+    }
+  }
   try {
     showLoading('初始化战术系统...', 10);
-    initLinearUI();
+    step('initLinearUI', initLinearUI);
 
     showLoading('扫描星系威胁...', 30);
-    syncLinearToGame();
-    processAdvance();
-    checkReinforcements();
-    addDemoTraffic();
+    step('syncLinearToGame', syncLinearToGame);
+    step('processAdvance', processAdvance);
+    step('checkReinforcements', checkReinforcements);
+    step('addDemoTraffic', addDemoTraffic);
 
     showLoading('渲染战略地图...', 60);
-    drawStarfield();
-    renderPlanets();
-    renderFactions();
-    renderWarZones();
-    renderUnits();
-    renderBriefing();
-    renderWarHistory();
-    initMap();
-    applyMap();
+    step('drawStarfield', drawStarfield);
+    step('renderPlanets', renderPlanets);
+    step('renderFactions', renderFactions);
+    step('renderWarZones', renderWarZones);
+    step('renderUnits', renderUnits);
+    step('renderBriefing', renderBriefing);
+    step('renderWarHistory', renderWarHistory);
+    step('initMap', initMap);
+    step('applyMap', applyMap);
 
     showLoading('启动 WIP 计时器...', 85);
-    startWipTimer();
-    updateWipUI();
+    step('startWipTimer', startWipTimer);
+    step('updateWipUI', updateWipUI);
 
     showLoading('启动飞船动画引擎...', 92);
-    AnimationEngine.start();
+    step('AnimationEngine.start', () => AnimationEngine.start());
 
     showLoading('部署完成', 100);
-    PerformanceMonitor.start();
+    step('PerformanceMonitor.start', () => PerformanceMonitor.start());
+    console.log('[GV] bootMain done, steps:', _bootSteps.length);
     // bootMain 执行很快，150ms 后淡出 loading screen
     setTimeout(() => hideLoading(), 150);
+
+    // 安全网：3秒后如果 loading screen 还在，强制隐藏
+    setTimeout(() => {
+      const ls = document.querySelector('#loadingScreen');
+      if (ls && !ls.classList.contains('is-hidden')) {
+        console.warn('[GV] Loading screen timeout — forcing hide');
+        ls.classList.add('is-hidden');
+      }
+    }, 3000);
   } catch (err) {
     console.error('[GV] BOOT FAILED:', err);
     showLoading('系统启动失败: ' + err.message, 0);

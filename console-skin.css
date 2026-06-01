@@ -12,6 +12,72 @@
   --console-text-dim: rgba(178, 198, 214, 0.62);
 }
 
+/* Solar core pass: replace the cheap uniform halo with broken corona layers. */
+.sun {
+  width: 136px;
+  height: 136px;
+  background:
+    radial-gradient(circle at 45% 40%, rgba(255, 250, 210, 0.82) 0 7%, rgba(255, 190, 72, 0.22) 18%, transparent 42%),
+    radial-gradient(circle, transparent 0 51%, rgba(3, 6, 10, 0.34) 72%),
+    url("./assets/stellar-core-v1.png") center / 142% 142% no-repeat;
+  box-shadow:
+    inset -18px -22px 34px rgba(13, 3, 1, 0.58),
+    inset 10px 8px 20px rgba(255, 225, 140, 0.08),
+    0 0 12px rgba(255, 222, 140, 0.38),
+    0 0 31px rgba(255, 136, 39, 0.22),
+    0 0 72px rgba(255, 83, 28, 0.08) !important;
+  filter: saturate(0.92) contrast(1.2) brightness(0.88);
+}
+
+.sun::before,
+.sun::after {
+  border-radius: 50%;
+  mix-blend-mode: screen;
+}
+
+.sun::before {
+  inset: -58px;
+  opacity: 0.62;
+  background:
+    conic-gradient(from 18deg,
+      transparent 0 8%,
+      rgba(255, 178, 66, 0.12) 10%,
+      transparent 16% 24%,
+      rgba(255, 226, 146, 0.09) 28%,
+      transparent 34% 45%,
+      rgba(255, 112, 38, 0.1) 49%,
+      transparent 55% 67%,
+      rgba(255, 201, 94, 0.08) 72%,
+      transparent 78% 100%),
+    radial-gradient(ellipse at 50% 50%, transparent 0 51%, rgba(255, 156, 54, 0.075) 56%, transparent 69%);
+  filter: blur(1.4px);
+  animation: coronaDrift 95s linear infinite;
+}
+
+.sun::after {
+  inset: -92px -118px;
+  opacity: 0.5;
+  border: 0;
+  background:
+    linear-gradient(90deg, transparent 0 25%, rgba(255, 184, 83, 0.06) 42%, transparent 61%),
+    radial-gradient(ellipse at 50% 50%, transparent 0 31%, rgba(255, 219, 130, 0.05) 34%, transparent 42%),
+    radial-gradient(ellipse at 36% 49%, rgba(255, 106, 34, 0.065), transparent 19%),
+    radial-gradient(ellipse at 66% 52%, rgba(255, 181, 64, 0.052), transparent 22%);
+  filter: blur(7px);
+  animation: solarHeatDrift 26s ease-in-out infinite alternate;
+}
+
+@keyframes solarHeatDrift {
+  0% {
+    transform: scaleX(0.94) scaleY(1.02) rotate(-2deg);
+    opacity: 0.38;
+  }
+  100% {
+    transform: scaleX(1.08) scaleY(0.96) rotate(3deg);
+    opacity: 0.58;
+  }
+}
+
 .ops-topbar {
   height: 46px;
   grid-template-columns: 318px minmax(0, 1fr) 352px;
