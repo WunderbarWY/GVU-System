@@ -78,6 +78,184 @@
   }
 }
 
+/* Planet pass: keep the current tactical-symbol style, add command-map materials. */
+.body-marker {
+  --planet-accent: var(--glow);
+  --planet-scan: rgba(137, 174, 205, 0.13);
+  --planet-label-y: 0;
+  z-index: 3;
+}
+
+.body-marker::before,
+.body-marker::after {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--planet-ui-size, 44px) / 2);
+  content: "";
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.body-marker::before {
+  width: calc(var(--planet-ui-size, 44px) + 34px);
+  height: calc(var(--planet-ui-size, 44px) + 34px);
+  border: 1px solid var(--planet-scan);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 0 50%, color-mix(in srgb, var(--planet-accent), transparent 92%) 54%, transparent 72%);
+  box-shadow:
+    inset 0 0 16px rgba(255, 255, 255, 0.018),
+    0 0 16px color-mix(in srgb, var(--planet-accent), transparent 84%);
+  opacity: 0.72;
+}
+
+.body-marker::after {
+  width: calc(var(--planet-ui-size, 44px) + 54px);
+  height: calc(var(--planet-ui-size, 44px) + 54px);
+  background:
+    linear-gradient(90deg, transparent 0 47%, color-mix(in srgb, var(--planet-accent), transparent 74%) 49% 51%, transparent 53%),
+    linear-gradient(0deg, transparent 0 47%, color-mix(in srgb, var(--planet-accent), transparent 78%) 49% 51%, transparent 53%);
+  opacity: 0.22;
+  mask-image: radial-gradient(circle, transparent 0 36%, black 38% 42%, transparent 45%);
+}
+
+.body-marker .planet {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--color), white 38%);
+  background:
+    radial-gradient(circle at 40% 32%, rgba(255,255,255,0.48), transparent 0 10%, rgba(255,255,255,0.1) 18%, transparent 40%),
+    linear-gradient(112deg, rgba(255,255,255,0.2), transparent 32%),
+    linear-gradient(292deg, rgba(0,0,0,0.38), transparent 42%),
+    var(--color);
+  box-shadow:
+    inset -7px -9px 14px rgba(0, 0, 0, 0.44),
+    inset 5px 6px 12px rgba(255, 255, 255, 0.13),
+    0 0 10px color-mix(in srgb, var(--planet-accent), transparent 52%),
+    0 0 28px color-mix(in srgb, var(--planet-accent), transparent 84%);
+  filter: saturate(0.94) contrast(1.06);
+}
+
+.body-marker .planet::before {
+  position: absolute;
+  inset: 14% -20%;
+  content: "";
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 5px,
+      rgba(255, 255, 255, 0.075) 6px,
+      transparent 8px
+    );
+  opacity: 0.22;
+  transform: rotate(-18deg);
+  mix-blend-mode: screen;
+}
+
+.body-marker .planet::after {
+  position: absolute;
+  inset: 42% -56%;
+  content: "";
+  border: 1px solid color-mix(in srgb, var(--planet-accent), white 28%);
+  border-radius: 50%;
+  opacity: 0;
+  transform: rotate(-18deg);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--planet-accent), transparent 74%);
+}
+
+.body-marker .planet.has-ring::after {
+  opacity: 0.82;
+  border-width: 1px;
+  border-color: rgba(255, 216, 112, 0.58);
+  background: linear-gradient(90deg, transparent, rgba(255, 216, 112, 0.08), transparent);
+}
+
+.body-marker span:not(.planet) {
+  padding: 3px 7px;
+  border: 1px solid rgba(137, 174, 205, 0.08);
+  color: rgba(213, 229, 240, 0.68);
+  background: rgba(2, 6, 12, 0.54);
+  text-shadow: 0 1px 6px #000;
+  transform: translateY(var(--planet-label-y));
+}
+
+#celestialBodies .body-marker:nth-child(1) {
+  --planet-ui-size: 28px;
+  --planet-accent: rgba(77, 163, 255, 0.5);
+  --planet-scan: rgba(77, 163, 255, 0.16);
+}
+
+#celestialBodies .body-marker:nth-child(2) {
+  --planet-ui-size: 48px;
+  --planet-accent: rgba(23, 215, 182, 0.62);
+  --planet-scan: rgba(23, 215, 182, 0.2);
+}
+
+#celestialBodies .body-marker:nth-child(2)::before {
+  width: calc(var(--planet-ui-size, 44px) + 58px);
+  height: calc(var(--planet-ui-size, 44px) + 58px);
+  border-style: dashed;
+}
+
+#celestialBodies .body-marker:nth-child(3) {
+  --planet-ui-size: 68px;
+  --planet-accent: rgba(77, 163, 255, 0.72);
+  --planet-scan: rgba(77, 163, 255, 0.26);
+}
+
+#celestialBodies .body-marker:nth-child(3)::before {
+  width: calc(var(--planet-ui-size, 44px) + 74px);
+  height: calc(var(--planet-ui-size, 44px) + 74px);
+  box-shadow:
+    inset 0 0 24px rgba(77, 163, 255, 0.035),
+    0 0 26px rgba(77, 163, 255, 0.1);
+}
+
+#celestialBodies .body-marker:nth-child(4) {
+  --planet-ui-size: 20px;
+  --planet-accent: rgba(200, 255, 246, 0.52);
+  --planet-scan: rgba(200, 255, 246, 0.14);
+}
+
+#celestialBodies .body-marker:nth-child(5) {
+  --planet-ui-size: 118px;
+  --planet-accent: rgba(255, 210, 81, 0.64);
+  --planet-scan: rgba(255, 210, 81, 0.18);
+}
+
+#celestialBodies .body-marker:nth-child(5)::before {
+  width: calc(var(--planet-ui-size, 44px) + 96px);
+  height: calc(var(--planet-ui-size, 44px) + 54px);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-9deg);
+}
+
+#celestialBodies .body-marker:nth-child(6) {
+  --planet-ui-size: 92px;
+  --planet-accent: rgba(255, 210, 81, 0.52);
+  --planet-scan: rgba(255, 210, 81, 0.16);
+}
+
+#celestialBodies .body-marker:nth-child(6)::before {
+  width: calc(var(--planet-ui-size, 44px) + 116px);
+  height: calc(var(--planet-ui-size, 44px) + 58px);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-18deg);
+}
+
+#celestialBodies .body-marker:nth-child(7) {
+  --planet-ui-size: 36px;
+  --planet-accent: rgba(255, 63, 82, 0.56);
+  --planet-scan: rgba(255, 63, 82, 0.22);
+}
+
+#celestialBodies .body-marker:nth-child(7)::before {
+  border-style: dashed;
+  box-shadow:
+    inset 0 0 18px rgba(255, 63, 82, 0.028),
+    0 0 20px rgba(255, 63, 82, 0.1);
+}
+
 .ops-topbar {
   height: 46px;
   grid-template-columns: 318px minmax(0, 1fr) 352px;

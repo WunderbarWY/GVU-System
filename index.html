@@ -6,7 +6,24 @@
     <title>银河先遣队作战指挥台</title>
     <link rel="stylesheet" href="./styles.css?v=diag-1" />
     <link rel="stylesheet" href="./effects.css?v=diag-1" />
-    <link rel="stylesheet" href="./console-skin.css?v=diag-1" />
+    <link rel="stylesheet" href="./console-skin.css?v=planet-1" />
+    <script>
+      // 应急诊断脚本 — 检测启动卡死
+      console.log('[DIAG] Emergency script loaded');
+      window.addEventListener('load', function() {
+        console.log('[DIAG] Page loaded');
+        setTimeout(function() {
+          var ls = document.getElementById('loadingScreen');
+          var login = document.getElementById('loginScreen');
+          console.log('[DIAG] 3s check — loadingScreen visible:', ls && !ls.classList.contains('is-hidden'));
+          console.log('[DIAG] 3s check — loginScreen visible:', login && !login.classList.contains('is-done'));
+          if (ls && !ls.classList.contains('is-hidden') && login && login.classList.contains('is-done')) {
+            console.warn('[DIAG] LOADING SCREEN STUCK — forcing hide');
+            ls.classList.add('is-hidden');
+          }
+        }, 3000);
+      });
+    </script>
   </head>
   <body>
     <!-- 加载画面 -->
