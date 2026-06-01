@@ -57,6 +57,16 @@ function normalizeShipClass(cls) {
   }[cls] || cls;
 }
 
+// 漂移参数按舰船量级分级 — 小船灵活漂移，大船庄重缓慢
+const DRIFT_PROFILES = {
+  raider:     { ampBase: 0.09, ampVar: 0.04, freqBase: 0.12, freqVar: 0.06 },  // 袭扰艇 — 最快
+  frigate:    { ampBase: 0.07, ampVar: 0.03, freqBase: 0.09, freqVar: 0.05 },  // 护卫舰
+  destroyer:  { ampBase: 0.05, ampVar: 0.03, freqBase: 0.07, freqVar: 0.04 },  // 驱逐舰
+  cruiser:    { ampBase: 0.04, ampVar: 0.02, freqBase: 0.06, freqVar: 0.03 },  // 巡洋舰
+  battleship: { ampBase: 0.03, ampVar: 0.02, freqBase: 0.05, freqVar: 0.02 },  // 战列舰
+  dreadnought:{ ampBase: 0.02, ampVar: 0.02, freqBase: 0.04, freqVar: 0.02 },  // 旗舰/无畏舰 — 最慢
+};
+
 const NATO_NAMES = {
   vanguard: ['阿尔法','贝塔','伽马','德尔塔','艾普西隆','泽塔','伊塔','西塔','约塔','卡帕','拉姆达','缪','纽','克西','奥米克戎','派','柔','西格玛','陶','宇普西隆','斐','希','普西','欧米伽','猎户','天龙','仙后','仙女','英仙','天鹅','天琴','天鹰','武仙','飞马','凤凰','狮子','天蝎','室女','双子','白羊','金牛','天秤','摩羯','射手','巨蟹','心宿二','牛郎','天津四','织女','角宿一','大角','参宿四','参宿七','天狼','老人','南河三','水委一','马腹一','北落师门','北河三','轩辕十四','北河二','毕宿五','天枢','天璇','玉衡','开阳','摇光','天权','天玑'],
   egov: ['翡翠','琥珀','珊瑚','石榴石','黄玉','蓝宝石','祖母绿','红宝石','紫水晶','珍珠','缟玛瑙','黑曜石','孔雀石','青金石','绿松石','玛瑙','碧玉','燧石','花岗岩','大理石','板岩','玄武岩','浮石','石膏','长石','云母','滑石','象牙','煤玉','锆石','黄水晶','电气石','橄榄石','变石','月光石','日光石','血石','红玉髓','玉髓','绿玉髓','赤铁矿','磁铁矿','黄铁矿','方铅矿','铝土矿','石墨','钻石','蛋白石','石英'],
@@ -844,27 +854,27 @@ function addDemoTraffic() {
 
   const specs = [
     // 银河先遣队：地球外圈巡逻 + 楔形护航
-    { id: 'SIM-V-01', name: '近地巡逻-α', faction: 'vanguard', shipClass: 'frigate', x: 29, y: 45, motion: orbitMotion(CONFIG.EARTH.x, CONFIG.EARTH.y, 8.5, 5.4, 0.18, 0.2) },
-    { id: 'SIM-V-02', name: '近地巡逻-β', faction: 'vanguard', shipClass: 'frigate', x: 18, y: 49, motion: orbitMotion(CONFIG.EARTH.x, CONFIG.EARTH.y, 10.5, 6.6, -0.14, 2.4) },
-    { id: 'SIM-V-03', name: '水星护航-楔首', faction: 'vanguard', shipClass: 'destroyer', x: 32, y: 48, motion: routeMotion([{ x: 24, y: 48 }, { x: 36, y: 50 }, { x: 29, y: 42 }], 0.018, 0.1, 0, 0) },
-    { id: 'SIM-V-04', name: '水星护航-左翼', faction: 'vanguard', shipClass: 'raider', x: 30, y: 49, motion: routeMotion([{ x: 24, y: 48 }, { x: 36, y: 50 }, { x: 29, y: 42 }], 0.018, 0.1, -2.0, 1.5) },
-    { id: 'SIM-V-05', name: '水星护航-右翼', faction: 'vanguard', shipClass: 'raider', x: 34, y: 49, motion: routeMotion([{ x: 24, y: 48 }, { x: 36, y: 50 }, { x: 29, y: 42 }], 0.018, 0.1, 2.0, 1.5) },
+    { id: 'SIM-V-01', name: '近地巡逻-α', faction: 'vanguard', shipClass: 'frigate', x: 29, y: 45, motion: orbitMotion(CONFIG.EARTH.x, CONFIG.EARTH.y, 8.5, 5.4, 0.07, 0.2) },
+    { id: 'SIM-V-02', name: '近地巡逻-β', faction: 'vanguard', shipClass: 'frigate', x: 18, y: 49, motion: orbitMotion(CONFIG.EARTH.x, CONFIG.EARTH.y, 10.5, 6.6, -0.055, 2.4) },
+    { id: 'SIM-V-03', name: '水星护航-楔首', faction: 'vanguard', shipClass: 'destroyer', x: 32, y: 48, motion: routeMotion([{ x: 24, y: 48 }, { x: 36, y: 50 }, { x: 29, y: 42 }], 0.007, 0.1, 0, 0) },
+    { id: 'SIM-V-04', name: '水星护航-左翼', faction: 'vanguard', shipClass: 'raider', x: 30, y: 49, motion: routeMotion([{ x: 24, y: 48 }, { x: 36, y: 50 }, { x: 29, y: 42 }], 0.007, 0.1, -2.0, 1.5) },
+    { id: 'SIM-V-05', name: '水星护航-右翼', faction: 'vanguard', shipClass: 'raider', x: 34, y: 49, motion: routeMotion([{ x: 24, y: 48 }, { x: 36, y: 50 }, { x: 29, y: 42 }], 0.007, 0.1, 2.0, 1.5) },
 
     // 地球联合政府：金星-月球方向串列巡航
-    { id: 'SIM-E-01', name: '金星封锁-01', faction: 'egov', shipClass: 'cruiser', x: 76, y: 24, motion: routeMotion([{ x: 76, y: 22 }, { x: 64, y: 28 }, { x: 52, y: 38 }, { x: 67, y: 30 }], 0.014, 0.0) },
-    { id: 'SIM-E-02', name: '金星封锁-02', faction: 'egov', shipClass: 'destroyer', x: 72, y: 26, motion: routeMotion([{ x: 76, y: 22 }, { x: 64, y: 28 }, { x: 52, y: 38 }, { x: 67, y: 30 }], 0.014, 0.08) },
-    { id: 'SIM-E-03', name: '金星封锁-03', faction: 'egov', shipClass: 'frigate', x: 68, y: 29, motion: routeMotion([{ x: 76, y: 22 }, { x: 64, y: 28 }, { x: 52, y: 38 }, { x: 67, y: 30 }], 0.014, 0.16) },
+    { id: 'SIM-E-01', name: '金星封锁-01', faction: 'egov', shipClass: 'cruiser', x: 76, y: 24, motion: routeMotion([{ x: 76, y: 22 }, { x: 64, y: 28 }, { x: 52, y: 38 }, { x: 67, y: 30 }], 0.0055, 0.0) },
+    { id: 'SIM-E-02', name: '金星封锁-02', faction: 'egov', shipClass: 'destroyer', x: 72, y: 26, motion: routeMotion([{ x: 76, y: 22 }, { x: 64, y: 28 }, { x: 52, y: 38 }, { x: 67, y: 30 }], 0.0055, 0.08) },
+    { id: 'SIM-E-03', name: '金星封锁-03', faction: 'egov', shipClass: 'frigate', x: 68, y: 29, motion: routeMotion([{ x: 76, y: 22 }, { x: 64, y: 28 }, { x: 52, y: 38 }, { x: 67, y: 30 }], 0.0055, 0.16) },
 
     // 木星兵团：木星船坞环绕和土星航线
-    { id: 'SIM-J-01', name: '木星环卫-主力', faction: 'jupiter', shipClass: 'battleship', x: 85, y: 63, motion: orbitMotion(85, 63, 9.0, 5.2, 0.11, 1.1) },
-    { id: 'SIM-J-02', name: '木星环卫-外哨', faction: 'jupiter', shipClass: 'destroyer', x: 78, y: 65, motion: orbitMotion(85, 63, 12.5, 7.0, -0.09, 3.4) },
-    { id: 'SIM-J-03', name: '土星补给-01', faction: 'jupiter', shipClass: 'frigate', x: 67, y: 73, motion: routeMotion([{ x: 85, y: 63 }, { x: 72, y: 70 }, { x: 55, y: 82 }, { x: 70, y: 77 }], 0.011, 0.18) },
-    { id: 'SIM-J-04', name: '土星补给-02', faction: 'jupiter', shipClass: 'raider', x: 64, y: 75, motion: routeMotion([{ x: 85, y: 63 }, { x: 72, y: 70 }, { x: 55, y: 82 }, { x: 70, y: 77 }], 0.011, 0.26) },
+    { id: 'SIM-J-01', name: '木星环卫-主力', faction: 'jupiter', shipClass: 'battleship', x: 85, y: 63, motion: orbitMotion(85, 63, 9.0, 5.2, 0.045, 1.1) },
+    { id: 'SIM-J-02', name: '木星环卫-外哨', faction: 'jupiter', shipClass: 'destroyer', x: 78, y: 65, motion: orbitMotion(85, 63, 12.5, 7.0, -0.035, 3.4) },
+    { id: 'SIM-J-03', name: '土星补给-01', faction: 'jupiter', shipClass: 'frigate', x: 67, y: 73, motion: routeMotion([{ x: 85, y: 63 }, { x: 72, y: 70 }, { x: 55, y: 82 }, { x: 70, y: 77 }], 0.0045, 0.18) },
+    { id: 'SIM-J-04', name: '土星补给-02', faction: 'jupiter', shipClass: 'raider', x: 64, y: 75, motion: routeMotion([{ x: 85, y: 63 }, { x: 72, y: 70 }, { x: 55, y: 82 }, { x: 70, y: 77 }], 0.0045, 0.26) },
 
     // 星际遗民：外缘游击队串行穿插
-    { id: 'SIM-R-01', name: '暗港游击-01', faction: 'remnant', shipClass: 'raider', x: 13, y: 88, motion: routeMotion([{ x: 13, y: 88 }, { x: 24, y: 78 }, { x: 36, y: 84 }, { x: 22, y: 94 }], 0.02, 0.0) },
-    { id: 'SIM-R-02', name: '暗港游击-02', faction: 'remnant', shipClass: 'raider', x: 18, y: 86, motion: routeMotion([{ x: 13, y: 88 }, { x: 24, y: 78 }, { x: 36, y: 84 }, { x: 22, y: 94 }], 0.02, 0.12) },
-    { id: 'SIM-R-03', name: '暗港游击-03', faction: 'remnant', shipClass: 'frigate', x: 24, y: 80, motion: routeMotion([{ x: 13, y: 88 }, { x: 24, y: 78 }, { x: 36, y: 84 }, { x: 22, y: 94 }], 0.02, 0.24) },
+    { id: 'SIM-R-01', name: '暗港游击-01', faction: 'remnant', shipClass: 'raider', x: 13, y: 88, motion: routeMotion([{ x: 13, y: 88 }, { x: 24, y: 78 }, { x: 36, y: 84 }, { x: 22, y: 94 }], 0.008, 0.0) },
+    { id: 'SIM-R-02', name: '暗港游击-02', faction: 'remnant', shipClass: 'raider', x: 18, y: 86, motion: routeMotion([{ x: 13, y: 88 }, { x: 24, y: 78 }, { x: 36, y: 84 }, { x: 22, y: 94 }], 0.008, 0.12) },
+    { id: 'SIM-R-03', name: '暗港游击-03', faction: 'remnant', shipClass: 'frigate', x: 24, y: 80, motion: routeMotion([{ x: 13, y: 88 }, { x: 24, y: 78 }, { x: 36, y: 84 }, { x: 22, y: 94 }], 0.008, 0.24) },
   ];
 
   specs.forEach((s) => {
@@ -1401,7 +1411,7 @@ const AnimationEngine = {
       unit.y = orbit.cy + Math.sin(orbit.angle) * orbit.radius;
     }
     // 友方也有漂移，但幅度更小
-    this.applyDrift(unit, dt, 0.6);
+    this.applyDrift(unit, dt, 0.45);
     unit.advanceDist = distToEarth(unit.x, unit.y);
   },
 
@@ -1425,7 +1435,7 @@ const AnimationEngine = {
     }
 
     // 巡逻漂移（替代 CSS shipFloat）
-    this.applyDrift(unit, dt, 1.0);
+    this.applyDrift(unit, dt, 0.75);
   },
 
   updateSpecialMotion(unit, dt) {
@@ -1445,25 +1455,27 @@ const AnimationEngine = {
       return false;
     }
 
-    this.applyDrift(unit, dt, unit.isDemoTraffic ? 0.18 : 0.35);
+    this.applyDrift(unit, dt, unit.isDemoTraffic ? 0.15 : 0.25);
     unit.advanceDist = distToEarth(unit.x, unit.y);
     return true;
   },
 
   // ---------- 漂移系统（替代 CSS shipFloat） ----------
+  // v2.6: 按舰船量级分级 — 袭扰艇轻快漂移，旗舰几乎静止
   applyDrift(unit, dt, scale = 1.0) {
     let d = this.driftMap.get(unit.id);
     if (!d) {
+      const profile = DRIFT_PROFILES[normalizeShipClass(unit.shipClass)] || DRIFT_PROFILES.destroyer;
       d = {
         phase: Math.random() * Math.PI * 2,
-        ampX: (0.28 + Math.random() * 0.34),
-        ampY: (0.24 + Math.random() * 0.32),
-        freq: (0.38 + Math.random() * 0.45),
+        ampX: (profile.ampBase + Math.random() * profile.ampVar),
+        ampY: (profile.ampBase * 0.82 + Math.random() * profile.ampVar * 0.82),
+        freq: (profile.freqBase + Math.random() * profile.freqVar),
       };
       this.driftMap.set(unit.id, d);
     }
     // 选中时漂移减小
-    const selectedScale = (G.selectedId === unit.id) ? 0.2 : 1.0;
+    const selectedScale = (G.selectedId === unit.id) ? 0.15 : 1.0;
     d.phase += d.freq * dt;
     unit._driftX = Math.sin(d.phase) * d.ampX * scale * selectedScale;
     unit._driftY = Math.cos(d.phase * 0.73) * d.ampY * scale * selectedScale;
