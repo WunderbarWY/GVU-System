@@ -15,7 +15,6 @@
     linear-gradient(90deg, rgba(77,163,255,0.018), transparent 22%, transparent 78%, rgba(77,163,255,0.012));
   background-size: 100% 4px, 100% 100%;
   opacity: 0.18;
-  mix-blend-mode: soft-light;
 }
 
 .crt-vignette {
@@ -60,8 +59,8 @@
 }
 
 @keyframes enginePulse {
-  0% { height: 10px; opacity: 0.5; filter: blur(1px); }
-  100% { height: 20px; opacity: 1; filter: blur(3px); }
+  0% { height: 10px; opacity: 0.5; }
+  100% { height: 20px; opacity: 1; }
 }
 
 /* ---------- 威胁脉冲升级 ---------- */
@@ -228,7 +227,6 @@
     linear-gradient(90deg, rgba(77,163,255,0.035) 1px, transparent 1px),
     linear-gradient(rgba(77,163,255,0.035) 1px, transparent 1px);
   background-size: 120px 120px, 120px 120px, 480px 480px, 480px 480px;
-  mask-image: radial-gradient(circle at 50% 50%, black 0 40%, transparent 80%);
 }
 
 /* ============================================================
@@ -439,7 +437,6 @@
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(6px);
   opacity: 0;
   transition: opacity 300ms ease;
 }
@@ -717,6 +714,28 @@
 .vg-value {
   color: #e8fbff;
   font-weight: 500;
+}
+
+/* ============================================================
+   性能自动降级 — Performance Monitor CSS
+   ============================================================ */
+body[data-quality="low"] .sun::before,
+body[data-quality="low"] .sun::after,
+body[data-quality="low"] .faction-aura,
+body[data-quality="low"] .war-zone,
+body[data-quality="low"] .threat-pulse {
+  animation-play-state: paused !important;
+  opacity: 0 !important;
+}
+body[data-quality="low"] .scanline {
+  animation-play-state: paused !important;
+}
+body[data-quality="medium"] .sun::before {
+  animation-play-state: paused !important;
+  opacity: 0 !important;
+}
+body[data-quality="medium"] .faction-aura {
+  animation-play-state: paused !important;
 }
 
 /* ============================================================

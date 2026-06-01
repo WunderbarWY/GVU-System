@@ -72,6 +72,7 @@ open http://localhost:5180
 - `MEMORY.md` — 详细进度、已知问题、TODO、架构说明
 - `DEVLOG.md` — 开发日志与需求 backlog
 - `INSTRUCTIONS_FOR_CODEX.md` — Codex 协作分工指令
+- `console-skin.css` — Codex 新增控制台视觉覆盖层，避开核心逻辑
 
 ## GitHub
 

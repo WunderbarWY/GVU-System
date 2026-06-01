@@ -1,7 +1,7 @@
 # 项目记忆 — 银河先遣队控制中心 (GVU System)
 
-> **最后更新**：2026-06-01  
-> **当前版本**：v4.1（用户版本号 v2.5）  
+> **最后更新**：2026-05-29  
+> **当前版本**：v4.1（用户版本号 v2.6）  
 > **核心原则**：不点开是战棋，点开了是工作  
 > **数据流向**：Linear 单向读取 → 游戏展示（不回写）
 
@@ -17,6 +17,7 @@
 | v2.3.1 | 点击系统稳定性修复（事件委托重构） |
 | v2.4 | 沉浸式舰船部署弹窗 + 自定义命名/指挥官/编队/扇区 + 跃迁光束动画 |
 | v2.5 | 指挥官登录首页（打字机动画/Space跳过） + 卡顿紧急修复 |
+| v2.6 | **系统性性能优化**：scanline transform 化、filter 动画移除、mix-blend-mode 清理、hover 检测节流、自动降级系统 |
 
 ---
 
@@ -167,10 +168,23 @@
 
 ## 性能关键
 
+### v2.6 深度优化（系统性修复）
+- **scanline 动画**：`top` 属性动画 → `transform: translateY()`，消除每帧布局重排（layout thrashing）
+- **太阳 filter 动画移除**：`.sun` 的 `@keyframes stellarPulse` 不再改变 `filter: saturate/contrast/brightness`，这是星球闪烁的根本原因
+- **太阳 corona 简化**：移除 `::before` 的 `filter: blur(10px)` + conic-gradient 旋转动画，改为静态 radial-gradient
+- **mix-blend-mode 全面清理**：移除 `.routes`、`.ship-glyph`、`.tactical-strike`、`.map-stage::before` 等 6 处 `mix-blend-mode: screen`，减少合成层开销
+- **enginePulse 移除 blur**：`filter: blur()` 动画极昂贵，已移除
+- **deploy-backdrop 移除 backdrop-filter**：`blur(6px)` 开销大
+- **strategic-grid 移除 mask-image**：某些浏览器下 mask-image 渲染昂贵
+- **hover 检测 rAF 节流**：`pointermove` 中 `unitFromPoint()` 的 `getBoundingClientRect()` 每帧触发强制同步布局 → 改为 `requestAnimationFrame` 节流
+- **AnimationEngine.updateDOM() 精确写**：CSS 变量（--ship-heading、--motion-opacity 等）只在值变化时才 setProperty；left/top 只在位置变化 > 0.001% 时才写
+- **PerformanceMonitor 自动降级**：FPS < 25 时自动暂停 scanline/route 动画；FPS < 38 时暂停 corona 旋转；FPS > 55 时恢复
+- **GPU 层稳定**：`.sun`、`.planet` 添加 `will-change: transform` + `backface-visibility: hidden`，防止合成层闪烁
+
+### v2.5 及之前的性能记录
 - **AnimationEngine.elCache**：DOM 引用缓存，避免每帧 querySelector
 - **warmCache() 调用时机**：`renderUnits()` 重建 DOM 后**必须**调用，否则每帧 N×3 次 querySelector 导致严重卡顿
 - **driftMap/orbitMap 清理**：`warmCache()` 中自动清理已不存在的 unitId，防止内存泄漏
-- **updateDOM()**：漂移导致位置几乎每帧都变，left/top 更新不可省；核心瓶颈是缓存失效时的 querySelector
 
 ---
 
@@ -185,6 +199,7 @@
 - **自动连接**：通过 `~/.gv_linear_key` 文件（server.py 读取），而非 localStorage（跨端口隔离）
 - **部署流程**：必须经弹窗确认（舰名/指挥官/编队/扇区），不能直接生成
 - **登录首页**：首屏必须是登录页，打字机欢迎动画，Space 跳过
+- **性能优先于特效**：filter 动画、mix-blend-mode、backdrop-filter 等 GPU 杀手必须评估后再加入；新功能默认走 `PerformanceMonitor` 审查
 
 ---
 

@@ -1250,6 +1250,81 @@ const StarshipSync = {
 };
 
 // ============================================
+// 性能监控与自动降级系统 v2.6
+// ============================================
+const PerformanceMonitor = {
+  fps: 60,
+  frameTimes: [],
+  lastFrameTime: 0,
+  quality: 'high',
+  checkInterval: null,
+  _rafId: null,
+
+  start() {
+    this.lastFrameTime = performance.now();
+    this.checkInterval = setInterval(() => this.evaluate(), 4000);
+    this._rafId = requestAnimationFrame(() => this.measureLoop());
+  },
+
+  stop() {
+    if (this.checkInterval) clearInterval(this.checkInterval);
+    if (this._rafId) cancelAnimationFrame(this._rafId);
+  },
+
+  measureLoop() {
+    const now = performance.now();
+    const delta = now - this.lastFrameTime;
+    this.lastFrameTime = now;
+    const fps = Math.min(60, Math.round(1000 / Math.max(delta, 1)));
+    this.frameTimes.push(fps);
+    if (this.frameTimes.length > 90) this.frameTimes.shift();
+    this._rafId = requestAnimationFrame(() => this.measureLoop());
+  },
+
+  evaluate() {
+    if (this.frameTimes.length < 20) return;
+    const avg = this.frameTimes.reduce((a, b) => a + b, 0) / this.frameTimes.length;
+    this.fps = Math.round(avg);
+    this.frameTimes = [];
+
+    if (this.fps < 22 && this.quality !== 'low') {
+      this.setQuality('low');
+    } else if (this.fps < 38 && this.quality === 'high') {
+      this.setQuality('medium');
+    } else if (this.fps > 52 && this.quality === 'low') {
+      this.setQuality('medium');
+    } else if (this.fps > 58 && this.quality === 'medium') {
+      this.setQuality('high');
+    }
+  },
+
+  setQuality(level) {
+    const old = this.quality;
+    this.quality = level;
+    document.body.dataset.quality = level;
+    console.log(`[GV] Quality: ${old} → ${level} (FPS: ${this.fps})`);
+
+    const scanlines = document.querySelectorAll('.scanline');
+    const routes = document.querySelectorAll('.route');
+    const engineFlames = document.querySelectorAll('.engine-flame');
+
+    if (level === 'low') {
+      scanlines.forEach(el => { el.style.animationPlayState = 'paused'; el.style.opacity = '0'; });
+      routes.forEach(el => el.style.animationPlayState = 'paused');
+      engineFlames.forEach(el => el.style.animationPlayState = 'paused');
+    } else if (level === 'medium') {
+      scanlines.forEach(el => { el.style.animationPlayState = 'running'; el.style.opacity = ''; });
+      routes.forEach(el => el.style.animationPlayState = 'paused');
+      engineFlames.forEach(el => el.style.animationPlayState = 'running');
+    } else {
+      scanlines.forEach(el => { el.style.animationPlayState = 'running'; el.style.opacity = ''; });
+      routes.forEach(el => el.style.animationPlayState = 'running');
+      engineFlames.forEach(el => el.style.animationPlayState = 'running');
+    }
+  },
+};
+
+// ============================================
 // Animation Engine v2.2 — 飞船自主移动 + 轨道系统预留
 // 用 rAF 驱动所有飞船动画，替代纯 CSS shipFloat
 // ============================================
@@ -1417,27 +1492,47 @@ const AnimationEngine = {
 
     if (moving) {
       const heading = Math.atan2(vy, vx) * 180 / Math.PI;
-      cached.unit.style.setProperty('--ship-heading', `${heading + 90}deg`);
-      cached.unit.style.setProperty('--motion-opacity', unit.status === 'advancing' ? '0.78' : '0.46');
+      const headingStr = `${heading + 90}deg`;
+      if (unit._lastHeading !== headingStr) {
+        cached.unit.style.setProperty('--ship-heading', headingStr);
+        unit._lastHeading = headingStr;
+      }
+      const motionOp = unit.status === 'advancing' ? '0.78' : '0.46';
+      if (unit._lastMotionOp !== motionOp) {
+        cached.unit.style.setProperty('--motion-opacity', motionOp);
+        unit._lastMotionOp = motionOp;
+      }
       if (cached.trail) {
-        cached.trail.style.setProperty('--angle', `${heading}deg`);
-        cached.trail.style.setProperty('--trail-alpha', unit.status === 'advancing' ? '0.62' : '0.4');
+        const angleStr = `${heading}deg`;
+        const trailAlpha = unit.status === 'advancing' ? '0.62' : '0.4';
+        if (unit._lastTrailAngle !== angleStr) {
+          cached.trail.style.setProperty('--angle', angleStr);
+          unit._lastTrailAngle = angleStr;
+        }
+        if (unit._lastTrailAlpha !== trailAlpha) {
+          cached.trail.style.setProperty('--trail-alpha', trailAlpha);
+          unit._lastTrailAlpha = trailAlpha;
+        }
       }
     }
 
-    cached.unit.style.left = rx + '%';
-    cached.unit.style.top = ry + '%';
+    // 只有当位置确实变化时才写 DOM，避免每帧无条件触发布局重排
+    const posChanged = Math.abs(rx - lastX) > 0.001 || Math.abs(ry - lastY) > 0.001;
+    if (posChanged) {
+      cached.unit.style.left = rx + '%';
+      cached.unit.style.top = ry + '%';
 
-    if (cached.pulse) {
-      cached.pulse.style.left = rx + '%';
-      cached.pulse.style.top = ry + '%';
+      if (cached.pulse) {
+        cached.pulse.style.left = rx + '%';
+        cached.pulse.style.top = ry + '%';
+      }
+      if (cached.trail) {
+        cached.trail.style.left = (rx - 1.4) + '%';
+        cached.trail.style.top = (ry + 1.1) + '%';
+      }
+      unit._renderX = rx;
+      unit._renderY = ry;
     }
-    if (cached.trail) {
-      cached.trail.style.left = (rx - 1.4) + '%';
-      cached.trail.style.top = (ry + 1.1) + '%';
-    }
-    unit._renderX = rx;
-    unit._renderY = ry;
   },
 
   // ---------- 轨道系统接口（预留） ----------
@@ -2153,6 +2248,28 @@ function scheduleMap() {
 }
 function zoom(d) { map.zoom = clamp(map.zoom + d, 0.26, 2.4); scheduleMap(); }
 function resetMap() { map.zoom = 0.32; map.panX = 0; map.panY = 0; applyMap(); }
+// hover 检测节流 — 避免 pointermove 每帧都触发 getBoundingClientRect 强制同步布局
+let _hoverRafId = null;
+let _pendingHoverEvent = null;
+function throttledHoverCheck(e) {
+  _pendingHoverEvent = e;
+  if (_hoverRafId) return;
+  _hoverRafId = requestAnimationFrame(() => {
+    _hoverRafId = null;
+    const ev = _pendingHoverEvent;
+    if (!ev) return;
+    _pendingHoverEvent = null;
+    if (ev.target.closest?.('.map-controls, .unit-detail, .command-panel')) return;
+    const unit = unitFromPoint(ev.clientX, ev.clientY);
+    const id = unit?.dataset.id || null;
+    if (id !== map.hoverId) {
+      map.hoverId = id;
+      if (id) previewUnit(id);
+      else clearUnitPreview();
+    }
+  });
+}
+
 function initMap() {
   const stage = document.querySelector('#mapStage');
   if (!stage) return;
@@ -2196,14 +2313,7 @@ function initMap() {
   });
   stage.addEventListener('pointermove', e => {
     if (!map.dragging) {
-      if (e.target.closest?.('.map-controls, .unit-detail, .command-panel')) return;
-      const unit = unitFromPoint(e.clientX, e.clientY);
-      const id = unit?.dataset.id || null;
-      if (id !== map.hoverId) {
-        map.hoverId = id;
-        if (id) previewUnit(id);
-        else clearUnitPreview();
-      }
+      throttledHoverCheck(e);
       return;
     }
     map.panX = map.ox + e.clientX - map.sx;
@@ -2624,6 +2734,7 @@ function bootMain() {
     AnimationEngine.start();
 
     showLoading('部署完成', 100);
+    PerformanceMonitor.start();
     setTimeout(() => hideLoading(), 600);
   } catch (err) {
     console.error('[GV] BOOT FAILED:', err);
