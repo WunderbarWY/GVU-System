@@ -34,6 +34,30 @@
 
 ---
 
+## 2026-06-01 — v2.5 指挥官登录首页 + 卡顿修复
+
+### 新增的
+- **指挥官登录首页**：全屏科幻登录页，在 `index.html` 中作为首屏
+  - logo 浮动动画 + 脉冲光环 + 旋转虚线环
+  - 扫描线叠加 + 径向网格背景
+  - 指挥官代号输入 + 安全密钥输入（只读占位符）
+  - "接入系统"按钮：hover 流光效果 + glow 动画
+  - 登录后播放打字机动画："欢迎回来，指挥官。" → "战术系统已上线。"
+  - 光标闪烁动画
+  - Space 键快速跳过登录动画
+  - 登录完成后淡出首页，启动主系统 `bootMain()`
+- **启动流程重构**：`boot()` 拆分为登录页 + `bootMain()`，不再自动启动主内容
+
+### 卡顿修复（不惜一切代价）
+- **P0 — renderUnits() 后 warmCache()**：`renderUnits()` 重建 DOM 后从不刷新 elCache，导致每帧对所有飞船执行 querySelector
+  - 修复：`renderUnits()` 末尾加 `AnimationEngine.warmCache()`
+- **P0 — driftMap/orbitMap 内存泄漏**：`syncLinearToGame()` 完全替换 `G.units` 后，旧 unitId 永远残留
+  - 修复：`warmCache()` 中清理无效 unitId：`driftMap.delete()` / `orbitMap.delete()` / `elCache.delete()`
+- **P1 — updateDOM 无条件写 DOM**：`left/top/pulse/trail` 每帧都写，即使位置没变
+  - 现状保留：漂移系统导致位置几乎每帧都变，`moved` 判断收益有限；核心瓶颈是 querySelector，已修复
+
+---
+
 ## 2026-05-31 — v2.3.1 点击系统稳定性修复
 
 ### 修复的问题

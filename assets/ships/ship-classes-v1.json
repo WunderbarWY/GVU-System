@@ -1,0 +1,49 @@
+{
+  "version": "v1",
+  "style": "top-down tactical starship map icons",
+  "sourceSheet": "assets/ships/ship-classes-sheet-v1.png",
+  "classes": [
+    {
+      "id": "raider",
+      "label": "袭扰艇",
+      "role": "碎片任务、低优先级干扰、小型临时事项",
+      "mapSize": 28,
+      "asset": "assets/ships/ship-raider-v1.png"
+    },
+    {
+      "id": "frigate",
+      "label": "护卫舰",
+      "role": "清晰小任务、基础护航事项",
+      "mapSize": 36,
+      "asset": "assets/ships/ship-frigate-v1.png"
+    },
+    {
+      "id": "destroyer",
+      "label": "驱逐舰",
+      "role": "中等任务、明确战术目标",
+      "mapSize": 46,
+      "asset": "assets/ships/ship-destroyer-v1.png"
+    },
+    {
+      "id": "cruiser",
+      "label": "巡洋舰",
+      "role": "重要任务、独立推进模块",
+      "mapSize": 56,
+      "asset": "assets/ships/ship-cruiser-v1.png"
+    },
+    {
+      "id": "battleship",
+      "label": "战列舰",
+      "role": "高优先级交付、重型关键节点",
+      "mapSize": 68,
+      "asset": "assets/ships/ship-battleship-v1.png"
+    },
+    {
+      "id": "dreadnought",
+      "label": "无畏舰",
+      "role": "大项目、长期主线、战略级目标",
+      "mapSize": 82,
+      "asset": "assets/ships/ship-dreadnought-v1.png"
+    }
+  ]
+}

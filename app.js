@@ -31,13 +31,31 @@ const FACTIONS = {
 };
 
 const SHIP_CLASSES = {
-  flagship:   { label: '旗舰', size: 78, threat: 150, powerBase: 90 },
-  battleship: { label: '战列舰', size: 66, threat: 125, powerBase: 80 },
-  carrier:    { label: '母舰', size: 58, threat: 112, powerBase: 70 },
-  cruiser:    { label: '巡洋舰', size: 50, threat: 94, powerBase: 65 },
-  destroyer:  { label: '驱逐舰', size: 40, threat: 72, powerBase: 50 },
-  raider:     { label: '袭扰艇', size: 32, threat: 54, powerBase: 35 },
+  flagship:   { label: '旗舰', size: 108, threat: 150, powerBase: 90 },
+  dreadnought:{ label: '无畏舰', size: 108, threat: 150, powerBase: 90 },
+  battleship: { label: '战列舰', size: 90, threat: 125, powerBase: 80 },
+  carrier:    { label: '母舰', size: 76, threat: 112, powerBase: 70 },
+  cruiser:    { label: '巡洋舰', size: 72, threat: 94, powerBase: 65 },
+  destroyer:  { label: '驱逐舰', size: 58, threat: 72, powerBase: 50 },
+  frigate:    { label: '护卫舰', size: 52, threat: 64, powerBase: 44 },
+  raider:     { label: '袭扰艇', size: 46, threat: 54, powerBase: 35 },
 };
+
+const SHIP_MAP_GLYPHS = {
+  raider: './assets/ships/ship-map-raider-v1.png',
+  frigate: './assets/ships/ship-map-frigate-v1.png',
+  destroyer: './assets/ships/ship-map-destroyer-v1.png',
+  cruiser: './assets/ships/ship-map-cruiser-v1.png',
+  battleship: './assets/ships/ship-map-battleship-v1.png',
+  dreadnought: './assets/ships/ship-map-dreadnought-v1.png',
+};
+
+function normalizeShipClass(cls) {
+  return {
+    flagship: 'dreadnought',
+    carrier: 'cruiser',
+  }[cls] || cls;
+}
 
 const NATO_NAMES = {
   vanguard: ['阿尔法','贝塔','伽马','德尔塔','艾普西隆','泽塔','伊塔','西塔','约塔','卡帕','拉姆达','缪','纽','克西','奥米克戎','派','柔','西格玛','陶','宇普西隆','斐','希','普西','欧米伽','猎户','天龙','仙后','仙女','英仙','天鹅','天琴','天鹰','武仙','飞马','凤凰','狮子','天蝎','室女','双子','白羊','金牛','天秤','摩羯','射手','巨蟹','心宿二','牛郎','天津四','织女','角宿一','大角','参宿四','参宿七','天狼','老人','南河三','水委一','马腹一','北落师门','北河三','轩辕十四','北河二','毕宿五','天枢','天璇','玉衡','开阳','摇光','天权','天玑'],
@@ -785,6 +803,92 @@ function spawnZone(faction) {
   }[faction] || { x: [50, 80], y: [50, 80] };
 }
 
+function routeMotion(points, speed, progress = 0, offsetX = 0, offsetY = 0) {
+  return { type: 'route', points, speed, progress, offsetX, offsetY };
+}
+
+function orbitMotion(cx, cy, rx, ry, speed, angle = 0) {
+  return { type: 'orbit', cx, cy, rx, ry, speed, angle };
+}
+
+function sampleRoute(points, progress) {
+  if (!points?.length) return { x: 50, y: 50 };
+  if (points.length === 1) return points[0];
+
+  const segments = [];
+  let total = 0;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    segments.push({ a, b, len });
+    total += len;
+  }
+
+  let dist = ((progress % 1) + 1) % 1 * total;
+  for (const s of segments) {
+    if (dist <= s.len) {
+      const t = s.len ? dist / s.len : 0;
+      return {
+        x: s.a.x + (s.b.x - s.a.x) * t,
+        y: s.a.y + (s.b.y - s.a.y) * t,
+      };
+    }
+    dist -= s.len;
+  }
+  return points[0];
+}
+
+function addDemoTraffic() {
+  if (G.units.some(u => u.isDemoTraffic)) return;
+
+  const specs = [
+    // 银河先遣队：地球外圈巡逻 + 楔形护航
+    { id: 'SIM-V-01', name: '近地巡逻-α', faction: 'vanguard', shipClass: 'frigate', x: 29, y: 45, motion: orbitMotion(CONFIG.EARTH.x, CONFIG.EARTH.y, 8.5, 5.4, 0.18, 0.2) },
+    { id: 'SIM-V-02', name: '近地巡逻-β', faction: 'vanguard', shipClass: 'frigate', x: 18, y: 49, motion: orbitMotion(CONFIG.EARTH.x, CONFIG.EARTH.y, 10.5, 6.6, -0.14, 2.4) },
+    { id: 'SIM-V-03', name: '水星护航-楔首', faction: 'vanguard', shipClass: 'destroyer', x: 32, y: 48, motion: routeMotion([{ x: 24, y: 48 }, { x: 36, y: 50 }, { x: 29, y: 42 }], 0.018, 0.1, 0, 0) },
+    { id: 'SIM-V-04', name: '水星护航-左翼', faction: 'vanguard', shipClass: 'raider', x: 30, y: 49, motion: routeMotion([{ x: 24, y: 48 }, { x: 36, y: 50 }, { x: 29, y: 42 }], 0.018, 0.1, -2.0, 1.5) },
+    { id: 'SIM-V-05', name: '水星护航-右翼', faction: 'vanguard', shipClass: 'raider', x: 34, y: 49, motion: routeMotion([{ x: 24, y: 48 }, { x: 36, y: 50 }, { x: 29, y: 42 }], 0.018, 0.1, 2.0, 1.5) },
+
+    // 地球联合政府：金星-月球方向串列巡航
+    { id: 'SIM-E-01', name: '金星封锁-01', faction: 'egov', shipClass: 'cruiser', x: 76, y: 24, motion: routeMotion([{ x: 76, y: 22 }, { x: 64, y: 28 }, { x: 52, y: 38 }, { x: 67, y: 30 }], 0.014, 0.0) },
+    { id: 'SIM-E-02', name: '金星封锁-02', faction: 'egov', shipClass: 'destroyer', x: 72, y: 26, motion: routeMotion([{ x: 76, y: 22 }, { x: 64, y: 28 }, { x: 52, y: 38 }, { x: 67, y: 30 }], 0.014, 0.08) },
+    { id: 'SIM-E-03', name: '金星封锁-03', faction: 'egov', shipClass: 'frigate', x: 68, y: 29, motion: routeMotion([{ x: 76, y: 22 }, { x: 64, y: 28 }, { x: 52, y: 38 }, { x: 67, y: 30 }], 0.014, 0.16) },
+
+    // 木星兵团：木星船坞环绕和土星航线
+    { id: 'SIM-J-01', name: '木星环卫-主力', faction: 'jupiter', shipClass: 'battleship', x: 85, y: 63, motion: orbitMotion(85, 63, 9.0, 5.2, 0.11, 1.1) },
+    { id: 'SIM-J-02', name: '木星环卫-外哨', faction: 'jupiter', shipClass: 'destroyer', x: 78, y: 65, motion: orbitMotion(85, 63, 12.5, 7.0, -0.09, 3.4) },
+    { id: 'SIM-J-03', name: '土星补给-01', faction: 'jupiter', shipClass: 'frigate', x: 67, y: 73, motion: routeMotion([{ x: 85, y: 63 }, { x: 72, y: 70 }, { x: 55, y: 82 }, { x: 70, y: 77 }], 0.011, 0.18) },
+    { id: 'SIM-J-04', name: '土星补给-02', faction: 'jupiter', shipClass: 'raider', x: 64, y: 75, motion: routeMotion([{ x: 85, y: 63 }, { x: 72, y: 70 }, { x: 55, y: 82 }, { x: 70, y: 77 }], 0.011, 0.26) },
+
+    // 星际遗民：外缘游击队串行穿插
+    { id: 'SIM-R-01', name: '暗港游击-01', faction: 'remnant', shipClass: 'raider', x: 13, y: 88, motion: routeMotion([{ x: 13, y: 88 }, { x: 24, y: 78 }, { x: 36, y: 84 }, { x: 22, y: 94 }], 0.02, 0.0) },
+    { id: 'SIM-R-02', name: '暗港游击-02', faction: 'remnant', shipClass: 'raider', x: 18, y: 86, motion: routeMotion([{ x: 13, y: 88 }, { x: 24, y: 78 }, { x: 36, y: 84 }, { x: 22, y: 94 }], 0.02, 0.12) },
+    { id: 'SIM-R-03', name: '暗港游击-03', faction: 'remnant', shipClass: 'frigate', x: 24, y: 80, motion: routeMotion([{ x: 13, y: 88 }, { x: 24, y: 78 }, { x: 36, y: 84 }, { x: 22, y: 94 }], 0.02, 0.24) },
+  ];
+
+  specs.forEach((s) => {
+    const cls = SHIP_CLASSES[s.shipClass] || SHIP_CLASSES.raider;
+    G.units.push({
+      ...s,
+      status: s.faction === 'vanguard' ? 'patrol' : 'stationed',
+      advanceDist: distToEarth(s.x, s.y),
+      power: cls.powerBase + rand(18) - 6,
+      supply: rand(35) + 60,
+      morale: rand(30) + 60,
+      isDemoTraffic: true,
+      mission: {
+        title: '演示巡逻航行',
+        status: 'traffic-demo',
+        priority: 'low',
+        estimate: 0,
+        labels: ['演示舰队'],
+        description: '用于展示星图航行、编队巡逻和航道交通的假数据，不对应 Linear 任务。',
+      },
+    });
+  });
+}
+
 function syncLinearToGame() {
   const used = new Set();
   const units = [];
@@ -1173,6 +1277,12 @@ const AnimationEngine = {
   },
 
   warmCache() {
+    // 清理已不存在的单位（防止 driftMap/orbitMap 内存泄漏）
+    const validIds = new Set(G.units.filter(u => u.status !== 'destroyed').map(u => u.id));
+    for (const id of this.driftMap.keys()) { if (!validIds.has(id)) this.driftMap.delete(id); }
+    for (const id of this.orbitMap.keys()) { if (!validIds.has(id)) this.orbitMap.delete(id); }
+    for (const id of this.elCache.keys()) { if (!validIds.has(id)) this.elCache.delete(id); }
+
     // 预热 DOM 缓存，避免每帧 querySelector
     this.elCache.clear();
     G.units.forEach(unit => {
@@ -1206,6 +1316,8 @@ const AnimationEngine = {
 
   // ---------- 友方飞船 ----------
   updateVanguard(unit, dt) {
+    if (this.updateSpecialMotion(unit, dt)) return;
+
     const orbit = this.orbitMap.get(unit.id);
     if (orbit) {
       // 轨道运动
@@ -1220,6 +1332,8 @@ const AnimationEngine = {
 
   // ---------- 敌方飞船 ----------
   updateEnemy(unit, dt) {
+    if (this.updateSpecialMotion(unit, dt)) return;
+
     const od = unit.mission?.overdue || 0;
 
     // 逾期飞船持续向地球推进
@@ -1237,6 +1351,28 @@ const AnimationEngine = {
 
     // 巡逻漂移（替代 CSS shipFloat）
     this.applyDrift(unit, dt, 1.0);
+  },
+
+  updateSpecialMotion(unit, dt) {
+    const m = unit.motion;
+    if (!m) return false;
+
+    if (m.type === 'orbit') {
+      m.angle += m.speed * dt;
+      unit.x = clamp(m.cx + Math.cos(m.angle) * m.rx, 4, 96);
+      unit.y = clamp(m.cy + Math.sin(m.angle) * m.ry, 4, 96);
+    } else if (m.type === 'route') {
+      m.progress = ((m.progress || 0) + m.speed * dt) % 1;
+      const p = sampleRoute(m.points, m.progress);
+      unit.x = clamp(p.x + (m.offsetX || 0), 4, 96);
+      unit.y = clamp(p.y + (m.offsetY || 0), 4, 96);
+    } else {
+      return false;
+    }
+
+    this.applyDrift(unit, dt, unit.isDemoTraffic ? 0.18 : 0.35);
+    unit.advanceDist = distToEarth(unit.x, unit.y);
+    return true;
   },
 
   // ---------- 漂移系统（替代 CSS shipFloat） ----------
@@ -1692,6 +1828,11 @@ function renderFactions() {
 }
 
 function shipIcon(cls) {
+  const glyph = SHIP_MAP_GLYPHS[normalizeShipClass(cls)] || SHIP_MAP_GLYPHS.destroyer;
+  return `<img class="ship-icon ship-glyph" src="${glyph}" alt="" aria-hidden="true" draggable="false" />`;
+}
+
+function legacyShipIcon(cls) {
   const p = {
     flagship: '<path d="M50 3 L64 24 L88 37 L74 53 L65 84 L50 96 L35 84 L26 53 L12 37 L36 24 Z"/><path d="M50 16 L50 78"/><path d="M28 43 L72 43"/><path d="M36 61 L64 61"/>',
     battleship: '<path d="M50 5 L74 35 L82 66 L61 61 L50 93 L39 61 L18 66 L26 35 Z"/><path d="M33 39 L67 39"/><path d="M35 56 L65 56"/><path d="M42 72 L58 72"/>',
@@ -1715,11 +1856,12 @@ function renderUnits() {
     const crit = !isV && u.advanceDist < CONFIG.CRITICAL_DISTANCE;
     const adv = u.status === 'advancing';
     const angle = u.faction === 'remnant' ? '-28deg' : u.faction === 'jupiter' ? '18deg' : '-12deg';
+    const hasTrail = !isV || u.isDemoTraffic;
 
     return `
       ${!isV ? `<span class="threat-pulse" data-unit-id="${u.id}" style="left:${u.x}%;top:${u.y}%;--radius:${threat}px;--unit-color:${crit ? '#ff3f52' : f.color}"></span>` : ''}
-      ${!isV ? `<span class="unit-trail" data-unit-id="${u.id}" style="left:${u.x - 1.4}%;top:${u.y + 1.1}%;--trail-width:${54 + u.power * 0.32}px;--angle:${angle};--unit-color:${f.color}"></span>` : ''}
-      <button class="unit ship-${u.shipClass} ${u.status} ${G.selectedId === u.id ? 'is-selected' : ''}"
+      ${hasTrail ? `<span class="unit-trail" data-unit-id="${u.id}" style="left:${u.x - 1.4}%;top:${u.y + 1.1}%;--trail-width:${54 + u.power * 0.32}px;--angle:${angle};--unit-color:${f.color}"></span>` : ''}
+      <button class="unit ship-${u.shipClass} ${u.status} ${u.isDemoTraffic ? 'is-demo-traffic' : ''} ${G.selectedId === u.id ? 'is-selected' : ''}"
         data-id="${u.id}" type="button"
         style="left:${u.x}%;top:${u.y}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};--ship-size:${SHIP_CLASSES[u.shipClass]?.size || 34}px;color:${f.color}">
         ${shipIcon(u.shipClass)}
@@ -1740,6 +1882,11 @@ function renderUnits() {
       e.stopPropagation();
       selectUnit(btn.dataset.id);
     });
+  }
+
+  // DOM 重建后必须刷新动画引擎缓存，否则每帧 querySelector 导致严重卡顿
+  if (AnimationEngine && AnimationEngine.warmCache) {
+    AnimationEngine.warmCache();
   }
 }
 
@@ -2310,6 +2457,7 @@ function initLinearUI() {
         syncLinearToGame();
         processAdvance();
         checkReinforcements();
+        addDemoTraffic();
         renderWarZones();
         renderUnits();
         renderBriefing();
@@ -2359,7 +2507,94 @@ function initLinearUI() {
 // ============================================
 // 启动
 // ============================================
-function boot() {
+// ============================================
+// 指挥官登录系统 v2.5
+// ============================================
+let _loginSkip = false;
+
+function doLogin() {
+  if (_loginSkip) return;
+  _loginSkip = true;
+
+  const btn = document.querySelector('#loginBtn');
+  const form = document.querySelector('#loginForm');
+  const welcome = document.querySelector('#loginWelcome');
+  const line = document.querySelector('#welcomeLine');
+  const sub = document.querySelector('#welcomeSub');
+
+  // 按钮变为"验证中"
+  if (btn) {
+    btn.classList.add('is-processing');
+    btn.querySelector('.login-btn-text').textContent = '验证中...';
+  }
+
+  // 800ms 后切换为欢迎动画
+  setTimeout(() => {
+    if (form) {
+      form.style.opacity = '0';
+      form.style.transition = 'opacity 400ms ease';
+      setTimeout(() => { form.style.display = 'none'; }, 400);
+    }
+    if (welcome) {
+      welcome.style.display = 'block';
+      welcome.style.opacity = '0';
+      requestAnimationFrame(() => {
+        welcome.style.opacity = '1';
+        welcome.style.transition = 'opacity 500ms ease';
+      });
+    }
+
+    // 打字机效果
+    typeWriter(line, '欢迎回来，指挥官。', 55, () => {
+      setTimeout(() => {
+        typeWriter(sub, '战术系统已上线。', 45, () => {
+          setTimeout(finishLogin, 1000);
+        });
+      }, 300);
+    });
+  }, 700);
+}
+
+function typeWriter(el, text, speed, callback) {
+  if (!el) { if (callback) callback(); return; }
+  el.textContent = '';
+  let i = 0;
+  function step() {
+    if (i < text.length) {
+      el.textContent += text.charAt(i);
+      i++;
+      setTimeout(step, speed);
+    } else if (callback) {
+      callback();
+    }
+  }
+  step();
+}
+
+function finishLogin() {
+  const screen = document.querySelector('#loginScreen');
+  if (screen) {
+    screen.classList.add('is-done');
+  }
+  // 启动主系统
+  setTimeout(bootMain, 600);
+}
+
+// Space 键跳过登录动画
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !_loginSkip) {
+    e.preventDefault();
+    _loginSkip = true;
+    const screen = document.querySelector('#loginScreen');
+    if (screen) screen.classList.add('is-done');
+    setTimeout(bootMain, 200);
+  }
+});
+
+// ============================================
+// 主系统启动
+// ============================================
+function bootMain() {
   try {
     showLoading('初始化战术系统...', 10);
     initLinearUI();
@@ -2368,6 +2603,7 @@ function boot() {
     syncLinearToGame();
     processAdvance();
     checkReinforcements();
+    addDemoTraffic();
 
     showLoading('渲染战略地图...', 60);
     drawStarfield();
@@ -2397,6 +2633,7 @@ function boot() {
   }
 }
 
-window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, deploy: deployShip, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory };
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, deploy: confirmDeploy, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, doLogin, finishLogin, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory };
 window.addEventListener('resize', drawStarfield);
-boot();
+// 不再自动 boot，等用户登录
+// bootMain();

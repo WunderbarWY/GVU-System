@@ -2067,6 +2067,10 @@ body::after {
 
 .ship-icon {
   inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   fill: color-mix(in srgb, var(--unit-color), white 10%);
   stroke: color-mix(in srgb, var(--unit-color), white 58%);
   stroke-width: 2;
@@ -2077,6 +2081,25 @@ body::after {
   filter:
     drop-shadow(0 0 5px color-mix(in srgb, var(--unit-color), transparent 45%))
     drop-shadow(0 2px 3px rgba(0,0,0,0.72));
+}
+
+.ship-glyph {
+  opacity: 1;
+  mix-blend-mode: screen;
+  filter:
+    drop-shadow(0 0 5px color-mix(in srgb, var(--unit-color), white 12%))
+    drop-shadow(0 0 16px color-mix(in srgb, var(--unit-color), transparent 48%))
+    drop-shadow(0 0 28px color-mix(in srgb, var(--unit-color), transparent 76%))
+    drop-shadow(0 2px 3px rgba(0,0,0,0.78));
+}
+
+.unit.is-demo-traffic .ship-glyph {
+  opacity: 0.82;
+}
+
+.unit.is-demo-traffic:hover .ship-glyph,
+.unit.is-demo-traffic.is-selected .ship-glyph {
+  opacity: 1;
 }
 
 .ship-flagship { --ship-size: 78px; }

@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>银河先遣队作战指挥台</title>
-    <link rel="stylesheet" href="./styles.css?v=shipmotion-1" />
-    <link rel="stylesheet" href="./effects.css?v=shipmotion-1" />
+    <link rel="stylesheet" href="./styles.css?v=formation-1" />
+    <link rel="stylesheet" href="./effects.css?v=formation-1" />
   </head>
   <body>
     <!-- 加载画面 -->
@@ -14,6 +14,53 @@
       <div class="loading-status" id="loadingText">初始化战术系统...</div>
       <div class="loading-bar-track">
         <div class="loading-bar-fill" id="loadingBar"></div>
+      </div>
+    </div>
+
+    <!-- 指挥官登录页 -->
+    <div class="login-screen" id="loginScreen">
+      <div class="login-backdrop"></div>
+      <div class="login-scanline"></div>
+      <div class="login-grid"></div>
+
+      <div class="login-content">
+        <div class="login-logo-wrap">
+          <img src="./logo.png" alt="GVU" class="login-logo" />
+          <div class="login-logo-ring"></div>
+        </div>
+
+        <h1 class="login-title">银河先遣队</h1>
+        <p class="login-subtitle">GALACTIC VANGUARD UNIT</p>
+        <p class="login-system">战略指挥系统 <span class="login-version">v4.0</span></p>
+
+        <div class="login-divider">
+          <span></span>
+          <span class="login-diamond">◆</span>
+          <span></span>
+        </div>
+
+        <div class="login-form" id="loginForm">
+          <div class="login-field">
+            <label>指挥官代号</label>
+            <input type="text" id="loginCallsign" value="COMMANDER-1" readonly />
+          </div>
+          <div class="login-field">
+            <label>安全密钥</label>
+            <input type="password" id="loginKey" value="••••••••" readonly />
+          </div>
+          <button class="login-btn" id="loginBtn" onclick="window.__game.doLogin()">
+            <span class="login-btn-text">接入系统</span>
+            <span class="login-btn-glow"></span>
+          </button>
+        </div>
+
+        <div class="login-welcome" id="loginWelcome">
+          <p class="welcome-line" id="welcomeLine"></p>
+          <p class="welcome-sub" id="welcomeSub"></p>
+          <div class="welcome-cursor" id="welcomeCursor"></div>
+        </div>
+
+        <p class="login-hint">按住 <kbd>SPACE</kbd> 快速跳过</p>
       </div>
     </div>
 
@@ -243,6 +290,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=shipmotion-1"></script>
+    <script src="./app.js?v=formation-1"></script>
   </body>
 </html>

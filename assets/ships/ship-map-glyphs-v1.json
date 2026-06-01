@@ -1,0 +1,44 @@
+{
+  "version": "v1",
+  "style": "flat tactical star-map glyphs",
+  "sourceSheet": "assets/ships/ship-map-glyphs-v1.png",
+  "intendedUse": "solar map moving unit icons",
+  "classes": [
+    {
+      "id": "raider",
+      "label": "袭扰艇",
+      "mapSize": 22,
+      "asset": "assets/ships/ship-map-raider-v1.png"
+    },
+    {
+      "id": "frigate",
+      "label": "护卫舰",
+      "mapSize": 28,
+      "asset": "assets/ships/ship-map-frigate-v1.png"
+    },
+    {
+      "id": "destroyer",
+      "label": "驱逐舰",
+      "mapSize": 36,
+      "asset": "assets/ships/ship-map-destroyer-v1.png"
+    },
+    {
+      "id": "cruiser",
+      "label": "巡洋舰",
+      "mapSize": 46,
+      "asset": "assets/ships/ship-map-cruiser-v1.png"
+    },
+    {
+      "id": "battleship",
+      "label": "战列舰",
+      "mapSize": 58,
+      "asset": "assets/ships/ship-map-battleship-v1.png"
+    },
+    {
+      "id": "dreadnought",
+      "label": "无畏舰",
+      "mapSize": 72,
+      "asset": "assets/ships/ship-map-dreadnought-v1.png"
+    }
+  ]
+}
