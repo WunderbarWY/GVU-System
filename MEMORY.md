@@ -51,36 +51,24 @@ v2.6 — 性能优化 + 速度分级 + 启动加速（但启动卡死 bug 未解
 3. **按钮能点击**（说明 `window.__game` 存在，`app-v2.js` 至少执行到了末尾的 `window.__game = {...}`）
 4. **但 `doLogin()` / `bootMain()` 中的 `console.log` 完全不输出**
 
-### 可能的根因方向（待验证）
+### ✅ 已确认的根因（由 codex 定位）
 
-#### 方向 A：bootMain() 被调用但某个 step 函数同步死循环
-- `bootMain()` 中的 step 函数按顺序执行，如果某个函数有无限循环，主线程被卡住
-- `hideLoading()` 和 `setTimeout` 安全网都不会执行
-- 已检查 `app.js` 中的 `while`/`for` 循环，均为有限循环，但不能排除某些边界条件下的死循环
-- **最可疑的函数**：`renderUnits()`（涉及 DOM 操作 + AnimationEngine.warmCache()）、`drawStarfield()`（canvas 绘制）
+**两个叠加问题：**
 
-#### 方向 B：`doLogin()` 或 `finishLogin()` 未被调用
-- 用户可能点击了按钮，但 `_loginSkip` 状态异常？（但刷新会重置全局变量）
-- 按钮的 `onclick="window.__game.doLogin()"` 被某些元素遮挡？（`.login-btn-glow` 是 `absolute` 定位但没有 `pointer-events: none`，虽然 `transform: translateX(-100%)` 初始在按钮外）
+1. **`loading-screen` 默认可见，且 `z-index: 1000` 盖死了 `login-screen`（`z-index: 150`）**
+   - `index.html` 中 `<div class="loading-screen" id="loadingScreen">` 没有默认 `is-hidden`
+   - 页面加载后，用户根本看不到"接入系统"按钮
+   - `bootMain()` 永远不会被调用，loading screen 永远显示"初始化战术系统..."
 
-#### 方向 C：浏览器环境特殊问题
-- 用户的 Mac 上是否有某些浏览器扩展（广告拦截器、隐私保护等）拦截了 `app-v2.js` 的部分执行？
-- Chrome/Safari 的 DevTools Console 过滤设置问题？（但 `[DIAG]` 日志能显示，说明 Info 级别未过滤）
-- Python `http.server` 在某些情况下返回了损坏的 JS 文件？（需通过 Network 面板验证）
+2. **版本分裂：HTML 引用的是 `app-v2.js`，但部分修复只改了 `app.js`**
+   - 造成诊断混乱，Console 中看不到 `[GV]` 日志（因为执行的是 `app-v2.js`，而日志在 `app.js` 里）
 
-#### 方向 D：CSS/JS 状态异常
-- `hideLoading()` 给 loadingScreen 添加 `is-hidden` 类，但 CSS 规则 `.loading-screen.is-hidden { opacity: 0; visibility: hidden; }` 可能被其他样式覆盖？
-- 但如果是 CSS 问题，bootMain 应该能执行完，Console 应该有日志 — **与观察矛盾**
+### 修复方案
 
-### 下一步排查建议（给接手的 AI）
-
-1. **让用户点击按钮后立刻截图 Console** — 确认是否有 `[GV] bootMain start` 或 `[GV] doLogin start` 输出
-2. **检查 Network 面板** — 确认 `app-v2.js` 的响应内容是否和本地文件一致
-3. **在 `bootMain()` 第一行加一个 `alert('bootMain')`** — 如果 alert 弹出，说明函数被调用了；如果没弹出，说明调用链断裂
-4. **逐步注释掉 `bootMain()` 中的 step 函数** — 逐个排查哪个函数导致卡住
-5. **检查 `renderUnits()` 和 `drawStarfield()`** — 这两个函数涉及大量 DOM/canvas 操作，最可能有性能/死循环问题
-6. **检查 `_loginSkip` 变量** — 确认它是否在页面刷新后正确重置
-7. **检查 `localStorage` 中是否有异常状态** — 比如 `gv_linear_key` 是否导致 `autoConnect()` 中的 `tryConnect()` 死循环
+- 给 `loading-screen` 默认添加 `is-hidden` 类
+- `showLoading()` 调用时 `remove('is-hidden')` 来显示
+- `hideLoading()` 调用时 `add('is-hidden')` 来隐藏
+- 统一 JS 文件，避免版本分裂
 
 ---
 

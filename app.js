@@ -2357,6 +2357,7 @@ function showLoading(text, percent) {
   const screen = document.querySelector('#loadingScreen');
   const status = document.querySelector('#loadingText');
   const bar = document.querySelector('#loadingBar');
+  if (screen) screen.classList.remove('is-hidden');
   if (status) status.textContent = text;
   if (bar) bar.style.width = percent + '%';
 }
@@ -2640,43 +2641,15 @@ function doLogin() {
   console.log('[GV] doLogin start');
 
   const btn = document.querySelector('#loginBtn');
-  const form = document.querySelector('#loginForm');
-  const welcome = document.querySelector('#loginWelcome');
-  const line = document.querySelector('#welcomeLine');
-  const sub = document.querySelector('#welcomeSub');
-
-  // 按钮变为"验证中"
   if (btn) {
     btn.classList.add('is-processing');
     btn.querySelector('.login-btn-text').textContent = '验证中...';
   }
 
-  // 300ms 后切换为欢迎动画（缩短等待）
-  setTimeout(() => {
-    console.log('[GV] login welcome screen');
-    if (form) {
-      form.style.opacity = '0';
-      form.style.transition = 'opacity 300ms ease';
-      setTimeout(() => { form.style.display = 'none'; }, 300);
-    }
-    if (welcome) {
-      welcome.style.display = 'block';
-      welcome.style.opacity = '0';
-      requestAnimationFrame(() => {
-        welcome.style.opacity = '1';
-        welcome.style.transition = 'opacity 350ms ease';
-      });
-    }
-
-    // 打字机效果 — 加速（大船庄重，登录动画不该拖节奏）
-    typeWriter(line, '欢迎回来，指挥官。', 32, () => {
-      setTimeout(() => {
-        typeWriter(sub, '战术系统已上线。', 26, () => {
-          setTimeout(finishLogin, 350);
-        });
-      }, 120);
-    });
-  }, 300);
+  // 直接跳过所有动画，立即进入
+  const screen = document.querySelector('#loginScreen');
+  if (screen) screen.classList.add('is-done');
+  setTimeout(finishLogin, 100);
 }
 
 function typeWriter(el, text, speed, callback) {
@@ -2729,10 +2702,9 @@ function bootMain() {
       const t0 = performance.now();
       fn();
       const t1 = performance.now();
-      if (t1 - t0 > 10) console.log(`[GV] boot step ${name}: ${(t1-t0).toFixed(1)}ms`);
+      console.log(`[GV] step OK ${name}: ${(t1-t0).toFixed(1)}ms`);
     } catch (e) {
-      console.error(`[GV] BOOT STEP FAILED [${name}]:`, e);
-      throw e;
+      console.error(`[GV] step FAIL ${name}:`, e.message);
     }
   }
   try {
@@ -2765,18 +2737,17 @@ function bootMain() {
 
     showLoading('部署完成', 100);
     step('PerformanceMonitor.start', () => PerformanceMonitor.start());
-    console.log('[GV] bootMain done, steps:', _bootSteps.length);
-    // bootMain 执行很快，150ms 后淡出 loading screen
-    setTimeout(() => hideLoading(), 150);
+    console.log('[GV] ====== bootMain done, steps:', _bootSteps.length, '======');
+    hideLoading();
 
-    // 安全网：3秒后如果 loading screen 还在，强制隐藏
+    // 安全网：1秒后如果 loading screen 还在，强制隐藏
     setTimeout(() => {
       const ls = document.querySelector('#loadingScreen');
       if (ls && !ls.classList.contains('is-hidden')) {
-        console.warn('[GV] Loading screen timeout — forcing hide');
+        console.warn('[GV] Loading screen stuck — forcing hide');
         ls.classList.add('is-hidden');
       }
-    }, 3000);
+    }, 1000);
   } catch (err) {
     console.error('[GV] BOOT FAILED:', err);
     showLoading('系统启动失败: ' + err.message, 0);
