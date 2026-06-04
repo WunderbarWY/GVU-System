@@ -805,12 +805,34 @@ function priorityToClass(p) {
   return { urgent: 'battleship', high: 'cruiser', medium: 'destroyer', low: 'raider' }[p] || 'destroyer';
 }
 
-function spawnZone(faction) {
-  return {
+function spawnZone(faction, priority, status) {
+  const base = {
     egov: { x: [58, 90], y: [12, 42] },
     jupiter: { x: [55, 92], y: [54, 88] },
     remnant: { x: [6, 40], y: [66, 96] },
   }[faction] || { x: [50, 80], y: [50, 80] };
+
+  if (!priority) return base;
+
+  // v2.8: 优先级→地图位置映射 — urgent+进行中靠近地球，low+backlog远离势力外围
+  const priorityOffset = { urgent: 0.7, high: 0.5, medium: 0.2, low: -0.3 };
+  const statusOffset   = { in_progress: 0.2, todo: 0, backlog: -0.2 };
+  const factor = (priorityOffset[priority] || 0) + (statusOffset[status] || 0);
+
+  const cx = (base.x[0] + base.x[1]) / 2;
+  const cy = (base.y[0] + base.y[1]) / 2;
+  const dx = CONFIG.EARTH.x - cx;
+  const dy = CONFIG.EARTH.y - cy;
+  const d = Math.sqrt(dx * dx + dy * dy) || 1;
+  const shift = factor * 14; // 最大偏移约14%
+
+  const ox = (dx / d) * shift;
+  const oy = (dy / d) * shift;
+
+  return {
+    x: [base.x[0] + ox, base.x[1] + ox],
+    y: [base.y[0] + oy, base.y[1] + oy],
+  };
 }
 
 function routeMotion(points, speed, progress = 0, offsetX = 0, offsetY = 0) {
@@ -906,7 +928,7 @@ function syncLinearToGame() {
   // 未完成任务 → 敌军
   Linear.issues.forEach((issue, i) => {
     const cls = priorityToClass(issue.priority);
-    const zone = spawnZone(issue.faction);
+    const zone = spawnZone(issue.faction, issue.priority, issue.status);
     const od = daysOverdue(issue.due);
     let x = rand(zone.x[1] - zone.x[0]) + zone.x[0];
     let y = rand(zone.y[1] - zone.y[0]) + zone.y[0];
@@ -1003,7 +1025,7 @@ const StarshipSync = {
   // ---------- 创建飞船数据 ----------
   createUnit(issue, index, usedNames) {
     const cls = priorityToClass(issue.priority);
-    const zone = spawnZone(issue.faction);
+    const zone = spawnZone(issue.faction, issue.priority, issue.status);
     const od = daysOverdue(issue.due);
     let x = rand(zone.x[1] - zone.x[0]) + zone.x[0];
     let y = rand(zone.y[1] - zone.y[0]) + zone.y[0];
@@ -1476,9 +1498,16 @@ const AnimationEngine = {
     }
     // 选中时漂移减小
     const selectedScale = (G.selectedId === unit.id) ? 0.15 : 1.0;
+
+    // v2.8: 按任务优先级和状态放大漂移 — urgent×2.5 high×2.0 medium×1.5 low×1.0，进行中额外×1.2
+    const priorityScale = { urgent: 2.5, high: 2.0, medium: 1.5, low: 1.0 };
+    const ps = (priorityScale[unit.mission?.priority] || 1.0);
+    const ss = (unit.mission?.status === 'in_progress') ? 1.2 : 1.0;
+    const missionScale = ps * ss;
+
     d.phase += d.freq * dt;
-    unit._driftX = Math.sin(d.phase) * d.ampX * scale * selectedScale;
-    unit._driftY = Math.cos(d.phase * 0.73) * d.ampY * scale * selectedScale;
+    unit._driftX = Math.sin(d.phase) * d.ampX * scale * selectedScale * missionScale;
+    unit._driftY = Math.cos(d.phase * 0.73) * d.ampY * scale * selectedScale * missionScale;
   },
 
   // ---------- DOM 更新 ----------
