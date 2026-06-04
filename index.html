@@ -9,7 +9,7 @@
     <title>银河先遣队作战指挥台</title>
     <link rel="stylesheet" href="./styles.css?v=bootfix-1" />
     <link rel="stylesheet" href="./effects.css?v=bootfix-1" />
-    <link rel="stylesheet" href="./console-skin.css?v=bootfix-1" />
+    <link rel="stylesheet" href="./console-skin.css?v=sidebarfix-1" />
     <script>
       // 应急诊断脚本 — 检测启动卡死
       console.log('[DIAG] Emergency script loaded');
@@ -98,11 +98,11 @@
         </div>
       </div>
       <nav class="ops-tabs" aria-label="指挥台模块">
-        <span class="is-active">态势</span>
-        <span>舰队</span>
-        <span>战役</span>
-        <span>情报</span>
-        <span>设置</span>
+        <span class="is-active" data-tab="situation" onclick="window.__game.switchTab('situation')">态势</span>
+        <span data-tab="fleet" onclick="window.__game.switchTab('fleet')">舰队</span>
+        <span data-tab="campaign" onclick="window.__game.switchTab('campaign')">战役</span>
+        <span data-tab="intel" onclick="window.__game.switchTab('intel')">情报</span>
+        <span data-tab="settings" onclick="window.__game.switchTab('settings')">设置</span>
       </nav>
       <div class="ops-meta">
         <span>SOL-SECTOR</span>
@@ -256,6 +256,57 @@
           <p class="muted">点击地图上的作战单位，查看它对应的 Linear 待办、战斗力、补给与风险。</p>
         </section>
       </aside>
+
+      <!-- ====== 舰队标签页 ====== -->
+      <section class="tab-page" data-tab="fleet" style="display:none;">
+        <div class="tab-header">
+          <p class="eyebrow">FLEET COMMAND / ASSET MANAGEMENT</p>
+          <h2>舰队管理</h2>
+        </div>
+        <div class="tab-body">
+          <div class="fleet-sidebar">
+            <div class="fleet-filter" id="fleetFilter"></div>
+            <div class="fleet-summary" id="fleetSummary"></div>
+          </div>
+          <div class="fleet-list" id="fleetList"></div>
+        </div>
+      </section>
+
+      <!-- ====== 战役标签页 ====== -->
+      <section class="tab-page" data-tab="campaign" style="display:none;">
+        <div class="tab-header">
+          <p class="eyebrow">WAR ROOM / BATTLE LOG</p>
+          <h2>战役中心</h2>
+        </div>
+        <div class="tab-body">
+          <div class="campaign-stats" id="campaignStats"></div>
+          <div class="campaign-timeline" id="campaignTimeline"></div>
+        </div>
+      </section>
+
+      <!-- ====== 情报标签页 ====== -->
+      <section class="tab-page" data-tab="intel" style="display:none;">
+        <div class="tab-header">
+          <p class="eyebrow">INTELLIGENCE / THREAT ASSESSMENT</p>
+          <h2>情报分析</h2>
+        </div>
+        <div class="tab-body">
+          <div class="intel-grid" id="intelFactionAnalysis"></div>
+          <div class="intel-grid" id="intelLabelStats"></div>
+          <div class="intel-grid" id="intelThreatAlert"></div>
+        </div>
+      </section>
+
+      <!-- ====== 设置标签页 ====== -->
+      <section class="tab-page" data-tab="settings" style="display:none;">
+        <div class="tab-header">
+          <p class="eyebrow">SYSTEM CONFIGURATION</p>
+          <h2>系统设置</h2>
+        </div>
+        <div class="tab-body" id="settingsBody">
+          <!-- 设置内容由 JS 渲染 -->
+        </div>
+      </section>
     </main>
 
     <!-- 舰船部署弹窗 -->

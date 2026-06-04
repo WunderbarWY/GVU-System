@@ -2760,3 +2760,308 @@ window.__game = { complete: completeMission, start: startMission, selectUnit, se
 window.addEventListener('resize', drawStarfield);
 // 不再自动 boot，等用户登录
 // bootMain();
+
+// ============================================
+// 标签页系统 v2.7
+// ============================================
+let _activeTab = 'situation';
+
+function switchTab(tab) {
+  _activeTab = tab;
+
+  // 更新导航栏激活态
+  document.querySelectorAll('.ops-tabs span').forEach(el => {
+    el.classList.toggle('is-active', el.dataset.tab === tab);
+  });
+
+  // 隐藏/显示标签页
+  document.querySelectorAll('.tab-page').forEach(el => {
+    el.classList.toggle('is-active', el.dataset.tab === tab);
+  });
+
+  // 态势页需要特殊处理：显示/隐藏原有的 solar-map 和 command-panel
+  const solarMap = document.querySelector('.solar-map');
+  const cmdPanel = document.querySelector('.command-panel');
+  if (solarMap) solarMap.style.display = (tab === 'situation') ? '' : 'none';
+  if (cmdPanel) cmdPanel.style.display = (tab === 'situation') ? '' : 'none';
+
+  // 渲染对应标签页
+  if (tab === 'fleet') renderFleet();
+  if (tab === 'campaign') renderCampaign();
+  if (tab === 'intel') renderIntel();
+  if (tab === 'settings') renderSettings();
+}
+
+// ============================================
+// 舰队标签页
+// ============================================
+let _fleetFilter = 'all';
+
+function renderFleet() {
+  const filterEl = document.querySelector('#fleetFilter');
+  const listEl = document.querySelector('#fleetList');
+  const summaryEl = document.querySelector('#fleetSummary');
+  if (!filterEl || !listEl) return;
+
+  const factions = { all: '全部', vanguard: '银河先遣队', egov: '地球联合政府', jupiter: '木星兵团', remnant: '星际遗民' };
+
+  // 渲染筛选按钮
+  filterEl.innerHTML = Object.entries(factions).map(([k, v]) => {
+    const color = k === 'all' ? '#e8fbff' : CONFIG.FACTION_COLORS[k] || '#e8fbff';
+    const active = _fleetFilter === k ? 'is-active' : '';
+    return `<button class="fleet-filter-btn ${active}" style="color:${color}" onclick="window.__game.setFleetFilter('${k}')">${v}</button>`;
+  }).join('');
+
+  // 过滤舰船
+  const units = _fleetFilter === 'all'
+    ? G.units
+    : G.units.filter(u => u.faction === _fleetFilter);
+
+  // 统计
+  const destroyed = units.filter(u => u.status === 'destroyed').length;
+  summaryEl.innerHTML = `
+    <span>总计 <strong>${units.length}</strong></span>
+    <span>活跃 <strong style="color:#17d7b6">${units.length - destroyed}</strong></span>
+    <span>损失 <strong style="color:#ff3f52">${destroyed}</strong></span>
+  `;
+
+  // 渲染列表
+  listEl.innerHTML = units.map(u => {
+    const fcolor = CONFIG.FACTION_COLORS[u.faction] || '#e8fbff';
+    const statusLabel = u.status === 'destroyed' ? '已损失' : (u.mission?.status || '活跃');
+    const statusColor = u.status === 'destroyed' ? '#ff3f52' : '#17d7b6';
+    const clsLabel = SHIP_CLASSES[u.shipClass]?.label || u.shipClass;
+    return `
+      <div class="fleet-card" style="--faction-color:${fcolor}" onclick="window.__game.selectUnit('${u.id}'); window.__game.switchTab('situation');">
+        <div class="fleet-card-header">
+          ${shipIcon(u.shipClass)}
+          <span class="fleet-card-name" style="color:${fcolor}">${u.name}</span>
+        </div>
+        <div class="fleet-card-mission">${u.mission?.title || '无任务'}</div>
+        <div class="fleet-card-meta">
+          <span style="color:${statusColor}">● ${statusLabel}</span>
+          <span>${clsLabel}</span>
+          <span>战力 ${u.power || 0}</span>
+        </div>
+      </div>
+    `;
+  }).join('') || '<p class="muted">暂无舰船数据</p>';
+}
+
+function setFleetFilter(faction) {
+  _fleetFilter = faction;
+  renderFleet();
+}
+
+// ============================================
+// 战役标签页
+// ============================================
+function renderCampaign() {
+  const statsEl = document.querySelector('#campaignStats');
+  const timelineEl = document.querySelector('#campaignTimeline');
+  if (!statsEl || !timelineEl) return;
+
+  const stats = WarHistoryStore.getStats();
+  const records = WarHistoryStore.getRecords(20);
+
+  // 统计卡片
+  statsEl.innerHTML = `
+    <div class="stat-card"><div class="stat-card-value" style="color:#4da3ff">${stats.totalDeployments}</div><div class="stat-card-label">总部署</div></div>
+    <div class="stat-card"><div class="stat-card-value" style="color:#17d7b6">${stats.completedMissions}</div><div class="stat-card-label">完成任务</div></div>
+    <div class="stat-card"><div class="stat-card-value" style="color:#ffd251">${stats.currentStreak}</div><div class="stat-card-label">当前连胜</div></div>
+    <div class="stat-card"><div class="stat-card-value" style="color:#ff3f52">${stats.enemiesDestroyed}</div><div class="stat-card-label">击毁敌舰</div></div>
+    <div class="stat-card"><div class="stat-card-value">${G.turn}</div><div class="stat-card-label">作战日</div></div>
+  `;
+
+  // 时间线
+  if (records.length === 0) {
+    timelineEl.innerHTML = '<p class="muted">暂无战史记录</p>';
+    return;
+  }
+
+  timelineEl.innerHTML = records.map(r => {
+    const color = r.type === 'victory' ? '#17d7b6' : r.type === 'defeat' ? '#ff3f52' : '#ffd251';
+    const icon = r.type === 'victory' ? '✦' : r.type === 'defeat' ? '✕' : '◈';
+    return `
+      <div class="timeline-item">
+        <span style="color:${color};font-size:14px;width:20px;text-align:center">${icon}</span>
+        <span class="timeline-date">${r.date}</span>
+        <div class="timeline-content">
+          <div class="timeline-title">${r.title}</div>
+          <div class="timeline-desc">${r.description || ''}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============================================
+// 情报标签页
+// ============================================
+function renderIntel() {
+  const factionEl = document.querySelector('#intelFactionAnalysis');
+  const labelEl = document.querySelector('#intelLabelStats');
+  const threatEl = document.querySelector('#intelThreatAlert');
+  if (!factionEl || !labelEl || !threatEl) return;
+
+  // 势力分析
+  const allIssues = [...Linear.issues, ...Linear.done.map(d => ({ ...d, status: 'done' }))];
+  const factionStats = {};
+  Object.keys(FACTIONS).forEach(f => {
+    const issues = allIssues.filter(i => i.faction === f);
+    const done = issues.filter(i => i.status === 'done').length;
+    const total = issues.length;
+    factionStats[f] = { total, done, rate: total > 0 ? Math.round((done / total) * 100) : 0 };
+  });
+
+  const maxTotal = Math.max(...Object.values(factionStats).map(s => s.total), 1);
+
+  factionEl.innerHTML = `
+    <div class="intel-card">
+      <h3>势力任务分布</h3>
+      ${Object.entries(factionStats).map(([f, s]) => {
+        const color = CONFIG.FACTION_COLORS[f] || '#e8fbff';
+        const width = (s.total / maxTotal) * 100;
+        return `
+          <div class="intel-bar">
+            <span class="intel-bar-label" style="color:${color}">${FACTIONS[f]?.name || f}</span>
+            <div class="intel-bar-track"><div class="intel-bar-fill" style="width:${width}%;background:${color}"></div></div>
+            <span>${s.total} 任务 / ${s.rate}% 完成</span>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+
+  // 标签统计
+  const labelCounts = {};
+  allIssues.forEach(i => {
+    (i.labels || []).forEach(l => {
+      labelCounts[l] = (labelCounts[l] || 0) + 1;
+    });
+  });
+  const maxLabel = Math.max(...Object.values(labelCounts), 1);
+
+  labelEl.innerHTML = `
+    <div class="intel-card">
+      <h3>标签分布</h3>
+      ${Object.entries(labelCounts).sort((a, b) => b[1] - a[1]).map(([label, count]) => {
+        const width = (count / maxLabel) * 100;
+        return `
+          <div class="intel-bar">
+            <span class="intel-bar-label">${label}</span>
+            <div class="intel-bar-track"><div class="intel-bar-fill" style="width:${width}%;background:#4da3ff"></div></div>
+            <span>${count}</span>
+          </div>
+        `;
+      }).join('') || '<p class="muted">暂无标签数据</p>'}
+    </div>
+  `;
+
+  // 威胁预警
+  const overdue = Linear.issues.filter(i => daysOverdue(i.due) > 0);
+  const urgent = Linear.issues.filter(i => i.priority === 'urgent' && i.status !== 'done');
+  const high = Linear.issues.filter(i => i.priority === 'high' && i.status !== 'done');
+
+  threatEl.innerHTML = `
+    <div class="intel-card">
+      <h3>威胁预警</h3>
+      ${overdue.length > 0 ? `<div style="margin-bottom:10px"><span style="color:#ff3f52;font-size:12px">逾期任务 (${overdue.length})</span></div>` + overdue.slice(0, 5).map(i =>
+        `<div class="intel-alert">${i.title} — 逾期 ${daysOverdue(i.due)} 天</div>`
+      ).join('') : '<p class="muted">暂无逾期任务</p>'}
+      ${urgent.length > 0 ? `<div style="margin:16px 0 10px"><span style="color:#ffd251;font-size:12px">紧急任务 (${urgent.length})</span></div>` + urgent.slice(0, 3).map(i =>
+        `<div class="intel-alert" style="background:rgba(255,210,81,0.08);border-color:rgba(255,210,81,0.2);color:#ffd251">${i.title}</div>`
+      ).join('') : ''}
+      ${high.length > 0 ? `<div style="margin:16px 0 10px"><span style="color:#4da3ff;font-size:12px">高优先级 (${high.length})</span></div>` + high.slice(0, 3).map(i =>
+        `<div class="intel-alert" style="background:rgba(77,163,255,0.08);border-color:rgba(77,163,255,0.2);color:#8fc8ff">${i.title}</div>`
+      ).join('') : ''}
+    </div>
+  `;
+}
+
+// ============================================
+// 设置标签页
+// ============================================
+function renderSettings() {
+  const el = document.querySelector('#settingsBody');
+  if (!el) return;
+
+  el.innerHTML = `
+    <div class="settings-group">
+      <h3>Linear 连接</h3>
+      <div id="settingsConnectUI">
+        <p class="muted" style="margin-bottom:10px;font-size:12px">纯展示型 — 从 Linear 读取任务，游戏内操作不回写。</p>
+        <input type="password" id="settingsApiKey" placeholder="lin_api_..." value="${LinearAPI.key || ''}" style="width:100%;padding:8px 10px;border:1px solid rgba(172,219,255,0.25);border-radius:4px;background:rgba(2,5,12,0.6);color:#e8fbff;font-family:var(--font-ui);font-size:13px;box-sizing:border-box;" />
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button onclick="window.__game.settingsConnect()" style="flex:1;padding:8px;border:1px solid #4da3ff;border-radius:4px;background:rgba(77,163,255,0.15);color:#4da3ff;cursor:pointer;font-family:var(--font-display);font-size:13px;">🔗 连接</button>
+          <button onclick="window.__game.settingsDemo()" style="padding:8px 12px;border:1px solid rgba(232,251,255,0.15);border-radius:4px;background:rgba(232,251,255,0.05);color:var(--muted);cursor:pointer;font-family:var(--font-display);font-size:13px;">演示数据</button>
+        </div>
+        <p id="settingsStatus" style="margin:8px 0 0;font-size:12px;min-height:18px;"></p>
+      </div>
+    </div>
+
+    <div class="settings-group" style="margin-top:16px">
+      <h3>性能</h3>
+      <div class="settings-row">
+        <label>动画模式</label>
+        <select id="perfMode" onchange="window.__game.setPerfMode(this.value)" style="padding:4px 8px;border:1px solid rgba(125,157,184,0.25);border-radius:3px;background:rgba(2,5,12,0.6);color:#e8fbff;font-size:12px;">
+          <option value="auto">自动（根据帧率调整）</option>
+          <option value="high">高画质</option>
+          <option value="medium">中画质</option>
+          <option value="low">低画质</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-group" style="margin-top:16px">
+      <h3>关于</h3>
+      <p class="muted" style="font-size:12px;margin:0">银河先遣队作战指挥台 v2.7<br>GVU Strategic Command System</p>
+    </div>
+  `;
+
+  const mode = localStorage.getItem('gv_perf_mode') || 'auto';
+  const sel = document.querySelector('#perfMode');
+  if (sel) sel.value = mode;
+}
+
+function settingsConnect() {
+  const input = document.querySelector('#settingsApiKey');
+  const status = document.querySelector('#settingsStatus');
+  const key = cleanKey(input?.value || '');
+  if (!key) { status.textContent = '请输入 API Key'; status.style.color = '#ff3f52'; return; }
+
+  status.textContent = '正在连接...';
+  status.style.color = '#ffd251';
+  LinearAPI.key = key;
+
+  LinearAPI.sync().then(() => {
+    localStorage.setItem('gv_linear_key', key);
+    status.textContent = '✓ 已连接';
+    status.style.color = '#17d7b6';
+    LinearAPI.startPolling(30000);
+    syncLinearToGame();
+    renderUnits();
+    renderBriefing();
+  }).catch(err => {
+    status.textContent = '× 连接失败: ' + err.message;
+    status.style.color = '#ff3f52';
+  });
+}
+
+function settingsDemo() {
+  localStorage.removeItem('gv_linear_key');
+  LinearAPI.key = '';
+  location.reload();
+}
+
+function setPerfMode(mode) {
+  localStorage.setItem('gv_perf_mode', mode);
+  if (mode === 'low') {
+    AnimationEngine.stop();
+  } else if (mode === 'high') {
+    AnimationEngine.start();
+  }
+}
+
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, deploy: confirmDeploy, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, doLogin, finishLogin, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory, switchTab, setFleetFilter, settingsConnect, settingsDemo, setPerfMode };
+window.addEventListener('resize', drawStarfield);

@@ -309,6 +309,7 @@
 
 .command-panel {
   gap: 10px;
+  grid-auto-rows: max-content;
   padding: 12px 10px 18px;
   border-right-color: rgba(130, 171, 205, 0.22);
   background:
@@ -334,7 +335,8 @@
 }
 
 .briefing-panel {
-  overflow: hidden;
+  overflow: visible;
+  min-height: max-content;
   padding: 13px 12px 12px;
   border-color: rgba(133, 176, 213, 0.16);
   background:
@@ -424,6 +426,9 @@
 #btnConnect,
 #btnDemo,
 [data-deploy-cost] {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
   min-height: 30px;
   border-radius: 0 !important;
   clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
@@ -440,6 +445,9 @@
 
 #btnDemo,
 [data-deploy-cost] {
+  flex: 1 1 calc(50% - 4px);
+  min-width: 86px;
+  white-space: nowrap;
   border-color: rgba(137, 174, 205, 0.17) !important;
   background:
     linear-gradient(180deg, rgba(137, 174, 205, 0.08), rgba(137, 174, 205, 0.025)) !important;
@@ -560,6 +568,39 @@
   padding: 8px;
 }
 
+#wipDisplay + div {
+  display: block;
+  margin-top: 12px !important;
+}
+
+#wipDisplay + div > p {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px !important;
+  color: rgba(255, 210, 81, 0.74) !important;
+  font-family: var(--font-display);
+  letter-spacing: 1px;
+}
+
+#wipDisplay + div > p::before {
+  width: 13px;
+  height: 1px;
+  content: "";
+  background: rgba(255, 210, 81, 0.62);
+  box-shadow: 0 0 9px rgba(255, 210, 81, 0.22);
+}
+
+#wipDisplay + div > div {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px !important;
+}
+
+#wipDisplay + div > div [data-deploy-cost]:last-child {
+  grid-column: 1 / -1;
+}
+
 .unit-detail.has-selection {
   border-color: rgba(105, 184, 255, 0.32) !important;
   background:
@@ -572,11 +613,38 @@
 }
 
 .deploy-card {
+  position: relative;
+  z-index: 11001;
   border-radius: 0;
   border-color: rgba(105, 184, 255, 0.3);
   background:
     linear-gradient(90deg, rgba(77, 163, 255, 0.1), transparent 3px),
     linear-gradient(180deg, rgba(8, 18, 29, 0.98), rgba(2, 6, 12, 0.99));
+}
+
+.deploy-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 11000 !important;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.deploy-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(77, 163, 255, 0.12), transparent 34%),
+    rgba(0, 3, 8, 0.78);
+}
+
+.deploy-close,
+.deploy-cancel,
+.deploy-confirm {
+  position: relative;
+  z-index: 11002;
 }
 
 .deploy-header,
@@ -601,5 +669,14 @@
   .command-panel {
     border-right: 0;
     border-top: 1px solid rgba(130, 171, 205, 0.18);
+    overflow: visible;
+  }
+
+  .briefing-panel {
+    overflow: visible;
+  }
+
+  #wipDisplay + div > div {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
