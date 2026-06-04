@@ -1969,7 +1969,7 @@ function renderUnits() {
       ${!isV ? `<span class="threat-pulse" data-unit-id="${u.id}" style="left:${u.x}%;top:${u.y}%;--radius:${threat}px;--unit-color:${crit ? '#ff3f52' : f.color}"></span>` : ''}
       ${hasTrail ? `<span class="unit-trail" data-unit-id="${u.id}" style="left:${u.x - 1.4}%;top:${u.y + 1.1}%;--trail-width:${54 + u.power * 0.32}px;--angle:${angle};--unit-color:${f.color}"></span>` : ''}
       <button class="unit ship-${u.shipClass} ${u.status} ${u.isDemoTraffic ? 'is-demo-traffic' : ''} ${G.selectedId === u.id ? 'is-selected' : ''}"
-        data-id="${u.id}" type="button"
+        data-id="${u.id}" type="button" onclick="event.stopPropagation(); window.__game.selectUnit('${u.id}')"
         style="left:${u.x}%;top:${u.y}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};--ship-size:${SHIP_CLASSES[u.shipClass]?.size || 34}px;color:${f.color}">
         ${shipIcon(u.shipClass)}
         <span class="engine-flame" style="background:linear-gradient(180deg, ${f.color}, transparent);"></span>
@@ -2239,7 +2239,10 @@ function meter(label, value, color) {
 // ============================================
 // 地图控制（保留 Codex 全部交互）
 // ============================================
-const map = { zoom: 0.32, panX: 0, panY: 0, dragging: false, sx: 0, sy: 0, ox: 0, oy: 0, frame: 0, hoverId: null };
+const MAP_DEFAULT_ZOOM = 0.22;
+const MAP_MIN_ZOOM = 0.14;
+const MAP_MAX_ZOOM = 2.4;
+const map = { zoom: MAP_DEFAULT_ZOOM, panX: 0, panY: 0, dragging: false, sx: 0, sy: 0, ox: 0, oy: 0, frame: 0, hoverId: null };
 function applyMap() {
   const w = document.querySelector('#mapWorld');
   const l = document.querySelector('#zoomLabel');
@@ -2258,8 +2261,8 @@ function scheduleMap() {
     applyMap();
   });
 }
-function zoom(d) { map.zoom = clamp(map.zoom + d, 0.26, 2.4); scheduleMap(); }
-function resetMap() { map.zoom = 0.32; map.panX = 0; map.panY = 0; applyMap(); }
+function zoom(d) { map.zoom = clamp(map.zoom + d, MAP_MIN_ZOOM, MAP_MAX_ZOOM); scheduleMap(); }
+function resetMap() { map.zoom = MAP_DEFAULT_ZOOM; map.panX = 0; map.panY = 0; applyMap(); }
 // hover 检测节流 — 避免 pointermove 每帧都触发 getBoundingClientRect 强制同步布局
 let _hoverRafId = null;
 let _pendingHoverEvent = null;

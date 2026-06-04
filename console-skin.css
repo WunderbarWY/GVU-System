@@ -1005,3 +1005,27 @@
     font-size: 12px;
   }
 }
+
+/* v4.8 Deep-space campaign scale */
+.map-world,
+#celestialBodies,
+#unitLayer {
+  width: 7200px;
+  height: 4700px;
+}
+
+.map-world {
+  transform: translate3d(-50%, -50%, 0) translate3d(var(--pan-x, 0px), var(--pan-y, 0px), 0) scale(var(--zoom, 0.22));
+}
+
+.orbit-mercury { width: 1260px; height: 832px; }
+.orbit-venus { width: 2205px; height: 1418px; }
+.orbit-earth { width: 3082px; height: 1980px; }
+.orbit-jupiter { width: 4635px; height: 2880px; }
+.orbit-saturn { width: 5715px; height: 3555px; }
+.orbit-pluto { width: 7110px; height: 4545px; }
+
+.sector-label {
+  padding: 5px 9px;
+  opacity: 0.82;
+}
