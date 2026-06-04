@@ -1029,3 +1029,30 @@
   padding: 5px 9px;
   opacity: 0.82;
 }
+
+/* v4.9 Tactical HUD layer fix */
+.solar-map {
+  isolation: isolate;
+}
+
+.map-stage {
+  z-index: 1;
+}
+
+.map-header {
+  z-index: 120;
+}
+
+.map-controls,
+.sci-fi-hud {
+  z-index: 140 !important;
+  transform: translateZ(0);
+}
+
+.map-controls {
+  pointer-events: auto;
+}
+
+.sci-fi-hud {
+  pointer-events: none;
+}
