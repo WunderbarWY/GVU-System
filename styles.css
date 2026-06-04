@@ -786,6 +786,15 @@ h2 {
   transition: width 0.3s ease, background 0.3s ease;
 }
 
+.sci-fi-hud .hud-online-mini {
+  font-family: var(--font-display);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: rgba(137, 174, 205, 0.45);
+  margin-top: 4px;
+  text-align: center;
+}
+
 .sci-fi-hud .hud-divider {
   height: 1px;
   background: rgba(77, 163, 255, 0.18);

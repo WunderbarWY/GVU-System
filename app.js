@@ -476,7 +476,7 @@ const WarHistoryStore = {
       time: now.toISOString(),
       wipEarned: wipEarned || 0,
       sessionNum: sessionNum || 1,
-      desc: `完成第 ${sessionNum} 个番茄钟，专注 25 分钟`,
+      desc: `完成第 ${sessionNum} 个番茄钟，专注 ${s.duration / 60} 分钟`,
     });
     if (data.records.length > this._maxRecords) data.records.pop();
     this.save(data);
@@ -533,9 +533,27 @@ const WarHistoryStore = {
 // ============================================
 const PomodoroTimer = {
   _key: 'gv_pomodoro',
-  DEFAULT_DURATION: 25 * 60, // 25分钟 = 1500秒
+  _settingsKey: 'gv_pomodoro_settings',
+  DEFAULT_DURATION: 25 * 60,
   _rafId: null,
   _lastTick: 0,
+
+  getDuration() {
+    try {
+      const s = JSON.parse(localStorage.getItem(this._settingsKey));
+      if (s?.duration) return s.duration * 60;
+    } catch {}
+    return this.DEFAULT_DURATION;
+  },
+
+  setDuration(minutes) {
+    localStorage.setItem(this._settingsKey, JSON.stringify({ duration: minutes }));
+    const s = this.getState();
+    s.duration = minutes * 60;
+    if (s.state === 'idle') s.remaining = s.duration;
+    this.save(s);
+    updatePomodoroUI();
+  },
 
   load() {
     try { const raw = localStorage.getItem(this._key); if (raw) return JSON.parse(raw); } catch {}
@@ -547,7 +565,8 @@ const PomodoroTimer = {
     const today = new Date().toISOString().split('T')[0];
     let s = this.load();
     if (!s || s._version !== 1) {
-      s = { _version: 1, state: 'idle', duration: this.DEFAULT_DURATION, remaining: this.DEFAULT_DURATION, startedAt: null, sessionsToday: 0, totalSessions: 0, lastDate: today };
+      const dur = this.getDuration();
+      s = { _version: 1, state: 'idle', duration: dur, remaining: dur, startedAt: null, sessionsToday: 0, totalSessions: 0, lastDate: today };
     }
     if (s.lastDate !== today) {
       s.lastDate = today;
@@ -598,7 +617,8 @@ const PomodoroTimer = {
     s.sessionsToday = (s.sessionsToday || 0) + 1;
     s.totalSessions = (s.totalSessions || 0) + 1;
     this.save(s);
-    const gained = WIPStore.addPomodoro(25);
+    const reward = Math.round((s.duration / 60) * 1); // 每分钟 = 1 WIP
+    const gained = WIPStore.addPomodoro(reward);
     updateWipUI();
     WarHistoryStore.recordPomodoro(gained, s.sessionsToday);
     updatePomodoroUI();
@@ -638,6 +658,25 @@ const PomodoroTimer = {
       if (s.remaining <= 0) { this.complete(); }
       else { this.save(s); this._startTick(); updatePomodoroUI(); }
     } else { updatePomodoroUI(); }
+    this.initInterruptDetection();
+  },
+
+  // v2.9: 打断检测 — 切出标签页/最小化时自动暂停
+  _wasRunningBeforeHidden: false,
+  initInterruptDetection() {
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        const s = this.getState();
+        this._wasRunningBeforeHidden = (s.state === 'running');
+        if (s.state === 'running') this.pause();
+      } else {
+        if (this._wasRunningBeforeHidden) {
+          this._wasRunningBeforeHidden = false;
+          const s = this.getState();
+          if (s.state === 'paused') this.start();
+        }
+      }
+    });
   },
 
   formatTime(seconds) {
@@ -874,15 +913,12 @@ function updateWipUI() {
         <span style="font-size:11px;color:var(--muted);">WIP 工时</span>
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:2px;">
-        今日在线 ${formatTime(d.todayOnline)} / 01:00 | Streak: ${d.killStreak}
+        在线 ${formatTime(d.todayOnline)} | Streak: ${d.killStreak}
       </div>
     `;
   }
 
-  // 地图科幻 HUD
-  const hudTime = document.querySelector('#hudTime');
-  if (hudTime) hudTime.textContent = formatTime(d.todayOnline);
-
+  // 地图科幻 HUD — WIP 和 Streak（番茄钟由 updatePomodoroUI 独立管理）
   const hudWip = document.querySelector('#hudWipTotal');
   if (hudWip) hudWip.textContent = d.total;
 
@@ -899,6 +935,43 @@ function updateWipUI() {
     btn.style.opacity = d.total < cost ? '0.4' : '1';
     btn.style.cursor = d.total < cost ? 'not-allowed' : 'pointer';
   });
+}
+
+// v2.9: 番茄钟 HUD 更新
+function updatePomodoroUI() {
+  const s = PomodoroTimer.getState();
+  const hudTime = document.querySelector('#hudTime');
+  if (hudTime) {
+    if (s.state === 'completed') {
+      hudTime.textContent = 'DONE!';
+      hudTime.style.color = '#17d7b6';
+    } else {
+      hudTime.textContent = PomodoroTimer.formatTime(s.remaining);
+      hudTime.style.color = s.state === 'running' ? '#ffd251' : '#4da3ff';
+    }
+  }
+
+  // 进度条
+  const bar = document.querySelector('#hudPomodoroBar');
+  if (bar) {
+    const pct = s.state === 'completed' ? 100 : ((s.duration - s.remaining) / s.duration) * 100;
+    bar.style.width = `${pct}%`;
+    bar.style.background = s.state === 'running' ? '#ffd251' : s.state === 'completed' ? '#17d7b6' : 'rgba(77,163,255,0.35)';
+  }
+
+  // 标签文字
+  const label = document.querySelector('#hudPomodoroLabel');
+  if (label) {
+    const map = { idle: '发动巡航', running: '巡航中 — 点击暂停', paused: '已暂停 — 点击继续', completed: '完成！+25 WIP' };
+    label.textContent = map[s.state] || '';
+  }
+
+  // 在线时长小字（HUD 双显示）
+  const onlineEl = document.querySelector('#hudOnlineMini');
+  if (onlineEl) {
+    const d = WIPStore.get();
+    onlineEl.textContent = `在线 ${PomodoroTimer.formatTime(d.todayOnline * 60)} / 60min`;
+  }
 }
 
 // ============================================
@@ -3079,6 +3152,7 @@ function renderIntel() {
   const factionEl = document.querySelector('#intelFactionAnalysis');
   const labelEl = document.querySelector('#intelLabelStats');
   const threatEl = document.querySelector('#intelThreatAlert');
+  const economyEl = document.querySelector('#intelEconomy');
   if (!factionEl || !labelEl || !threatEl) return;
 
   // 势力分析
@@ -3154,6 +3228,54 @@ function renderIntel() {
       ).join('') : ''}
     </div>
   `;
+
+  // 经济账
+  if (economyEl) {
+    const records = WarHistoryStore.getRecords(20);
+    const d = WIPStore.get();
+    let todayIncome = 0, todayExpense = 0;
+    const today = new Date().toISOString().split('T')[0];
+    records.forEach(r => {
+      const rDate = r.time ? r.time.split('T')[0] : '';
+      if (rDate !== today) return;
+      if (r.wipEarned) todayIncome += r.wipEarned;
+      if (r.wipSpent) todayExpense += r.wipSpent;
+    });
+    // 在线计时收入也计入
+    todayIncome += d.todayOnline || 0;
+
+    const txRows = records.slice(0, 8).map(r => {
+      const time = r.time ? new Date(r.time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
+      let icon = '•', text = r.desc || '', amount = '';
+      if (r.type === 'kill') { icon = '⚔️'; text = `击沉 ${r.shipName}`; amount = `+${r.wipEarned || 0}`; }
+      else if (r.type === 'deploy') { icon = '🚀'; text = `部署 ${r.shipName}`; amount = `-${r.wipSpent || 0}`; }
+      else if (r.type === 'pomodoro') { icon = '⏱️'; text = r.desc; amount = `+${r.wipEarned || 0}`; }
+      else if (r.type === 'sync-in') { icon = '⚡'; text = r.desc; amount = ''; }
+      else if (r.type === 'sync-out') { icon = '✓'; text = r.desc; amount = ''; }
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(77,163,255,0.08);font-size:12px;"><span>${icon} ${text}</span><span style="color:${amount.startsWith('+')?'#17d7b6':amount.startsWith('-')?'#ff3f52':'var(--muted)'}">${amount}</span></div>`;
+    }).join('');
+
+    economyEl.innerHTML = `
+      <div class="intel-card">
+        <h3>经济账</h3>
+        <div style="display:flex;gap:16px;margin-bottom:12px;">
+          <div style="flex:1;text-align:center;padding:8px;background:rgba(255,210,81,0.06);border-radius:4px;border:1px solid rgba(255,210,81,0.15);">
+            <div style="font-size:18px;font-weight:700;color:#ffd251;">${d.total}</div>
+            <div style="font-size:10px;color:var(--muted);">当前余额</div>
+          </div>
+          <div style="flex:1;text-align:center;padding:8px;background:rgba(23,215,182,0.06);border-radius:4px;border:1px solid rgba(23,215,182,0.15);">
+            <div style="font-size:18px;font-weight:700;color:#17d7b6;">+${todayIncome}</div>
+            <div style="font-size:10px;color:var(--muted);">今日收入</div>
+          </div>
+          <div style="flex:1;text-align:center;padding:8px;background:rgba(255,63,82,0.06);border-radius:4px;border:1px solid rgba(255,63,82,0.15);">
+            <div style="font-size:18px;font-weight:700;color:#ff3f52;">-${todayExpense}</div>
+            <div style="font-size:10px;color:var(--muted);">今日支出</div>
+          </div>
+        </div>
+        ${txRows || '<p class="muted">暂无交易记录</p>'}
+      </div>
+    `;
+  }
 }
 
 // ============================================
@@ -3191,6 +3313,19 @@ function renderSettings() {
     </div>
 
     <div class="settings-group" style="margin-top:16px">
+      <h3>巡航设置</h3>
+      <div class="settings-row">
+        <label>巡航时长</label>
+        <select id="pomodoroDuration" onchange="window.__game.setPomodoroDuration(parseInt(this.value,10))" style="padding:4px 8px;border:1px solid rgba(125,157,184,0.25);border-radius:3px;background:rgba(2,5,12,0.6);color:#e8fbff;font-size:12px;">
+          <option value="15">15 分钟 — 短巡航</option>
+          <option value="25">25 分钟 — 标准巡航</option>
+          <option value="45">45 分钟 — 深空巡航</option>
+          <option value="60">60 分钟 — 长程巡航</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-group" style="margin-top:16px">
       <h3>数据管理</h3>
       <p class="muted" style="font-size:12px;margin:0 0 10px">备份 / 恢复游戏状态（WIP、战史、部署舰队、番茄钟记录）。换设备或清缓存前务必导出。</p>
       <div style="display:flex;gap:8px;">
@@ -3209,6 +3344,10 @@ function renderSettings() {
   const mode = localStorage.getItem('gv_perf_mode') || 'auto';
   const sel = document.querySelector('#perfMode');
   if (sel) sel.value = mode;
+
+  const pDur = Math.round(PomodoroTimer.getDuration() / 60);
+  const pSel = document.querySelector('#pomodoroDuration');
+  if (pSel) pSel.value = String(pDur);
 }
 
 function settingsConnect() {
@@ -3248,6 +3387,12 @@ function setPerfMode(mode) {
   } else if (mode === 'high') {
     AnimationEngine.start();
   }
+}
+
+function setPomodoroDuration(minutes) {
+  PomodoroTimer.setDuration(minutes);
+  const status = document.querySelector('#settingsStatus');
+  if (status) { status.textContent = `✓ 巡航时长已设为 ${minutes} 分钟`; status.style.color = '#17d7b6'; }
 }
 
 // v2.9: 数据导出 / 导入（为 Supabase 迁移预留接口）
@@ -3298,5 +3443,5 @@ function importGameData(input) {
   input.value = '';
 }
 
-window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, deploy: confirmDeploy, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, doLogin, finishLogin, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory, switchTab, setFleetFilter, settingsConnect, settingsDemo, setPerfMode, PomodoroTimer, exportGameData, importGameData };
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, deploy: confirmDeploy, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, doLogin, finishLogin, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory, switchTab, setFleetFilter, settingsConnect, settingsDemo, setPerfMode, setPomodoroDuration, PomodoroTimer, exportGameData, importGameData };
 window.addEventListener('resize', drawStarfield);
