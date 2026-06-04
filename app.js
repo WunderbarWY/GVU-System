@@ -2292,7 +2292,7 @@ function selectUnit(id) {
   if (!u) return;
   G.selectedId = id;
   document.querySelectorAll('.unit').forEach(b => b.classList.toggle('is-selected', b.dataset.id === id));
-  renderDetail(id);
+  renderDetail(id, true);
 }
 
 function selectByMission(linearId) {
@@ -2304,7 +2304,7 @@ function previewUnit(id) {
   const u = G.units.find(x => x.id === id && x.status !== 'destroyed');
   if (!u) return;
   document.querySelectorAll('.unit').forEach(b => b.classList.toggle('is-previewed', b.dataset.id === id));
-  renderDetail(id);
+  renderDetail(id, false);
 }
 
 function clearUnitPreview(id) {
@@ -2363,10 +2363,11 @@ function selectUnitAtPoint(e) {
   return true;
 }
 
-function renderDetail(id) {
+function renderDetail(id, animate = false) {
   const panel = document.querySelector('#unitDetail');
   if (!panel) return;
   panel.classList.toggle('has-selection', Boolean(id));
+  panel.classList.remove('is-locking');
   if (!id) {
     panel.innerHTML = `
       <p class="eyebrow">单位详情</p>
@@ -2470,6 +2471,11 @@ function renderDetail(id) {
   }
 
   panel.innerHTML = html;
+  if (animate) {
+    panel.dataset.lockedUnit = id;
+    void panel.offsetWidth;
+    panel.classList.add('is-locking');
+  }
 }
 
 function meter(label, value, color) {

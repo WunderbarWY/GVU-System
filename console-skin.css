@@ -602,6 +602,7 @@
 }
 
 .unit-detail.has-selection {
+  overflow: hidden auto;
   border-color: rgba(105, 184, 255, 0.32) !important;
   background:
     linear-gradient(90deg, rgba(77, 163, 255, 0.12), transparent 3px),
@@ -610,6 +611,191 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     inset 2px 0 0 rgba(77, 163, 255, 0.28),
     0 28px 72px rgba(0, 0, 0, 0.48) !important;
+}
+
+.unit-detail.has-selection::before,
+.unit-detail.has-selection::after {
+  position: absolute;
+  pointer-events: none;
+  content: "";
+}
+
+.unit-detail.has-selection::before {
+  inset: 0;
+  z-index: 0;
+  border: 1px solid rgba(105, 184, 255, 0.14);
+  background:
+    linear-gradient(90deg, rgba(77, 163, 255, 0.16), transparent 3px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 32%),
+    repeating-linear-gradient(0deg, transparent 0 9px, rgba(232, 251, 255, 0.025) 9px 10px);
+  opacity: 0.72;
+}
+
+.unit-detail.has-selection::after {
+  left: 0;
+  right: 0;
+  top: -34%;
+  z-index: 1;
+  height: 34%;
+  background:
+    linear-gradient(180deg, transparent, rgba(125, 205, 255, 0.18), transparent),
+    linear-gradient(90deg, transparent, rgba(255, 210, 81, 0.08), transparent);
+  opacity: 0;
+}
+
+.unit-detail.has-selection > * {
+  position: relative;
+  z-index: 2;
+}
+
+.unit-detail.is-locking {
+  animation: targetPanelAcquire 520ms cubic-bezier(.16,.84,.22,1) both !important;
+}
+
+.unit-detail.is-locking::after {
+  animation: targetScanPass 680ms cubic-bezier(.2,.8,.2,1) 60ms both;
+}
+
+.unit-detail.is-locking .eyebrow {
+  animation: detailDataIn 300ms cubic-bezier(.2,.8,.2,1) 90ms both;
+}
+
+.unit-detail.is-locking .unit-title {
+  animation: detailTitleLock 420ms cubic-bezier(.16,.84,.22,1) 150ms both;
+}
+
+.unit-detail.is-locking .mission-card,
+.unit-detail.is-locking .tag-pills,
+.unit-detail.is-locking .countdown-bar,
+.unit-detail.is-locking .mission-desc,
+.unit-detail.is-locking .info-grid,
+.unit-detail.is-locking .vanguard-info,
+.unit-detail.is-locking .history-block,
+.unit-detail.is-locking > p:not(.eyebrow) {
+  animation: detailDataIn 360ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.unit-detail.is-locking .mission-card,
+.unit-detail.is-locking .tag-pills,
+.unit-detail.is-locking .vanguard-info {
+  animation-delay: 230ms;
+}
+
+.unit-detail.is-locking .countdown-bar,
+.unit-detail.is-locking .mission-desc,
+.unit-detail.is-locking > p:not(.eyebrow) {
+  animation-delay: 300ms;
+}
+
+.unit-detail.is-locking .info-grid,
+.unit-detail.is-locking .history-block {
+  animation-delay: 370ms;
+}
+
+.unit-detail.has-selection .mission-card,
+.unit-detail.has-selection .info-grid > div,
+.unit-detail.has-selection .vanguard-info,
+.unit-detail.has-selection .mission-desc,
+.unit-detail.has-selection .history-block {
+  border-color: rgba(118, 154, 182, 0.16);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent, #4da3ff), transparent 86%), transparent 58%),
+    rgba(1, 5, 10, 0.36);
+}
+
+.unit-detail.has-selection .mission-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.unit-detail.has-selection .mission-card::after {
+  position: absolute;
+  left: -30%;
+  top: 0;
+  width: 28%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(232, 251, 255, 0.12), transparent);
+  content: "";
+  transform: skewX(-18deg);
+}
+
+.unit-detail.is-locking .mission-card::after {
+  animation: intelCardGlint 620ms ease-out 260ms both;
+}
+
+@keyframes targetPanelAcquire {
+  0% {
+    opacity: 0;
+    transform: translate3d(18px, -4px, 0) scaleX(0.94);
+    filter: brightness(1.25) saturate(1.18);
+  }
+  45% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scaleX(1.015);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scaleX(1);
+    filter: none;
+  }
+}
+
+@keyframes targetScanPass {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  18% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 390%, 0);
+  }
+}
+
+@keyframes detailTitleLock {
+  0% {
+    opacity: 0;
+    letter-spacing: 2.5px;
+    transform: translate3d(-10px, 0, 0);
+    text-shadow: 0 0 22px var(--unit-color);
+  }
+  55% {
+    opacity: 1;
+    letter-spacing: 1.2px;
+    transform: translate3d(2px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes detailDataIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+    clip-path: inset(0 100% 0 0);
+  }
+  60% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes intelCardGlint {
+  from {
+    transform: translateX(0) skewX(-18deg);
+  }
+  to {
+    transform: translateX(520%) skewX(-18deg);
+  }
 }
 
 .deploy-card {
