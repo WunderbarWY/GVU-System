@@ -2681,6 +2681,8 @@ body::after {
   overflow-y: auto;
   padding: 20px 24px;
   box-sizing: border-box;
+  background: #02060c;
+  grid-column: 1 / -1;
 }
 
 .tab-page.is-active {
