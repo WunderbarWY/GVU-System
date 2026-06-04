@@ -2,7 +2,7 @@
 
 ## 当前版本
 
-v2.8 — 优先级位置映射 + 增强漂移
+v2.9 — 真正番茄钟 + 数据导出导入
 
 ---
 
@@ -78,15 +78,17 @@ v2.8 — 优先级位置映射 + 增强漂移
 - **API Key**：`~/.gv_linear_key`（chmod 600）
 - **服务器**：`python3 server.py` → `http://localhost:5180`
 - **健康检查**：`http://localhost:5180/api/health`
-- **版本号**：`?v=priority-drift-1`
+- **版本号**：`?v=pomodoro-1`
 
 ---
 
 ## 待办事项
 
-### P0（已完成）✅：优先级映射 + 动画增强
+### P0（已完成）✅：优先级映射 + 动画增强 + 番茄钟
 - [x] **优先级 → 地图位置**：urgent/high + in_progress → 靠近地球中心；low + backlog → 靠近势力外围
 - [x] **舰船漂移增强**：按优先级放大 drift 幅度（urgent ×2.5，high ×2.0，medium ×1.5，low ×1.0，in_progress 额外×1.2）
+- [x] **真正番茄钟**：25分钟 rAF 倒计时，点击开始/暂停，完成+25 WIP，localStorage 持久化
+- [x] **数据导出/导入**：JSON 备份，为 Supabase 迁移预留接口
 
 ### P1：工程化第二阶段
 - [ ] 把 Linear API 抽到 `src/api/linear.js`
@@ -115,3 +117,4 @@ v2.8 — 优先级位置映射 + 增强漂移
 - v2.6.1 — 修复 P0 启动卡死
 - v2.7 — **五标签控制台**（态势/舰队/战役/情报/设置）+ 工程化第一阶段
 - v2.8 — **优先级位置映射** + **增强漂移**（urgent×2.5漂移，in_progress额外×1.2，位置向地球偏移14%）
+- v2.9 — **真正番茄钟**（25分钟倒计时 rAF 驱动）+ **数据导出/导入**（JSON 备份，Supabase 预留接口）

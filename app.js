@@ -300,15 +300,16 @@ const DEPLOY_COSTS = {
 
 const WIPStore = {
   _key: 'gv_wip',
+  _version: 1,
   load() {
     try { return JSON.parse(localStorage.getItem(this._key)) || {}; } catch { return {}; }
   },
-  save(data) { localStorage.setItem(this._key, JSON.stringify(data)); },
+  save(data) { localStorage.setItem(this._key, JSON.stringify({ ...data, _version: this._version })); },
 
   get() {
     const data = this.load();
     const today = new Date().toISOString().split('T')[0];
-    // 每日重置
+    // 每日重置（在线时长和首杀bonus，但保留total和deployed）
     if (data.date !== today) {
       data.date = today;
       data.todayOnline = 0;
@@ -350,6 +351,13 @@ const WIPStore = {
     d.total += gain;
     this.save(d);
     return gain;
+  },
+
+  addPomodoro(minutes) {
+    const d = this.get();
+    d.total += minutes;
+    this.save(d);
+    return minutes;
   },
 
   resetStreak() {
@@ -458,6 +466,23 @@ const WarHistoryStore = {
     return data;
   },
 
+  // 记录番茄钟完成
+  recordPomodoro(wipEarned, sessionNum) {
+    const data = this.get();
+    const now = new Date();
+    data.records.unshift({
+      id: 'wh-p-' + now.getTime(),
+      type: 'pomodoro',
+      time: now.toISOString(),
+      wipEarned: wipEarned || 0,
+      sessionNum: sessionNum || 1,
+      desc: `完成第 ${sessionNum} 个番茄钟，专注 25 分钟`,
+    });
+    if (data.records.length > this._maxRecords) data.records.pop();
+    this.save(data);
+    return data;
+  },
+
   // 记录同步事件（新威胁/撤离）
   recordSync(added, removed) {
     const data = this.get();
@@ -503,7 +528,126 @@ const WarHistoryStore = {
   },
 };
 
-// 在线计时器（每分钟 +1 WIP，每日上限 60）
+// ============================================
+// 番茄钟系统 v2.9 — 真正的倒计时番茄钟
+// ============================================
+const PomodoroTimer = {
+  _key: 'gv_pomodoro',
+  DEFAULT_DURATION: 25 * 60, // 25分钟 = 1500秒
+  _rafId: null,
+  _lastTick: 0,
+
+  load() {
+    try { const raw = localStorage.getItem(this._key); if (raw) return JSON.parse(raw); } catch {}
+    return null;
+  },
+  save(data) { localStorage.setItem(this._key, JSON.stringify(data)); },
+
+  getState() {
+    const today = new Date().toISOString().split('T')[0];
+    let s = this.load();
+    if (!s || s._version !== 1) {
+      s = { _version: 1, state: 'idle', duration: this.DEFAULT_DURATION, remaining: this.DEFAULT_DURATION, startedAt: null, sessionsToday: 0, totalSessions: 0, lastDate: today };
+    }
+    if (s.lastDate !== today) {
+      s.lastDate = today;
+      s.sessionsToday = 0;
+      if (s.state === 'running') { s.state = 'idle'; s.remaining = s.duration; s.startedAt = null; }
+    }
+    return s;
+  },
+
+  start() {
+    const s = this.getState();
+    if (s.state === 'running') return;
+    s.state = 'running';
+    s.startedAt = Date.now() - (s.duration - s.remaining) * 1000;
+    this.save(s);
+    this._startTick();
+    updatePomodoroUI();
+  },
+
+  pause() {
+    const s = this.getState();
+    if (s.state !== 'running') return;
+    s.state = 'paused';
+    this.save(s);
+    this._stopTick();
+    updatePomodoroUI();
+  },
+
+  toggle() {
+    const s = this.getState();
+    if (s.state === 'running') this.pause();
+    else if (s.state === 'completed') { s.remaining = s.duration; s.state = 'idle'; this.save(s); this.start(); }
+    else this.start();
+  },
+
+  reset() {
+    this._stopTick();
+    const s = this.getState();
+    s.state = 'idle'; s.remaining = s.duration; s.startedAt = null;
+    this.save(s);
+    updatePomodoroUI();
+  },
+
+  complete() {
+    this._stopTick();
+    const s = this.getState();
+    s.state = 'completed'; s.remaining = 0;
+    s.sessionsToday = (s.sessionsToday || 0) + 1;
+    s.totalSessions = (s.totalSessions || 0) + 1;
+    this.save(s);
+    const gained = WIPStore.addPomodoro(25);
+    updateWipUI();
+    WarHistoryStore.recordPomodoro(gained, s.sessionsToday);
+    updatePomodoroUI();
+    // 闪烁提示
+    const el = document.querySelector('#hudTime');
+    if (el) { el.classList.add('pomodoro-done'); setTimeout(() => el.classList.remove('pomodoro-done'), 3000); }
+    setTimeout(() => { if (this.getState().state === 'completed') this.reset(); }, 5000);
+  },
+
+  _startTick() {
+    this._stopTick();
+    this._lastTick = performance.now();
+    const tick = (now) => {
+      if (!this._rafId) return;
+      const dt = (now - this._lastTick) / 1000;
+      this._lastTick = now;
+      const s = this.getState();
+      if (s.state !== 'running') return;
+      s.remaining = Math.max(0, s.remaining - dt);
+      this.save(s);
+      updatePomodoroUI();
+      if (s.remaining <= 0) { this.complete(); return; }
+      this._rafId = requestAnimationFrame(tick);
+    };
+    this._rafId = requestAnimationFrame(tick);
+  },
+
+  _stopTick() {
+    if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
+  },
+
+  resumeOnBoot() {
+    const s = this.getState();
+    if (s.state === 'running') {
+      const elapsed = Math.floor((Date.now() - s.startedAt) / 1000);
+      s.remaining = Math.max(0, s.remaining - elapsed);
+      if (s.remaining <= 0) { this.complete(); }
+      else { this.save(s); this._startTick(); updatePomodoroUI(); }
+    } else { updatePomodoroUI(); }
+  },
+
+  formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  },
+};
+
+// 在线计时器（后台被动统计，每分钟 +1 WIP，每日上限 60）
 let _wipTimer = null;
 function startWipTimer() {
   if (_wipTimer) clearInterval(_wipTimer);
@@ -516,7 +660,7 @@ function startWipTimer() {
       if (gained > 0) updateWipUI();
       lastMin = nowMin;
     }
-  }, 10000); // 每 10 秒检查一次
+  }, 10000);
 }
 
 // ============================================
@@ -2762,6 +2906,7 @@ function bootMain() {
 
     showLoading('启动 WIP 计时器...', 85);
     step('startWipTimer', startWipTimer);
+    step('PomodoroTimer.resumeOnBoot', () => PomodoroTimer.resumeOnBoot());
     step('updateWipUI', updateWipUI);
 
     showLoading('启动飞船动画引擎...', 92);
@@ -2788,7 +2933,7 @@ function bootMain() {
   }
 }
 
-window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, deploy: confirmDeploy, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, doLogin, finishLogin, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory };
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, deploy: confirmDeploy, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, doLogin, finishLogin, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory, PomodoroTimer };
 window.addEventListener('resize', drawStarfield);
 // 不再自动 boot，等用户登录
 // bootMain();
@@ -3046,8 +3191,18 @@ function renderSettings() {
     </div>
 
     <div class="settings-group" style="margin-top:16px">
+      <h3>数据管理</h3>
+      <p class="muted" style="font-size:12px;margin:0 0 10px">备份 / 恢复游戏状态（WIP、战史、部署舰队、番茄钟记录）。换设备或清缓存前务必导出。</p>
+      <div style="display:flex;gap:8px;">
+        <button onclick="window.__game.exportGameData()" style="flex:1;padding:8px;border:1px solid #17d7b6;border-radius:4px;background:rgba(23,215,182,0.1);color:#17d7b6;cursor:pointer;font-family:var(--font-display);font-size:13px;">📥 导出备份</button>
+        <button onclick="document.getElementById('importFile').click()" style="flex:1;padding:8px;border:1px solid #ffd251;border-radius:4px;background:rgba(255,210,81,0.1);color:#ffd251;cursor:pointer;font-family:var(--font-display);font-size:13px;">📤 导入恢复</button>
+      </div>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="window.__game.importGameData(this)" />
+    </div>
+
+    <div class="settings-group" style="margin-top:16px">
       <h3>关于</h3>
-      <p class="muted" style="font-size:12px;margin:0">银河先遣队作战指挥台 v2.7<br>GVU Strategic Command System</p>
+      <p class="muted" style="font-size:12px;margin:0">银河先遣队作战指挥台 v2.9<br>GVU Strategic Command System</p>
     </div>
   `;
 
@@ -3095,5 +3250,53 @@ function setPerfMode(mode) {
   }
 }
 
-window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, deploy: confirmDeploy, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, doLogin, finishLogin, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory, switchTab, setFleetFilter, settingsConnect, settingsDemo, setPerfMode };
+// v2.9: 数据导出 / 导入（为 Supabase 迁移预留接口）
+function exportGameData() {
+  const data = {
+    _exportVersion: 1,
+    _exportedAt: new Date().toISOString(),
+    wip: WIPStore.load(),
+    warHistory: WarHistoryStore.load(),
+    pomodoro: PomodoroTimer.load(),
+    settings: {
+      perfMode: localStorage.getItem('gv_perf_mode') || 'auto',
+      apiKey: localStorage.getItem('gv_linear_key') || '',
+    },
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `gvu-backup-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  const status = document.querySelector('#settingsStatus');
+  if (status) { status.textContent = '✓ 备份已导出'; status.style.color = '#17d7b6'; }
+}
+
+function importGameData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data._exportVersion) { throw new Error('无效备份文件'); }
+      if (data.wip) { WIPStore.save(data.wip); }
+      if (data.warHistory) { WarHistoryStore.save(data.warHistory); }
+      if (data.pomodoro) { PomodoroTimer.save(data.pomodoro); }
+      if (data.settings?.perfMode) { localStorage.setItem('gv_perf_mode', data.settings.perfMode); }
+      const status = document.querySelector('#settingsStatus');
+      if (status) { status.textContent = '✓ 数据已恢复，刷新生效'; status.style.color = '#17d7b6'; }
+      setTimeout(() => location.reload(), 800);
+    } catch (err) {
+      const status = document.querySelector('#settingsStatus');
+      if (status) { status.textContent = '× 导入失败: ' + err.message; status.style.color = '#ff3f52'; }
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, deploy: confirmDeploy, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, doLogin, finishLogin, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory, switchTab, setFleetFilter, settingsConnect, settingsDemo, setPerfMode, PomodoroTimer, exportGameData, importGameData };
 window.addEventListener('resize', drawStarfield);

@@ -130,8 +130,9 @@
           <div class="hud-corner tr"></div>
           <div class="hud-corner bl"></div>
           <div class="hud-corner br"></div>
-          <div class="hud-label">TODAY SESSION</div>
-          <div class="hud-time" id="hudTime">00:00</div>
+          <div class="hud-label" id="hudPomodoroLabel">点击开始专注</div>
+          <div class="hud-time" id="hudTime" onclick="window.__game.PomodoroTimer.toggle()" title="点击开始/暂停番茄钟">25:00</div>
+          <div class="hud-progress"><div class="hud-progress-bar" id="hudPomodoroBar"></div></div>
           <div class="hud-divider"></div>
           <div class="hud-wip-row">
             <div class="hud-wip-block">
@@ -362,7 +363,7 @@
       </div>
     </div>
 
-    <script src="./src/config/game.js?v=mapscale-1"></script>
-    <script src="./app.js?v=priority-drift-1"></script>
+    <script src="./src/config/game.js?v=pomodoro-1"></script>
+    <script src="./app.js?v=pomodoro-1"></script>
   </body>
 </html>
