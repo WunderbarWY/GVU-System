@@ -949,6 +949,8 @@
   letter-spacing: 1.2px;
   line-height: 1;
   text-shadow: 0 0 14px rgba(77, 163, 255, 0.28);
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 .sci-fi-hud .hud-time::after {

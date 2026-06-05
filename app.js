@@ -59,12 +59,12 @@ function normalizeShipClass(cls) {
 
 // 漂移参数按舰船量级分级 — 小船灵活漂移，大船庄重缓慢
 const DRIFT_PROFILES = {
-  raider:     { ampBase: 0.26, ampVar: 0.12, freqBase: 0.16, freqVar: 0.08 },  // 袭扰艇 — 轻快飘忽
-  frigate:    { ampBase: 0.20, ampVar: 0.10, freqBase: 0.13, freqVar: 0.07 },  // 护卫舰
-  destroyer:  { ampBase: 0.15, ampVar: 0.08, freqBase: 0.10, freqVar: 0.06 },  // 驱逐舰
-  cruiser:    { ampBase: 0.11, ampVar: 0.06, freqBase: 0.08, freqVar: 0.05 },  // 巡洋舰
-  battleship: { ampBase: 0.08, ampVar: 0.05, freqBase: 0.07, freqVar: 0.04 },  // 战列舰
-  dreadnought:{ ampBase: 0.05, ampVar: 0.04, freqBase: 0.05, freqVar: 0.03 },  // 旗舰/无畏舰 — 稳重
+  raider:     { ampBase: 0.55, ampVar: 0.22, freqBase: 0.16, freqVar: 0.08 },  // 袭扰艇 — 轻快飘忽
+  frigate:    { ampBase: 0.42, ampVar: 0.18, freqBase: 0.13, freqVar: 0.07 },  // 护卫舰
+  destroyer:  { ampBase: 0.32, ampVar: 0.14, freqBase: 0.10, freqVar: 0.06 },  // 驱逐舰
+  cruiser:    { ampBase: 0.24, ampVar: 0.10, freqBase: 0.08, freqVar: 0.05 },  // 巡洋舰
+  battleship: { ampBase: 0.18, ampVar: 0.08, freqBase: 0.07, freqVar: 0.04 },  // 战列舰
+  dreadnought:{ ampBase: 0.12, ampVar: 0.06, freqBase: 0.05, freqVar: 0.03 },  // 旗舰/无畏舰 — 稳重
 };
 
 const NATO_NAMES = {
@@ -1649,8 +1649,8 @@ const AnimationEngine = {
       unit.x = orbit.cx + Math.cos(orbit.angle) * orbit.radius;
       unit.y = orbit.cy + Math.sin(orbit.angle) * orbit.radius;
     }
-    // 友方也有漂移，但幅度更小
-    this.applyDrift(unit, dt, 0.45);
+    // 友方漂移
+    this.applyDrift(unit, dt, 1.0);
     unit.advanceDist = distToEarth(unit.x, unit.y);
   },
 
@@ -1674,7 +1674,7 @@ const AnimationEngine = {
     }
 
     // 巡逻漂移（替代 CSS shipFloat）
-    this.applyDrift(unit, dt, 0.75);
+    this.applyDrift(unit, dt, 1.5);
   },
 
   updateSpecialMotion(unit, dt) {
@@ -1694,7 +1694,7 @@ const AnimationEngine = {
       return false;
     }
 
-    this.applyDrift(unit, dt, unit.isDemoTraffic ? 0.15 : 0.25);
+    this.applyDrift(unit, dt, unit.isDemoTraffic ? 0.8 : 1.2);
     unit.advanceDist = distToEarth(unit.x, unit.y);
     return true;
   },
@@ -2996,6 +2996,18 @@ function bootMain() {
     step('PerformanceMonitor.start', () => PerformanceMonitor.start());
     console.log('[GV] ====== bootMain done, steps:', _bootSteps.length, '======');
     hideLoading();
+
+    // 绑定 HUD 时钟点击（替代 inline onclick，避免缓存问题）
+    const hudTime = document.querySelector('#hudTime');
+    if (hudTime) {
+      hudTime.removeAttribute('onclick');
+      hudTime.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (window.__game && window.__game.PomodoroTimer) {
+          window.__game.PomodoroTimer.toggle();
+        }
+      });
+    }
 
     // 安全网：1秒后如果 loading screen 还在，强制隐藏
     setTimeout(() => {
