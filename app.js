@@ -1658,12 +1658,11 @@ const AnimationEngine = {
       this.updateDOM(unit);
     });
 
-    // 中立单位轨道运动
+    // 中立单位漂移 — 和战斗舰艇同风格，幅度更小
     G.neutrals.forEach(n => {
-      const planet = PLANETS[n.planetIndex];
-      n.orbitAngle += n.orbitSpeed * dt;
-      n.x = planet.x + Math.cos(n.orbitAngle) * n.orbitRadius;
-      n.y = planet.y + Math.sin(n.orbitAngle) * n.orbitRadius;
+      n.driftPhase += n.driftFreq * dt;
+      n.x = n.baseX + Math.sin(n.driftPhase) * n.driftAmpX;
+      n.y = n.baseY + Math.cos(n.driftPhase * 0.73) * n.driftAmpY;
       const el = document.querySelector(`.neutral-unit[data-id="${n.id}"]`);
       if (el) {
         el.style.left = n.x + '%';
@@ -2234,13 +2233,47 @@ function legacyShipIcon(cls) {
 }
 
 // ============================================
-// 中立单位系统
+// 中立单位系统 v2 — 漂移风格与战斗舰艇一致
 // ============================================
 function neutralIcon(type) {
   const icons = {
-    cargo: `<svg class="ship-icon neutral-icon" viewBox="0 0 100 100" aria-hidden="true"><rect x="18" y="30" width="64" height="38" rx="4" fill="none" stroke="currentColor" stroke-width="5"/><rect x="28" y="38" width="12" height="10" rx="1" fill="currentColor" opacity="0.5"/><rect x="46" y="38" width="12" height="10" rx="1" fill="currentColor" opacity="0.5"/><rect x="64" y="38" width="12" height="10" rx="1" fill="currentColor" opacity="0.5"/><line x1="50" y1="30" x2="50" y2="16" stroke="currentColor" stroke-width="4"/><line x1="40" y1="16" x2="60" y2="16" stroke="currentColor" stroke-width="4"/></svg>`,
-    passenger: `<svg class="ship-icon neutral-icon" viewBox="0 0 100 100" aria-hidden="true"><ellipse cx="50" cy="52" rx="34" ry="18" fill="none" stroke="currentColor" stroke-width="5"/><line x1="28" y1="48" x2="72" y2="48" stroke="currentColor" stroke-width="3" opacity="0.5"/><line x1="32" y1="56" x2="68" y2="56" stroke="currentColor" stroke-width="3" opacity="0.5"/><path d="M50 34 L50 20" stroke="currentColor" stroke-width="4"/><path d="M38 20 L62 20" stroke="currentColor" stroke-width="4"/><path d="M42 34 L58 34" stroke="currentColor" stroke-width="3"/></svg>`,
-    supply: `<svg class="ship-icon neutral-icon" viewBox="0 0 100 100" aria-hidden="true"><rect x="30" y="28" width="40" height="44" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><line x1="30" y1="42" x2="70" y2="42" stroke="currentColor" stroke-width="3"/><line x1="30" y1="56" x2="70" y2="56" stroke="currentColor" stroke-width="3"/><circle cx="50" cy="68" r="5" fill="currentColor" opacity="0.5"/><line x1="50" y1="28" x2="50" y2="18" stroke="currentColor" stroke-width="4"/><line x1="42" y1="18" x2="58" y2="18" stroke="currentColor" stroke-width="4"/></svg>`,
+    // 货运舰：宽体货船，多层货舱，顶部指挥塔，底部推进器
+    cargo: `<svg class="ship-icon neutral-icon" viewBox="0 0 100 100" aria-hidden="true">
+      <path d="M18 38 L82 38 L88 48 L82 58 L18 58 L12 48 Z" fill="none" stroke="currentColor" stroke-width="4"/>
+      <path d="M22 38 L22 30 L35 24 L45 24 L45 38" fill="none" stroke="currentColor" stroke-width="3"/>
+      <line x1="30" y1="38" x2="30" y2="58" stroke="currentColor" stroke-width="2.5"/>
+      <line x1="42" y1="38" x2="42" y2="58" stroke="currentColor" stroke-width="2.5"/>
+      <line x1="54" y1="38" x2="54" y2="58" stroke="currentColor" stroke-width="2.5"/>
+      <line x1="66" y1="38" x2="66" y2="58" stroke="currentColor" stroke-width="2.5"/>
+      <line x1="78" y1="38" x2="78" y2="58" stroke="currentColor" stroke-width="2.5"/>
+      <rect x="26" y="60" width="10" height="6" rx="1" fill="currentColor" opacity="0.45"/>
+      <rect x="64" y="60" width="10" height="6" rx="1" fill="currentColor" opacity="0.45"/>
+    </svg>`,
+    // 客运舰：流线型穿梭机，舷窗阵列，尾翼，顶部天线
+    passenger: `<svg class="ship-icon neutral-icon" viewBox="0 0 100 100" aria-hidden="true">
+      <path d="M20 46 Q20 32 48 30 Q76 32 84 46 Q78 56 48 58 Q20 56 20 46 Z" fill="none" stroke="currentColor" stroke-width="4"/>
+      <path d="M48 30 L48 22 L56 18 L64 22 L64 30" fill="none" stroke="currentColor" stroke-width="2.5"/>
+      <path d="M20 46 L12 40 L12 52 Z" fill="none" stroke="currentColor" stroke-width="3"/>
+      <circle cx="32" cy="44" r="2.5" fill="currentColor" opacity="0.5"/>
+      <circle cx="42" cy="42" r="2.5" fill="currentColor" opacity="0.5"/>
+      <circle cx="54" cy="42" r="2.5" fill="currentColor" opacity="0.5"/>
+      <circle cx="66" cy="44" r="2.5" fill="currentColor" opacity="0.5"/>
+      <circle cx="76" cy="46" r="2.5" fill="currentColor" opacity="0.5"/>
+      <line x1="48" y1="22" x2="48" y2="14" stroke="currentColor" stroke-width="2"/>
+      <line x1="42" y1="14" x2="54" y2="14" stroke="currentColor" stroke-width="2"/>
+    </svg>`,
+    // 补给舰：宽体后勤船，双储罐，中央连接桥，底部货舱门
+    supply: `<svg class="ship-icon neutral-icon" viewBox="0 0 100 100" aria-hidden="true">
+      <rect x="20" y="38" width="60" height="24" rx="4" fill="none" stroke="currentColor" stroke-width="4"/>
+      <circle cx="36" cy="50" r="9" fill="none" stroke="currentColor" stroke-width="3"/>
+      <circle cx="64" cy="50" r="9" fill="none" stroke="currentColor" stroke-width="3"/>
+      <rect x="44" y="44" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2.5"/>
+      <line x1="36" y1="38" x2="36" y2="29" stroke="currentColor" stroke-width="2.5"/>
+      <line x1="64" y1="38" x2="64" y2="29" stroke="currentColor" stroke-width="2.5"/>
+      <line x1="30" y1="29" x2="70" y2="29" stroke="currentColor" stroke-width="2.5"/>
+      <rect x="30" y="62" width="14" height="5" rx="1" fill="currentColor" opacity="0.4"/>
+      <rect x="56" y="62" width="14" height="5" rx="1" fill="currentColor" opacity="0.4"/>
+    </svg>`,
   };
   return icons[type] || icons.cargo;
 }
@@ -2248,22 +2281,21 @@ function neutralIcon(type) {
 function spawnNeutralUnits() {
   G.neutrals = [];
   let idCounter = 1;
-  const rand = (a, b) => a + Math.random() * (b - a);
 
-  // 每个星球分配 3~6 艘中立舰（ cargo / passenger / supply 混合）
+  // 每个星球分配 2~4 艘中立舰
   PLANETS.forEach((planet, pi) => {
-    const count = 3 + Math.floor(Math.random() * 4); // 3~6
+    const count = 2 + Math.floor(Math.random() * 3); // 2~4
     const types = ['cargo', 'passenger', 'supply'];
     for (let i = 0; i < count; i++) {
       const type = types[i % 3];
       const cfg = NEUTRAL_CONFIG[type];
       const name = cfg.names[Math.floor(Math.random() * cfg.names.length)];
       const num = String(Math.floor(Math.random() * 20) + 1).padStart(2, '0');
-      const orbitRadius = 6 + Math.random() * 10; // 轨道半径 6%~16%
-      const orbitSpeed = 0.05 + Math.random() * 0.1; // 很慢的轨道速度
+      // 放在星球附近，但不重叠
+      const dist = 5 + Math.random() * 9;
       const angle = Math.random() * Math.PI * 2;
-      const x = planet.x + Math.cos(angle) * orbitRadius;
-      const y = planet.y + Math.sin(angle) * orbitRadius;
+      const baseX = planet.x + Math.cos(angle) * dist;
+      const baseY = planet.y + Math.sin(angle) * dist;
 
       G.neutrals.push({
         id: `NEU-${String(idCounter++).padStart(3, '0')}`,
@@ -2273,13 +2305,17 @@ function spawnNeutralUnits() {
         color: cfg.color,
         size: cfg.size,
         planetIndex: pi,
-        orbitRadius,
-        orbitSpeed,
-        orbitAngle: angle,
-        x,
-        y,
-        _renderX: x,
-        _renderY: y,
+        baseX,
+        baseY,
+        x: baseX,
+        y: baseY,
+        _renderX: baseX,
+        _renderY: baseY,
+        // 漂移参数 — 幅度小、频率和战斗舰艇一致（慢）
+        driftPhase: Math.random() * Math.PI * 2,
+        driftAmpX: 0.2 + Math.random() * 0.25,
+        driftAmpY: 0.15 + Math.random() * 0.2,
+        driftFreq: 0.008 + Math.random() * 0.012,
       });
     }
   });
@@ -2312,11 +2348,9 @@ function renderNeutrals() {
 function selectNeutral(id) {
   const n = G.neutrals.find(x => x.id === id);
   if (!n) return;
-  // 高亮选中态
   document.querySelectorAll('.unit').forEach(b => b.classList.remove('is-selected'));
-  const el = document.querySelector(`.neutral-unit[data-id="${id}"]`);
+  const el = document.querySelector(`.neutral-unit[data-id="${n.id}"]`);
   if (el) el.classList.add('is-selected');
-  // 渲染详情面板
   renderNeutralDetail(n);
 }
 
@@ -2448,7 +2482,7 @@ function previewUnit(id) {
   const u = G.units.find(x => x.id === id && x.status !== 'destroyed');
   if (!u) return;
   document.querySelectorAll('.unit').forEach(b => b.classList.toggle('is-previewed', b.dataset.id === id));
-  renderDetail(id, false);
+  renderDetail(id, true);
 }
 
 function clearUnitPreview(id) {

@@ -617,7 +617,8 @@ h2 {
 
 .map-world,
 #celestialBodies,
-#unitLayer {
+#unitLayer,
+#neutralLayer {
   position: absolute;
   left: 0;
   top: 0;
@@ -2140,7 +2141,8 @@ body::after {
 /* v4.2 Strategic scale + class-based ship markers */
 .map-world,
 #celestialBodies,
-#unitLayer {
+#unitLayer,
+#neutralLayer {
   width: 3200px;
   height: 2100px;
 }
@@ -2436,6 +2438,10 @@ body::after {
 
 #unitLayer {
   z-index: 6;
+}
+
+#neutralLayer {
+  z-index: 7;
 }
 
 .route {
