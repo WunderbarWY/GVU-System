@@ -1534,6 +1534,7 @@ const PerformanceMonitor = {
 
   start() {
     this.lastFrameTime = performance.now();
+    document.body.dataset.quality = this.quality;
     this.checkInterval = setInterval(() => this.evaluate(), 4000);
     this._rafId = requestAnimationFrame(() => this.measureLoop());
   },
@@ -1607,6 +1608,8 @@ const AnimationEngine = {
   orbitMap: new Map(),      // unitId -> { cx, cy, radius, angle, speed }
   driftMap: new Map(),      // unitId -> { phase, ampX, ampY, freq, speed }
   elCache: new Map(),       // unitId -> { unit, pulse, trail }
+  neutralCache: new Map(),  // neutralId -> element
+  neutralAccum: 0,
 
   start() {
     if (this.running) return;
@@ -1626,12 +1629,15 @@ const AnimationEngine = {
   warmCache() {
     // 清理已不存在的单位（防止 driftMap/orbitMap 内存泄漏）
     const validIds = new Set(G.units.filter(u => u.status !== 'destroyed').map(u => u.id));
+    const validNeutralIds = new Set(G.neutrals.map(n => n.id));
     for (const id of this.driftMap.keys()) { if (!validIds.has(id)) this.driftMap.delete(id); }
     for (const id of this.orbitMap.keys()) { if (!validIds.has(id)) this.orbitMap.delete(id); }
     for (const id of this.elCache.keys()) { if (!validIds.has(id)) this.elCache.delete(id); }
+    for (const id of this.neutralCache.keys()) { if (!validNeutralIds.has(id)) this.neutralCache.delete(id); }
 
     // 预热 DOM 缓存，避免每帧 querySelector
     this.elCache.clear();
+    this.neutralCache.clear();
     G.units.forEach(unit => {
       if (unit.status === 'destroyed') return;
       const u = document.querySelector(`.unit[data-id="${cssEscape(unit.id)}"]`);
@@ -1640,6 +1646,10 @@ const AnimationEngine = {
         const t = document.querySelector(`.unit-trail[data-unit-id="${cssEscape(unit.id)}"]`);
         this.elCache.set(unit.id, { unit: u, pulse: p, trail: t });
       }
+    });
+    G.neutrals.forEach(n => {
+      const el = document.querySelector(`.neutral-unit[data-id="${cssEscape(n.id)}"]`);
+      if (el) this.neutralCache.set(n.id, el);
     });
   },
 
@@ -1658,17 +1668,24 @@ const AnimationEngine = {
       this.updateDOM(unit);
     });
 
-    // 中立单位漂移 — 和战斗舰艇同风格，幅度更小
-    G.neutrals.forEach(n => {
-      n.driftPhase += n.driftFreq * dt;
-      n.x = n.baseX + Math.sin(n.driftPhase) * n.driftAmpX;
-      n.y = n.baseY + Math.cos(n.driftPhase * 0.73) * n.driftAmpY;
-      const el = document.querySelector(`.neutral-unit[data-id="${n.id}"]`);
-      if (el) {
-        el.style.left = n.x + '%';
-        el.style.top = n.y + '%';
-      }
-    });
+    // 中立单位是背景交通，降低刷新频率并复用缓存，避免舰船变多后卡顿。
+    this.neutralAccum += dt;
+    const quality = PerformanceMonitor.quality || document.body.dataset.quality || 'high';
+    const neutralInterval = quality === 'low' ? 0.12 : quality === 'medium' ? 0.08 : 0.05;
+    if (this.neutralAccum >= neutralInterval) {
+      const ndt = Math.min(this.neutralAccum, 0.24);
+      this.neutralAccum = 0;
+      G.neutrals.forEach(n => {
+        n.driftPhase += n.driftFreq * ndt;
+        n.x = n.baseX + Math.sin(n.driftPhase) * n.driftAmpX;
+        n.y = n.baseY + Math.cos(n.driftPhase * 0.73) * n.driftAmpY;
+        const el = this.neutralCache.get(n.id);
+        if (el && el.isConnected) {
+          el.style.left = n.x + '%';
+          el.style.top = n.y + '%';
+        }
+      });
+    }
 
     this.frameId = requestAnimationFrame(t => this.tick(t));
   },
@@ -2282,9 +2299,9 @@ function spawnNeutralUnits() {
   G.neutrals = [];
   let idCounter = 1;
 
-  // 每个星球分配 2~4 艘中立舰
+  // 每个星球分配 1~2 艘中立舰；背景交通要有存在感，但不能拖慢主战场。
   PLANETS.forEach((planet, pi) => {
-    const count = 2 + Math.floor(Math.random() * 3); // 2~4
+    const count = 1 + Math.floor(Math.random() * 2); // 1~2
     const types = ['cargo', 'passenger', 'supply'];
     for (let i = 0; i < count; i++) {
       const type = types[i % 3];
@@ -2300,8 +2317,8 @@ function spawnNeutralUnits() {
     }
   });
 
-  // 地图空旷区域额外撒 15~25 艘 — 随机位置，避开战斗单位密集区
-  const extraCount = 15 + Math.floor(Math.random() * 11);
+  // 地图空旷区域额外撒 8~12 艘 — 随机位置，避开战斗单位密集区
+  const extraCount = 8 + Math.floor(Math.random() * 5);
   const types = ['cargo', 'passenger', 'supply'];
   for (let i = 0; i < extraCount; i++) {
     const type = types[i % 3];
@@ -2366,6 +2383,9 @@ function renderNeutrals() {
     });
     layer.appendChild(el);
   });
+  if (AnimationEngine && AnimationEngine.warmCache) {
+    AnimationEngine.warmCache();
+  }
 }
 
 function selectNeutral(id) {
@@ -2499,7 +2519,27 @@ function selectUnit(id) {
 
 function selectByMission(linearId) {
   const u = G.units.find(x => x.mission?.linearId === linearId);
-  if (u) selectUnit(u.id);
+  if (!u) return;
+  if (_activeTab !== 'situation') switchTab('situation');
+  selectUnit(u.id);
+  focusOnUnit(u.id);
+}
+
+function focusOnUnit(id) {
+  const u = G.units.find(x => x.id === id);
+  if (!u) return;
+  const stage = document.querySelector('#mapStage');
+  const worldEl = document.querySelector('#mapWorld');
+  if (!stage || !worldEl) return;
+  const worldW = parseFloat(getComputedStyle(worldEl).width) || 7200;
+  const worldH = parseFloat(getComputedStyle(worldEl).height) || 4700;
+  const wx = (u.x / 100) * worldW;
+  const wy = (u.y / 100) * worldH;
+  const stageW = stage.clientWidth;
+  const stageH = stage.clientHeight;
+  map.panX = stageW / 2 - wx * map.zoom + worldW / 2;
+  map.panY = stageH / 2 - wy * map.zoom + worldH / 2;
+  applyMap();
 }
 
 function previewUnit(id) {
@@ -2805,6 +2845,73 @@ function initMap() {
   window.addEventListener('blur', () => {
     map.dragging = false;
     stage.classList.remove('is-panning');
+  });
+}
+
+// ============================================
+// 左侧面板宽度拖拽调整
+// ============================================
+function initPanelResize() {
+  const handle = document.querySelector('.panel-resize-handle');
+  const shell = document.querySelector('.command-shell');
+  if (!handle || !shell) return;
+
+  const MIN_WIDTH = 240;
+  const MAX_WIDTH = 540;
+  const STORAGE_KEY = 'gv_panel_width';
+
+  // 恢复保存的宽度
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    const w = parseInt(saved, 10);
+    if (w >= MIN_WIDTH && w <= MAX_WIDTH) {
+      shell.style.setProperty('--panel-width', w + 'px');
+    }
+  }
+
+  let isDragging = false;
+  let startX = 0;
+  let startWidth = 0;
+
+  handle.addEventListener('pointerdown', (e) => {
+    isDragging = true;
+    startX = e.clientX;
+    const panel = document.querySelector('.command-panel');
+    startWidth = panel ? panel.getBoundingClientRect().width : 306;
+    handle.classList.add('is-dragging');
+    handle.setPointerCapture(e.pointerId);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  });
+
+  handle.addEventListener('pointermove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - startX;
+    const newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startWidth + dx));
+    shell.style.setProperty('--panel-width', newWidth + 'px');
+  });
+
+  handle.addEventListener('pointerup', (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    handle.classList.remove('is-dragging');
+    handle.releasePointerCapture(e.pointerId);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    const panel = document.querySelector('.command-panel');
+    if (panel) {
+      localStorage.setItem(STORAGE_KEY, Math.round(panel.getBoundingClientRect().width));
+    }
+  });
+
+  // 安全网：窗口失焦时停止拖拽
+  window.addEventListener('blur', () => {
+    if (isDragging) {
+      isDragging = false;
+      handle.classList.remove('is-dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
   });
 }
 
@@ -3185,6 +3292,7 @@ function bootMain() {
     step('renderWarHistory', renderWarHistory);
     step('initMap', initMap);
     step('applyMap', applyMap);
+    step('initPanelResize', initPanelResize);
 
     showLoading('启动 WIP 计时器...', 85);
     step('startWipTimer', startWipTimer);
@@ -3606,9 +3714,12 @@ function settingsDemo() {
 
 function setPerfMode(mode) {
   localStorage.setItem('gv_perf_mode', mode);
+  if (mode === 'low' || mode === 'medium' || mode === 'high') {
+    PerformanceMonitor.setQuality(mode);
+  }
   if (mode === 'low') {
     AnimationEngine.stop();
-  } else if (mode === 'high') {
+  } else if (mode === 'medium' || mode === 'high' || mode === 'auto') {
     AnimationEngine.start();
   }
 }
@@ -3701,5 +3812,5 @@ function importGameData(input) {
   input.value = '';
 }
 
-window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, deploy: confirmDeploy, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, doLogin, finishLogin, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory, switchTab, setFleetFilter, settingsConnect, settingsDemo, setPerfMode, setPomodoroDuration, toggleRadar, PomodoroTimer, exportGameData, importGameData };
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, focusOnUnit, deploy: confirmDeploy, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, doLogin, finishLogin, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory, switchTab, setFleetFilter, settingsConnect, settingsDemo, setPerfMode, setPomodoroDuration, toggleRadar, PomodoroTimer, exportGameData, importGameData };
 window.addEventListener('resize', drawStarfield);

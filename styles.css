@@ -185,7 +185,7 @@ button {
 
 .command-shell {
   display: grid;
-  grid-template-columns: 306px minmax(0, 1fr);
+  grid-template-columns: var(--panel-width, 306px) minmax(0, 1fr);
   min-height: calc(100vh - 42px);
   height: calc(100vh - 42px);
   overflow: hidden;
@@ -1266,6 +1266,7 @@ h2 {
 }
 
 .command-panel {
+  position: relative;
   display: grid;
   align-content: start;
   order: -1;
@@ -1278,6 +1279,29 @@ h2 {
   background:
     linear-gradient(180deg, rgba(9, 18, 31, 0.92), rgba(4, 8, 15, 0.96)),
     rgba(4, 8, 15, 0.96);
+}
+
+.panel-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 50;
+  transition: background 120ms ease;
+}
+
+.panel-resize-handle:hover,
+.panel-resize-handle.is-dragging {
+  background: rgba(77, 163, 255, 0.4);
+}
+
+@media (max-width: 980px) {
+  .panel-resize-handle {
+    display: none;
+  }
 }
 
 .briefing-panel {
@@ -1671,7 +1695,7 @@ body::after {
 }
 
 .command-shell {
-  grid-template-columns: 326px minmax(0, 1fr);
+  grid-template-columns: var(--panel-width, 326px) minmax(0, 1fr);
   height: calc(100vh - 44px);
   min-height: calc(100vh - 44px);
   background: #02060c;

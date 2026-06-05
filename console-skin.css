@@ -2082,3 +2082,107 @@
     height: 54px;
   }
 }
+
+/* v5.2 Map performance relief pass */
+.map-stage {
+  contain: layout paint style;
+}
+
+#starfield {
+  filter: none !important;
+  opacity: 0.58;
+}
+
+.radar-layer {
+  opacity: 0.34 !important;
+}
+
+.radar-zone {
+  filter: none !important;
+  animation-duration: 8s !important;
+  opacity: 0.24 !important;
+  box-shadow: inset 0 0 28px rgba(77, 163, 255, 0.08) !important;
+}
+
+.unit,
+.neutral-unit,
+.threat-pulse,
+.unit-trail {
+  contain: layout paint style;
+}
+
+.ship-glyph {
+  filter:
+    drop-shadow(0 0 7px color-mix(in srgb, var(--unit-color), transparent 60%))
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.78)) !important;
+}
+
+.unit:hover .ship-glyph,
+.unit.is-selected .ship-glyph,
+.unit.is-previewed .ship-glyph {
+  filter:
+    drop-shadow(0 0 12px color-mix(in srgb, var(--unit-color), transparent 40%))
+    drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8)) !important;
+}
+
+.unit:hover,
+.unit.is-selected,
+.unit.is-previewed {
+  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--unit-color), transparent 28%)) !important;
+}
+
+.unit-trail {
+  opacity: min(var(--trail-alpha, 0.34), 0.42);
+  filter: none !important;
+}
+
+.unit-trail::after {
+  opacity: 0.55;
+  filter: none !important;
+}
+
+.neutral-unit {
+  opacity: 0.62;
+}
+
+.neutral-unit .neutral-icon,
+.neutral-unit .ship-icon,
+.neutral-unit .ship-glyph {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.72)) !important;
+}
+
+.engine-flame {
+  opacity: 0.62;
+}
+
+body[data-quality="medium"] .radar-zone,
+body[data-quality="medium"] .threat-pulse,
+body[data-quality="medium"] .unit-trail {
+  animation-play-state: paused !important;
+}
+
+body[data-quality="medium"] .ship-glyph,
+body[data-quality="medium"] .neutral-unit .neutral-icon,
+body[data-quality="medium"] .neutral-unit .ship-icon,
+body[data-quality="medium"] .neutral-unit .ship-glyph {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.74)) !important;
+}
+
+body[data-quality="low"] .radar-layer,
+body[data-quality="low"] .scanline,
+body[data-quality="low"] .threat-pulse,
+body[data-quality="low"] .unit-trail,
+body[data-quality="low"] .engine-flame {
+  display: none !important;
+}
+
+body[data-quality="low"] .ship-glyph,
+body[data-quality="low"] .unit:hover .ship-glyph,
+body[data-quality="low"] .unit.is-selected .ship-glyph,
+body[data-quality="low"] .unit.is-previewed .ship-glyph {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.78)) !important;
+}
+
+body[data-quality="low"] .neutral-unit {
+  opacity: 0.48;
+}
