@@ -704,6 +704,56 @@ h2 {
 }
 
 /* ============================================
+   雷达系统
+   ============================================ */
+.radar-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.55;
+  mix-blend-mode: screen;
+}
+.radar-zone {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(24px);
+  opacity: 0.35;
+  animation: radarPulse 4s ease-in-out infinite;
+}
+@keyframes radarPulse {
+  0%, 100% { opacity: 0.28; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(1.03); }
+}
+.radar-toggle {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 101;
+  padding: 8px 14px;
+  border: 1px solid rgba(77, 163, 255, 0.45);
+  border-radius: 2px;
+  background: rgba(2, 6, 14, 0.92);
+  color: #4da3ff;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+.radar-toggle:hover {
+  border-color: #4da3ff;
+  background: rgba(77, 163, 255, 0.18);
+  color: #7ec3ff;
+}
+.radar-toggle.is-active {
+  border-color: #ffd251;
+  color: #ffd251;
+  background: rgba(255, 210, 81, 0.12);
+}
+
+/* ============================================
    科幻 WIP 时钟 HUD
    ============================================ */
 .sci-fi-hud {
@@ -756,9 +806,13 @@ h2 {
     0 0 8px rgba(77, 163, 255, 0.45),
     0 0 20px rgba(77, 163, 255, 0.15);
   line-height: 1;
-  cursor: pointer;
+  cursor: pointer !important;
   user-select: none;
   transition: color 0.3s ease;
+  display: inline-block;
+  width: 100%;
+  text-align: center;
+  padding: 4px 0;
 }
 .sci-fi-hud .hud-time:hover {
   color: #7ec3ff;
@@ -2723,6 +2777,8 @@ body::after {
   box-sizing: border-box;
   background: #02060c;
   grid-column: 1 / -1;
+  color: #e8fbff;
+  min-height: 100%;
 }
 
 .tab-page.is-active {

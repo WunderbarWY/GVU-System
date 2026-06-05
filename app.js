@@ -59,12 +59,12 @@ function normalizeShipClass(cls) {
 
 // 漂移参数按舰船量级分级 — 小船灵活漂移，大船庄重缓慢
 const DRIFT_PROFILES = {
-  raider:     { ampBase: 0.09, ampVar: 0.04, freqBase: 0.12, freqVar: 0.06 },  // 袭扰艇 — 最快
-  frigate:    { ampBase: 0.07, ampVar: 0.03, freqBase: 0.09, freqVar: 0.05 },  // 护卫舰
-  destroyer:  { ampBase: 0.05, ampVar: 0.03, freqBase: 0.07, freqVar: 0.04 },  // 驱逐舰
-  cruiser:    { ampBase: 0.04, ampVar: 0.02, freqBase: 0.06, freqVar: 0.03 },  // 巡洋舰
-  battleship: { ampBase: 0.03, ampVar: 0.02, freqBase: 0.05, freqVar: 0.02 },  // 战列舰
-  dreadnought:{ ampBase: 0.02, ampVar: 0.02, freqBase: 0.04, freqVar: 0.02 },  // 旗舰/无畏舰 — 最慢
+  raider:     { ampBase: 0.26, ampVar: 0.12, freqBase: 0.16, freqVar: 0.08 },  // 袭扰艇 — 轻快飘忽
+  frigate:    { ampBase: 0.20, ampVar: 0.10, freqBase: 0.13, freqVar: 0.07 },  // 护卫舰
+  destroyer:  { ampBase: 0.15, ampVar: 0.08, freqBase: 0.10, freqVar: 0.06 },  // 驱逐舰
+  cruiser:    { ampBase: 0.11, ampVar: 0.06, freqBase: 0.08, freqVar: 0.05 },  // 巡洋舰
+  battleship: { ampBase: 0.08, ampVar: 0.05, freqBase: 0.07, freqVar: 0.04 },  // 战列舰
+  dreadnought:{ ampBase: 0.05, ampVar: 0.04, freqBase: 0.05, freqVar: 0.03 },  // 旗舰/无畏舰 — 稳重
 };
 
 const NATO_NAMES = {
@@ -2382,9 +2382,10 @@ function renderDetail(id, animate = false) {
   const isV = u.faction === 'vanguard';
   const od = u.mission?.overdue || 0;
 
-  // 倒计时文案
+  // 倒计时文案（仅当 Linear 任务设置了 due 日期时显示）
   let countdownText = '', countdownColor = '#17d7b6';
-  if (u.mission?.due) {
+  const hasDue = u.mission?.due && u.mission.due !== '—' && String(u.mission.due).trim() !== '';
+  if (hasDue) {
     const days = daysUntil(u.mission.due);
     if (od > 0) {
       countdownText = `已逾期 ${od} 天`;
@@ -2438,10 +2439,10 @@ function renderDetail(id, animate = false) {
       }
     }
 
-    // 信息行
+    // 信息行（无截止日期时不显示该字段）
     html += `
       <div class="info-grid">
-        <div><span>截止日期</span><strong>${m.due || '—'}</strong></div>
+        ${hasDue ? `<div><span>截止日期</span><strong>${m.due}</strong></div>` : ''}
         <div><span>预估工时</span><strong>${m.estimate || 3} 点</strong></div>
       </div>
     `;
@@ -3293,19 +3294,6 @@ function renderSettings() {
 
   el.innerHTML = `
     <div class="settings-group">
-      <h3>Linear 连接</h3>
-      <div id="settingsConnectUI">
-        <p class="muted" style="margin-bottom:10px;font-size:12px">纯展示型 — 从 Linear 读取任务，游戏内操作不回写。</p>
-        <input type="password" id="settingsApiKey" placeholder="lin_api_..." value="${LinearAPI.key || ''}" style="width:100%;padding:8px 10px;border:1px solid rgba(172,219,255,0.25);border-radius:4px;background:rgba(2,5,12,0.6);color:#e8fbff;font-family:var(--font-ui);font-size:13px;box-sizing:border-box;" />
-        <div style="display:flex;gap:8px;margin-top:10px;">
-          <button onclick="window.__game.settingsConnect()" style="flex:1;padding:8px;border:1px solid #4da3ff;border-radius:4px;background:rgba(77,163,255,0.15);color:#4da3ff;cursor:pointer;font-family:var(--font-display);font-size:13px;">🔗 连接</button>
-          <button onclick="window.__game.settingsDemo()" style="padding:8px 12px;border:1px solid rgba(232,251,255,0.15);border-radius:4px;background:rgba(232,251,255,0.05);color:var(--muted);cursor:pointer;font-family:var(--font-display);font-size:13px;">演示数据</button>
-        </div>
-        <p id="settingsStatus" style="margin:8px 0 0;font-size:12px;min-height:18px;"></p>
-      </div>
-    </div>
-
-    <div class="settings-group" style="margin-top:16px">
       <h3>性能</h3>
       <div class="settings-row">
         <label>动画模式</label>
@@ -3339,6 +3327,19 @@ function renderSettings() {
         <button onclick="document.getElementById('importFile').click()" style="flex:1;padding:8px;border:1px solid #ffd251;border-radius:4px;background:rgba(255,210,81,0.1);color:#ffd251;cursor:pointer;font-family:var(--font-display);font-size:13px;">📤 导入恢复</button>
       </div>
       <input type="file" id="importFile" accept=".json" style="display:none" onchange="window.__game.importGameData(this)" />
+    </div>
+
+    <div class="settings-group" style="margin-top:16px">
+      <h3>Linear 连接</h3>
+      <div id="settingsConnectUI">
+        <p class="muted" style="margin-bottom:10px;font-size:12px">纯展示型 — 从 Linear 读取任务，游戏内操作不回写。</p>
+        <input type="password" id="settingsApiKey" placeholder="lin_api_..." value="${LinearAPI.key || ''}" style="width:100%;padding:8px 10px;border:1px solid rgba(172,219,255,0.25);border-radius:4px;background:rgba(2,5,12,0.6);color:#e8fbff;font-family:var(--font-ui);font-size:13px;box-sizing:border-box;" />
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button onclick="window.__game.settingsConnect()" style="flex:1;padding:8px;border:1px solid #4da3ff;border-radius:4px;background:rgba(77,163,255,0.15);color:#4da3ff;cursor:pointer;font-family:var(--font-display);font-size:13px;">🔗 连接</button>
+          <button onclick="window.__game.settingsDemo()" style="padding:8px 12px;border:1px solid rgba(232,251,255,0.15);border-radius:4px;background:rgba(232,251,255,0.05);color:var(--muted);cursor:pointer;font-family:var(--font-display);font-size:13px;">演示数据</button>
+        </div>
+        <p id="settingsStatus" style="margin:8px 0 0;font-size:12px;min-height:18px;"></p>
+      </div>
     </div>
 
     <div class="settings-group" style="margin-top:16px">
@@ -3401,6 +3402,40 @@ function setPomodoroDuration(minutes) {
   if (status) { status.textContent = `✓ 巡航时长已设为 ${minutes} 分钟`; status.style.color = '#17d7b6'; }
 }
 
+// v2.9: 雷达键 — 显示势力控制区域
+let _radarActive = false;
+function toggleRadar() {
+  _radarActive = !_radarActive;
+  const layer = document.querySelector('#radarLayer');
+  const btn = document.querySelector('#radarToggle');
+  if (!layer) return;
+  if (!_radarActive) {
+    layer.style.display = 'none';
+    layer.innerHTML = '';
+    btn?.classList.remove('is-active');
+    return;
+  }
+  btn?.classList.add('is-active');
+  layer.style.display = 'block';
+  const zones = [
+    { faction: 'egov',    zone: spawnZone('egov'),    color: CONFIG.FACTION_COLORS.egov || '#4da3ff',    label: '地球联合政府控制区' },
+    { faction: 'jupiter', zone: spawnZone('jupiter'), color: CONFIG.FACTION_COLORS.jupiter || '#ffd251', label: '木星兵团控制区' },
+    { faction: 'remnant', zone: spawnZone('remnant'), color: CONFIG.FACTION_COLORS.remnant || '#ff3f52', label: '星际遗民控制区' },
+  ];
+  layer.innerHTML = zones.map(z => {
+    const cx = (z.zone.x[0] + z.zone.x[1]) / 2;
+    const cy = (z.zone.y[0] + z.zone.y[1]) / 2;
+    const rx = (z.zone.x[1] - z.zone.x[0]) / 2;
+    const ry = (z.zone.y[1] - z.zone.y[0]) / 2;
+    const size = Math.max(rx, ry) * 2.4;
+    return `
+      <div class="radar-zone" style="left:${cx - size/2}%;top:${cy - size/2}%;width:${size}%;height:${size}%;background:radial-gradient(circle at center, ${z.color}22, ${z.color}08, transparent 70%);box-shadow:inset 0 0 60px ${z.color}18, 0 0 40px ${z.color}10;">
+        <span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:${z.color};font-family:var(--font-display);font-size:11px;letter-spacing:1px;text-shadow:0 0 8px ${z.color}40;white-space:nowrap;">${z.label}</span>
+      </div>
+    `;
+  }).join('');
+}
+
 // v2.9: 数据导出 / 导入（为 Supabase 迁移预留接口）
 function exportGameData() {
   const data = {
@@ -3449,5 +3484,5 @@ function importGameData(input) {
   input.value = '';
 }
 
-window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, deploy: confirmDeploy, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, doLogin, finishLogin, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory, switchTab, setFleetFilter, settingsConnect, settingsDemo, setPerfMode, setPomodoroDuration, PomodoroTimer, exportGameData, importGameData };
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, deploy: confirmDeploy, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, doLogin, finishLogin, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory, switchTab, setFleetFilter, settingsConnect, settingsDemo, setPerfMode, setPomodoroDuration, toggleRadar, PomodoroTimer, exportGameData, importGameData };
 window.addEventListener('resize', drawStarfield);
