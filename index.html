@@ -7,9 +7,9 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>银河先遣队作战指挥台</title>
-    <link rel="stylesheet" href="./styles.css?v=pomodoro-6" />
-    <link rel="stylesheet" href="./effects.css?v=pomodoro-6" />
-    <link rel="stylesheet" href="./console-skin.css?v=pomodoro-6" />
+    <link rel="stylesheet" href="./styles.css?v=pomodoro-7" />
+    <link rel="stylesheet" href="./effects.css?v=pomodoro-7" />
+    <link rel="stylesheet" href="./console-skin.css?v=pomodoro-7" />
     <script>
       // 应急诊断脚本 — 检测启动卡死
       console.log('[DIAG] Emergency script loaded');
@@ -131,7 +131,7 @@
           <div class="hud-corner bl"></div>
           <div class="hud-corner br"></div>
           <div class="hud-label" id="hudPomodoroLabel">发动巡航</div>
-          <div class="hud-time" id="hudTime" title="点击发动/暂停巡航">25:00</div>
+          <div class="hud-time" id="hudTime" onclick="window.__game.PomodoroTimer.toggle()" title="点击发动/暂停巡航">25:00</div>
           <div class="hud-progress"><div class="hud-progress-bar" id="hudPomodoroBar"></div></div>
           <div class="hud-online-mini" id="hudOnlineMini">在线 00:00 / 60min</div>
           <div class="hud-divider"></div>
@@ -365,8 +365,8 @@
       </div>
     </div>
 
-    <script src="./src/config/game.js?v=pomodoro-6"></script>
-    <script src="./app.js?v=pomodoro-6"></script>
+    <script src="./src/config/game.js?v=pomodoro-7"></script>
+    <script src="./app.js?v=pomodoro-7"></script>
     <script>
       // 版本检测：如果旧 JS 被缓存，PomodoroTimer 不存在，提示刷新
       (function checkVersion() {

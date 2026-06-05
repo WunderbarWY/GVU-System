@@ -1742,8 +1742,8 @@ const AnimationEngine = {
 
     const rx = unit.x + (unit._driftX || 0);
     const ry = unit.y + (unit._driftY || 0);
-    const lastX = unit._renderX ?? rx;
-    const lastY = unit._renderY ?? ry;
+    const lastX = unit._renderX ?? unit.x;
+    const lastY = unit._renderY ?? unit.y;
     const vx = rx - lastX;
     const vy = ry - lastY;
     const moving = Math.hypot(vx, vy) > 0.002;

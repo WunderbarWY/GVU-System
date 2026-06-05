@@ -855,6 +855,7 @@
   min-width: 0;
   padding: 11px 12px 12px;
   isolation: isolate;
+  pointer-events: auto !important;
   border: 1px solid rgba(118, 154, 182, 0.24);
   border-left-color: rgba(99, 177, 255, 0.42);
   border-bottom-color: rgba(255, 210, 81, 0.2);
