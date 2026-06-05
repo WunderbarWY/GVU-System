@@ -269,7 +269,7 @@ function mapLinearIssues(rawIssues) {
       description: issue.description || '',
       priority: { 1: 'urgent', 2: 'high', 3: 'medium', 4: 'low', 0: 'low' }[issue.priority] || 'low',
       status,
-      due: issue.dueDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+      due: issue.dueDate || null,
       faction: detectFaction(issue),
       estimate: issue.estimate || 3,
       labels: (issue.labels?.nodes || []).map(l => l.name),
@@ -990,7 +990,7 @@ function daysOverdue(dateStr) {
   return Math.max(0, Math.ceil(diff / 86400000));
 }
 function daysUntil(dateStr) {
-  if (!dateStr) return 7; // 无截止日期默认剩7天
+  if (!dateStr) return null; // 无截止日期
   const diff = new Date(dateStr) - new Date();
   return Math.ceil(diff / 86400000);
 }
@@ -2266,11 +2266,11 @@ function renderBriefing() {
   }
   if (r.work.inProgress.length) {
     html += `<h3>进行中</h3>`;
-    html += r.work.inProgress.map(t => briefRow(t, '#e8fbff', `剩${t.days}天`)).join('');
+    html += r.work.inProgress.map(t => briefRow(t, '#e8fbff', t.days == null ? '' : `剩${t.days}天`)).join('');
   }
   if (r.work.todo.length) {
     html += `<h3>待办</h3>`;
-    html += r.work.todo.map(t => briefRow(t, '#ffd251', `剩${t.days}天`)).join('');
+    html += r.work.todo.map(t => briefRow(t, '#ffd251', t.days == null ? '' : `剩${t.days}天`)).join('');
   }
   html += `</div>`;
 
@@ -3330,6 +3330,11 @@ function renderSettings() {
     </div>
 
     <div class="settings-group" style="margin-top:16px">
+      <h3>关于</h3>
+      <p class="muted" style="font-size:12px;margin:0">银河先遣队作战指挥台 v2.9<br>GVU Strategic Command System</p>
+    </div>
+
+    <div class="settings-group" style="margin-top:16px">
       <h3>Linear 连接</h3>
       <div id="settingsConnectUI">
         <p class="muted" style="margin-bottom:10px;font-size:12px">纯展示型 — 从 Linear 读取任务，游戏内操作不回写。</p>
@@ -3340,11 +3345,6 @@ function renderSettings() {
         </div>
         <p id="settingsStatus" style="margin:8px 0 0;font-size:12px;min-height:18px;"></p>
       </div>
-    </div>
-
-    <div class="settings-group" style="margin-top:16px">
-      <h3>关于</h3>
-      <p class="muted" style="font-size:12px;margin:0">银河先遣队作战指挥台 v2.9<br>GVU Strategic Command System</p>
     </div>
   `;
 
