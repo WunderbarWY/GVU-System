@@ -2286,11 +2286,9 @@ function spawnNeutralUnits() {
 }
 
 function renderNeutrals() {
-  const layer = document.querySelector('#unitLayer');
+  const layer = document.querySelector('#neutralLayer');
   if (!layer) return;
-  // 中立单位追加到 unitLayer 末尾，不影响战斗单位的事件委托
-  const existing = layer.querySelectorAll('.neutral-unit');
-  existing.forEach(el => el.remove());
+  layer.innerHTML = '';
 
   G.neutrals.forEach(n => {
     const el = document.createElement('button');
