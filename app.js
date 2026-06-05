@@ -41,15 +41,6 @@ const SHIP_CLASSES = {
   raider:     { label: '袭扰艇', size: 46, threat: 54, powerBase: 35 },
 };
 
-const SHIP_MAP_GLYPHS = {
-  raider: './assets/ships/ship-map-raider-v1.png',
-  frigate: './assets/ships/ship-map-frigate-v1.png',
-  destroyer: './assets/ships/ship-map-destroyer-v1.png',
-  cruiser: './assets/ships/ship-map-cruiser-v1.png',
-  battleship: './assets/ships/ship-map-battleship-v1.png',
-  dreadnought: './assets/ships/ship-map-dreadnought-v1.png',
-};
-
 const MAP_SHIP_SIZES = {
   raider: 28,
   frigate: 34,
@@ -58,6 +49,8 @@ const MAP_SHIP_SIZES = {
   battleship: 60,
   dreadnought: 72,
 };
+
+const MAP_MOTION_SPEED_SCALE = 1 / 16;
 
 function normalizeShipClass(cls) {
   return {
@@ -1669,14 +1662,15 @@ const AnimationEngine = {
   tick(now) {
     if (!this.running) return;
     const dt = Math.min((now - this.lastTime) / 1000, 0.1); // cap at 100ms
+    const motionDt = dt * MAP_MOTION_SPEED_SCALE;
     this.lastTime = now;
 
     G.units.forEach(unit => {
       if (unit.status === 'destroyed') return;
       if (unit.faction === 'vanguard') {
-        this.updateVanguard(unit, dt);
+        this.updateVanguard(unit, motionDt);
       } else {
-        this.updateEnemy(unit, dt);
+        this.updateEnemy(unit, motionDt);
       }
       this.updateDOM(unit);
     });
@@ -1686,7 +1680,7 @@ const AnimationEngine = {
     const quality = PerformanceMonitor.quality || document.body.dataset.quality || 'high';
     const neutralInterval = quality === 'low' ? 0.12 : quality === 'medium' ? 0.08 : 0.05;
     if (this.neutralAccum >= neutralInterval) {
-      const ndt = Math.min(this.neutralAccum, 0.24);
+      const ndt = Math.min(this.neutralAccum, 0.24) * MAP_MOTION_SPEED_SCALE;
       this.neutralAccum = 0;
       G.neutrals.forEach(n => {
         n.driftPhase += n.driftFreq * ndt;
@@ -2580,17 +2574,16 @@ function selectByMission(linearId) {
 function focusOnUnit(id) {
   const u = G.units.find(x => x.id === id);
   if (!u) return;
-  const stage = document.querySelector('#mapStage');
   const worldEl = document.querySelector('#mapWorld');
-  if (!stage || !worldEl) return;
+  if (!worldEl) return;
   const worldW = parseFloat(getComputedStyle(worldEl).width) || 7200;
   const worldH = parseFloat(getComputedStyle(worldEl).height) || 4700;
   const wx = (u.x / 100) * worldW;
   const wy = (u.y / 100) * worldH;
-  const stageW = stage.clientWidth;
-  const stageH = stage.clientHeight;
-  map.panX = stageW / 2 - wx * map.zoom + worldW / 2;
-  map.panY = stageH / 2 - wy * map.zoom + worldH / 2;
+  // #mapWorld 有 left:50% + translate(-50%,-50%)，中心始终对准父元素中心
+  // panX/panY 只需补偿 (世界中心 - 舰船位置) × zoom
+  map.panX = (worldW / 2 - wx) * map.zoom;
+  map.panY = (worldH / 2 - wy) * map.zoom;
   applyMap();
 }
 
