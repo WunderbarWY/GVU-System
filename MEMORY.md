@@ -2,7 +2,7 @@
 
 ## 当前版本
 
-v2.9 — 真正番茄钟 + 数据导出导入
+v2.9 — 番茄钟 + 雷达键 + 经济账 + 数据持久化
 
 ---
 
@@ -18,8 +18,8 @@ v2.9 — 真正番茄钟 + 数据导出导入
 - **修复**：`max-width/max-height: 100%` + 扇区改名为「水星走廊/金星前线/木星航道/冥王星外围」
 
 ### ✅ 标签页黑屏（2026-06-04）
-- **根因**：`.command-shell` grid 两列布局把 `.tab-page` 挤到侧边栏列
-- **修复**：`grid-column: 1 / -1` + `background: #02060c`
+- **根因**：`.command-shell` grid 两列布局把 `.tab-page` 挤到侧边栏列；后续 CSS cache-bust 未更新导致用户端仍加载旧样式
+- **修复**：`grid-column: 1 / -1` + `background: #02060c`；后续加内联 fallback 样式（`style="background:#02060c;grid-column:1/-1;..."`）确保即使 CSS 缓存也能正常显示
 
 ### ✅ 舰船点击无反应（2026-06-04）
 - **根因 1**：`.threat-pulse` 无 `pointer-events: none`，拦截点击
@@ -29,6 +29,19 @@ v2.9 — 真正番茄钟 + 数据导出导入
 ### ✅ 服务器不稳定（2026-06-04）
 - **根因**：curl 15秒超时 + 无重试 + 端口占用崩溃
 - **修复**：30秒超时 + curl 自动重试 + `SO_REUSEADDR` + 健康检查端点
+
+### ✅ 钟表模块点击无效（2026-06-05）
+- **根因 1**：CSS cache-bust 长期未更新，浏览器加载旧 CSS，`.hud-time` 无 `cursor: pointer`
+- **根因 2**：`updatePomodoroUI` 函数未被成功写入 app.js，调用时被 try-catch 静默吞掉
+- **修复**：统一所有 CSS 文件的 cache-bust；补写 `updatePomodoroUI`；给 `.hud-time` 加 `cursor: pointer !important` + `display: inline-block` + `width: 100%`
+
+### ✅ 任务详情乱显示截止时间（2026-06-05）
+- **根因**：`renderDetail` 对所有任务都渲染「截止日期」行，即使 Linear 中未设置 due
+- **修复**：加 `hasDue` 判断，无截止日期时不显示 countdown-bar 和截止日期字段
+
+### ✅ 舰船移动像静止（2026-06-05）
+- **根因**：`DRIFT_PROFILES` 振幅过小（0.02-0.09），在大幅面地图上几乎不可感知
+- **修复**：振幅整体放大 2-3 倍（袭扰艇 0.26，旗舰 0.05），配合优先级倍率后移动明显
 
 ---
 
@@ -53,8 +66,11 @@ v2.9 — 真正番茄钟 + 数据导出导入
 - `AnimationEngine` — rAF 动画循环，舰船漂移/轨道动画
 - `StarshipSync` — 与 Linear API 同步，增量更新
 - `WarHistoryStore` — 战史记录存储（localStorage）
+- `WIPStore` — WIP 工时/经济系统，带 `_version` 字段
+- `PomodoroTimer` — 番茄钟/巡航系统：rAF 倒计时、打断检测、自定义时长、持久化
 - `PerformanceMonitor` — FPS 监控，自动降级动画
 - `LinearAPI` — 封装 fetch，自动轮询
+- `Radar` — 势力雷达层，显示势力控制区域底色（`toggleRadar`）
 
 ### 五标签页
 | 标签 | 内容 | 状态 |
@@ -62,7 +78,7 @@ v2.9 — 真正番茄钟 + 数据导出导入
 | **态势** | 战略地图 + 任务清单 + 部署按钮 + 单位详情 | ✅ 完成 |
 | **舰队** | 势力筛选 + 舰船卡片列表，点击切回态势定位 | ✅ 完成 |
 | **战役** | 统计概览 + 战史时间线 | ✅ 完成 |
-| **情报** | 势力分析 + 标签统计 + 威胁预警 | ✅ 完成 |
+| **情报** | 势力分析 + 标签统计 + 威胁预警 + **经济账** | ✅ 完成 |
 | **设置** | API Key 配置 + 性能模式 + 演示数据 | ✅ 完成 |
 
 ### 启动流程
@@ -79,6 +95,9 @@ v2.9 — 真正番茄钟 + 数据导出导入
 - **服务器**：`python3 server.py` → `http://localhost:5180`
 - **健康检查**：`http://localhost:5180/api/health`
 - **版本号**：`?v=pomodoro-4`
+- **缓存策略**：所有 CSS/JS 统一 cache-bust；tab-page 带内联 fallback 样式
+- **雷达键**：左下角 📡 按钮，切换势力控制区底色显示
+- **番茄钟文案**：「发动巡航」/「巡航中」
 
 ---
 
@@ -87,7 +106,7 @@ v2.9 — 真正番茄钟 + 数据导出导入
 ### P0（已完成）✅：优先级映射 + 动画增强 + 番茄钟
 - [x] **优先级 → 地图位置**：urgent/high + in_progress → 靠近地球中心；low + backlog → 靠近势力外围
 - [x] **舰船漂移增强**：按优先级放大 drift 幅度（urgent ×2.5，high ×2.0，medium ×1.5，low ×1.0，in_progress 额外×1.2）
-- [x] **真正番茄钟**：25分钟 rAF 倒计时，点击开始/暂停，完成+25 WIP，localStorage 持久化
+- [x] **真正番茄钟**：rAF 倒计时，可自定义 15/25/45/60 分钟，奖励=时长分钟数×1 WIP，localStorage 持久化，切标签页自动暂停/恢复
 - [x] **数据导出/导入**：JSON 备份，为 Supabase 迁移预留接口
 
 ### P1：工程化第二阶段
