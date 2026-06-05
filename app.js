@@ -50,6 +50,15 @@ const SHIP_MAP_GLYPHS = {
   dreadnought: './assets/ships/ship-map-dreadnought-v1.png',
 };
 
+const MAP_SHIP_SIZES = {
+  raider: 28,
+  frigate: 34,
+  destroyer: 42,
+  cruiser: 50,
+  battleship: 60,
+  dreadnought: 72,
+};
+
 function normalizeShipClass(cls) {
   return {
     flagship: 'dreadnought',
@@ -57,14 +66,18 @@ function normalizeShipClass(cls) {
   }[cls] || cls;
 }
 
+function shipMapSize(cls) {
+  return MAP_SHIP_SIZES[normalizeShipClass(cls)] || MAP_SHIP_SIZES.destroyer;
+}
+
 // 漂移参数按舰船量级分级 — 小船灵活漂移，大船庄重缓慢
 const DRIFT_PROFILES = {
-  raider:     { ampBase: 0.55, ampVar: 0.22, freqBase: 0.01, freqVar: 0.005 },  // 袭扰艇 — 轻快飘忽
-  frigate:    { ampBase: 0.42, ampVar: 0.18, freqBase: 0.008, freqVar: 0.004 },  // 护卫舰
-  destroyer:  { ampBase: 0.32, ampVar: 0.14, freqBase: 0.006, freqVar: 0.003 },  // 驱逐舰
-  cruiser:    { ampBase: 0.24, ampVar: 0.10, freqBase: 0.005, freqVar: 0.003 },  // 巡洋舰
-  battleship: { ampBase: 0.18, ampVar: 0.08, freqBase: 0.004, freqVar: 0.002 },  // 战列舰
-  dreadnought:{ ampBase: 0.12, ampVar: 0.06, freqBase: 0.003, freqVar: 0.001 },  // 旗舰/无畏舰 — 稳重
+  raider:     { ampBase: 1.05, ampVar: 0.34, freqBase: 0.72, freqVar: 0.18 },  // 袭扰艇 — 轻快飘忽
+  frigate:    { ampBase: 0.82, ampVar: 0.28, freqBase: 0.58, freqVar: 0.14 },  // 护卫舰
+  destroyer:  { ampBase: 0.62, ampVar: 0.22, freqBase: 0.46, freqVar: 0.12 },  // 驱逐舰
+  cruiser:    { ampBase: 0.48, ampVar: 0.16, freqBase: 0.34, freqVar: 0.1 },  // 巡洋舰
+  battleship: { ampBase: 0.36, ampVar: 0.12, freqBase: 0.24, freqVar: 0.08 },  // 战列舰
+  dreadnought:{ ampBase: 0.24, ampVar: 0.08, freqBase: 0.16, freqVar: 0.05 },  // 旗舰/无畏舰 — 稳重
 };
 
 const NATO_NAMES = {
@@ -857,7 +870,7 @@ function playDeployAnimation(ship) {
   el.className = `unit ship-${ship.shipClass} patrol is-deploying`;
   el.dataset.id = ship.id;
   el.type = 'button';
-  el.style.cssText = `left:${startX}%;top:${startY}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:#4da3ff;--ship-size:${SHIP_CLASSES[ship.shipClass]?.size || 34}px;color:${f.color};opacity:0;transform:translate(-50%,-50%) scale(0.2);`;
+  el.style.cssText = `left:${startX}%;top:${startY}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:#4da3ff;--ship-size:${shipMapSize(ship.shipClass)}px;color:${f.color};opacity:0;transform:translate(-50%,-50%) scale(0.2);`;
   el.innerHTML = `
     ${shipIcon(ship.shipClass)}
     <span class="engine-flame deploy-boost" style="background:linear-gradient(180deg, ${f.color}, transparent);"></span>
@@ -1340,7 +1353,7 @@ const StarshipSync = {
     el.className = `unit ship-${unit.shipClass} ${unit.status} is-spawning`;
     el.dataset.id = unit.id;
     el.type = 'button';
-    el.style.cssText = `left:${startX}%;top:${startY}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};--ship-size:${SHIP_CLASSES[unit.shipClass]?.size || 34}px;color:${f.color};transition:left 1.4s cubic-bezier(.2,.8,.2,1),top 1.4s cubic-bezier(.2,.8,.2,1),opacity 600ms ease,transform 600ms cubic-bezier(.2,.8,.2,1);`;
+    el.style.cssText = `left:${startX}%;top:${startY}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};--ship-size:${shipMapSize(unit.shipClass)}px;color:${f.color};transition:left 1.4s cubic-bezier(.2,.8,.2,1),top 1.4s cubic-bezier(.2,.8,.2,1),opacity 600ms ease,transform 600ms cubic-bezier(.2,.8,.2,1);`;
     el.innerHTML = `
       ${shipIcon(unit.shipClass)}
       <span class="engine-flame" style="background:linear-gradient(180deg, ${f.color}, transparent);"></span>
@@ -1414,7 +1427,7 @@ const StarshipSync = {
     if (oldClass !== unit.shipClass) {
       el.classList.remove(`ship-${oldClass}`);
       el.classList.add(`ship-${unit.shipClass}`);
-      el.style.setProperty('--ship-size', (SHIP_CLASSES[unit.shipClass]?.size || 34) + 'px');
+      el.style.setProperty('--ship-size', shipMapSize(unit.shipClass) + 'px');
       const icon = el.querySelector('.ship-icon');
       if (icon) icon.outerHTML = shipIcon(unit.shipClass);
     }
@@ -1948,10 +1961,10 @@ function generateReport() {
   return {
     narrative,
     work: {
-      done: Linear.done.map(i => ({ id: i.linearId, title: i.title })),
-      inProgress: inProg.map(i => ({ id: i.linearId, title: i.title, due: i.due, days: daysUntil(i.due) })),
-      todo: todo.filter(i => i.status === 'todo').map(i => ({ id: i.linearId, title: i.title, due: i.due, days: daysUntil(i.due) })),
-      overdue: odIssues.map(i => ({ id: i.linearId, title: i.title, days: daysOverdue(i.due) })),
+      done: Linear.done.map(i => ({ id: i.linearId || i.id, title: i.title })),
+      inProgress: inProg.map(i => ({ id: i.linearId || i.id, title: i.title, due: i.due, days: daysUntil(i.due) })),
+      todo: todo.filter(i => i.status === 'todo').map(i => ({ id: i.linearId || i.id, title: i.title, due: i.due, days: daysUntil(i.due) })),
+      overdue: odIssues.map(i => ({ id: i.linearId || i.id, title: i.title, days: daysOverdue(i.due) })),
     },
     counts: { done: Linear.done.length, todo: todo.length, overdue: odIssues.length, advancing: advancing.length, critical: critical.length },
   };
@@ -2233,8 +2246,44 @@ function renderFactions() {
 }
 
 function shipIcon(cls) {
-  const glyph = SHIP_MAP_GLYPHS[normalizeShipClass(cls)] || SHIP_MAP_GLYPHS.destroyer;
-  return `<img class="ship-icon ship-glyph" src="${glyph}" alt="" aria-hidden="true" draggable="false" />`;
+  const type = normalizeShipClass(cls);
+  const paths = {
+    raider: `
+      <path d="M50 13 L66 51 L56 48 L50 88 L44 48 L34 51 Z" opacity="0.82"/>
+      <path d="M50 18 L50 78 M41 40 L28 34 M59 40 L72 34" fill="none" stroke-width="5" stroke-linecap="round" opacity="0.92"/>
+    `,
+    frigate: `
+      <path d="M50 8 L64 31 L70 62 L57 58 L50 90 L43 58 L30 62 L36 31 Z" opacity="0.82"/>
+      <path d="M50 17 L50 78 M39 43 L61 43 M42 58 L58 58" fill="none" stroke-width="5" stroke-linecap="round" opacity="0.92"/>
+    `,
+    destroyer: `
+      <path d="M50 7 L67 30 L75 62 L59 58 L50 92 L41 58 L25 62 L33 30 Z" opacity="0.82"/>
+      <path d="M50 16 L50 80 M37 39 L63 39 M34 55 L66 55 M42 70 L58 70" fill="none" stroke-width="5" stroke-linecap="round" opacity="0.92"/>
+    `,
+    cruiser: `
+      <path d="M50 6 L72 31 L81 66 L61 62 L50 94 L39 62 L19 66 L28 31 Z" opacity="0.82"/>
+      <path d="M50 15 L50 82 M35 37 L65 37 M30 53 L70 53 M39 69 L61 69" fill="none" stroke-width="5" stroke-linecap="round" opacity="0.92"/>
+      <path d="M28 45 L16 39 M72 45 L84 39" fill="none" stroke-width="4" stroke-linecap="round" opacity="0.65"/>
+    `,
+    battleship: `
+      <path d="M50 4 L77 32 L88 70 L64 64 L50 96 L36 64 L12 70 L23 32 Z" opacity="0.82"/>
+      <path d="M50 14 L50 84 M31 38 L69 38 M25 55 L75 55 M35 72 L65 72" fill="none" stroke-width="5" stroke-linecap="round" opacity="0.92"/>
+      <path d="M24 48 L8 39 M76 48 L92 39 M31 66 L16 74 M69 66 L84 74" fill="none" stroke-width="4" stroke-linecap="round" opacity="0.62"/>
+    `,
+    dreadnought: `
+      <path d="M50 3 L80 29 L94 67 L70 68 L59 95 L50 99 L41 95 L30 68 L6 67 L20 29 Z" opacity="0.82"/>
+      <path d="M50 13 L50 87 M32 32 L68 32 M22 50 L78 50 M28 67 L72 67 M39 82 L61 82" fill="none" stroke-width="5" stroke-linecap="round" opacity="0.92"/>
+      <path d="M20 42 L5 32 M80 42 L95 32 M23 61 L7 70 M77 61 L93 70" fill="none" stroke-width="4.5" stroke-linecap="round" opacity="0.66"/>
+      <circle cx="50" cy="50" r="7" opacity="0.95"/>
+    `,
+  };
+  return `
+    <svg class="ship-icon ship-glyph map-ship-glyph" viewBox="0 0 100 100" aria-hidden="true">
+      <g fill="currentColor" stroke="currentColor" vector-effect="non-scaling-stroke">
+        ${paths[type] || paths.destroyer}
+      </g>
+    </svg>
+  `;
 }
 
 function legacyShipIcon(cls) {
@@ -2357,7 +2406,7 @@ function makeNeutralUnit(idCounter, type, cfg, name, num, planetIndex, baseX, ba
     driftPhase: Math.random() * Math.PI * 2,
     driftAmpX: 0.2 + Math.random() * 0.25,
     driftAmpY: 0.15 + Math.random() * 0.2,
-    driftFreq: 0.008 + Math.random() * 0.012,
+    driftFreq: 0.18 + Math.random() * 0.12,
   };
 }
 
@@ -2438,7 +2487,7 @@ function renderUnits() {
       ${hasTrail ? `<span class="unit-trail" data-unit-id="${u.id}" style="left:${u.x - 1.4}%;top:${u.y + 1.1}%;--trail-width:${54 + u.power * 0.32}px;--angle:${angle};--unit-color:${f.color}"></span>` : ''}
       <button class="unit ship-${u.shipClass} ${u.status} ${u.isDemoTraffic ? 'is-demo-traffic' : ''} ${G.selectedId === u.id ? 'is-selected' : ''}"
         data-id="${u.id}" type="button" onclick="event.stopPropagation(); window.__game.selectUnit('${u.id}')"
-        style="left:${u.x}%;top:${u.y}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};--ship-size:${SHIP_CLASSES[u.shipClass]?.size || 34}px;color:${f.color}">
+        style="left:${u.x}%;top:${u.y}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};--ship-size:${shipMapSize(u.shipClass)}px;color:${f.color}">
         ${shipIcon(u.shipClass)}
         <span class="engine-flame" style="background:linear-gradient(180deg, ${f.color}, transparent);"></span>
         <span class="unit-code">${u.id}</span>
@@ -2522,7 +2571,10 @@ function selectByMission(linearId) {
   if (!u) return;
   if (_activeTab !== 'situation') switchTab('situation');
   selectUnit(u.id);
-  focusOnUnit(u.id);
+  // 延迟一帧确保布局更新后再定位（switchTab 会改变 display）
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => focusOnUnit(u.id));
+  });
 }
 
 function focusOnUnit(id) {

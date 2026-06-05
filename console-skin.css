@@ -2117,6 +2117,16 @@
     drop-shadow(0 2px 3px rgba(0, 0, 0, 0.78)) !important;
 }
 
+.map-ship-glyph {
+  overflow: visible;
+  color: var(--unit-color);
+}
+
+.map-ship-glyph path,
+.map-ship-glyph circle {
+  vector-effect: non-scaling-stroke;
+}
+
 .unit:hover .ship-glyph,
 .unit.is-selected .ship-glyph,
 .unit.is-previewed .ship-glyph {
