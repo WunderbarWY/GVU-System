@@ -3037,7 +3037,6 @@ function initLinearUI() {
         syncLinearToGame();
         processAdvance();
         checkReinforcements();
-        addDemoTraffic();
         renderWarZones();
         renderUnits();
         renderBriefing();
@@ -3172,7 +3171,6 @@ function bootMain() {
     step('syncLinearToGame', syncLinearToGame);
     step('processAdvance', processAdvance);
     step('checkReinforcements', checkReinforcements);
-    step('addDemoTraffic', addDemoTraffic);
 
     showLoading('渲染战略地图...', 60);
     step('drawStarfield', drawStarfield);
