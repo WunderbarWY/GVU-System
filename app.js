@@ -74,6 +74,28 @@ const NATO_NAMES = {
   remnant: ['疾风','暴风雨','飑','季风','台风','气旋','飓风','暴风雪','雪崩','海啸','洪流','大洪水','干旱','霜冻','解冻','薄雾','浓雾','霾','烟雾','尘','灰烬','余烬','火花','火焰','烈焰','炼狱','焦土','灼烧','炭','煤渣',' surge','涟漪','潮汐','洋流','漩涡','涡旋','旋风','尘卷','火风暴','热浪','冷锋','暖锋','毛毛雨','冰雨','冰雹','冰暴','雪堆','漂移','变换','地震','余震'],
 };
 
+// 中立单位配置
+const NEUTRAL_CONFIG = {
+  cargo: {
+    label: '货运舰',
+    color: '#8aa8c4',
+    size: 28,
+    names: ['纽约','伦敦','东京','巴黎','上海','北京','新加坡','迪拜','悉尼','莫斯科','洛杉矶','芝加哥','柏林','罗马','马德里','孟买','开罗','里约','多伦多','首尔','曼谷','雅加达','墨西哥','旧金山','温哥华','孟菲斯','鹿特丹','汉堡','维也纳','米兰','巴塞罗那','伊斯坦布尔','德黑兰','内罗毕','约翰内斯堡','拉各斯','卡萨布兰卡','利马','波哥大','圣地亚哥','布宜诺斯','蒙得维','奥克兰','惠灵顿','马尼拉','吉隆坡','河内','加尔各答','卡拉奇','利雅得','科威特','多哈','安曼','贝鲁特','大马士革','巴格达','喀布尔','伊斯兰堡','达卡','科伦坡','加德满都','廷布','万象','金边','仰光','达累斯','坎帕拉','亚的斯','哈拉雷','卢萨卡','马普托','达喀尔','阿克拉','阿比让','杜阿拉','金沙萨','罗安达','哈瓦那','太子港','圣胡安','马那瓜','圣何塞','巴拿马','基多','拉巴斯','亚松森','乔治敦','帕拉马里','卡宴'],
+  },
+  passenger: {
+    label: '客运舰',
+    color: '#c4a86b',
+    size: 26,
+    names: ['国泰','南方','汉莎','全日','东航','国航','长荣','华航','新航','泰航','越航','印航','法航','英航','美联','达美','加航','澳航','南非','阿联','卡航','土航','日航','大韩','韩亚','厦航','川航','海航','深航','山航','吉祥','春秋','九元','祥鹏','中联','天航','藏航','北航','上航','澳门','港龙','捷星','虎航','酷航','欣丰','亚航','宿务','飞萤','马航','文莱','缅航','老航','柬航','菲航','巴航','斯航','马代','塞舌','毛里求','埃塞','肯航','坦桑','纳航','博航','津航','赞航','莫航','安航','喀航','加航','多航','贝航','布航','卢航','乌航','卢旺达','南苏丹','中非','乍得','尼日尔','马里','布基纳','几内亚','塞拉利','利比里','科特迪','加纳','多哥','贝宁','喀麦隆','赤道几','圣普','加蓬','刚果布','刚果金','安哥拉','纳米比','博茨瓦','南非','莱索托','斯威士','马达加','科摩罗','毛里塔','西撒哈','摩洛哥','阿尔及','突尼斯','利比亚','埃及','苏丹','厄立特','吉布提','索马里','也门','阿曼','巴林','约旦','黎巴嫩','叙利亚','伊拉克','伊朗','阿富汗','巴基斯坦','印度','尼泊尔','不丹','孟加拉','斯里兰卡','马尔代夫','缅甸','泰国','老挝','柬埔寨','越南','马来西亚','文莱','印尼','东帝汶','菲律宾','日本','韩国','朝鲜','蒙古','中国','台湾','香港','澳门','俄罗斯','白俄罗斯','乌克兰','摩尔多瓦','波兰','捷克','斯洛伐克','匈牙利','罗马尼亚','保加利亚','塞尔维亚','克罗地亚','斯洛文','波斯尼','黑山','北马其','阿尔巴','希腊','塞浦路斯','土耳其','格鲁吉','亚美尼','阿塞拜','立陶宛','拉脱维','爱沙尼','芬兰','瑞典','挪威','丹麦','冰岛','爱尔兰','英国','葡萄牙','西班牙','法国','比利时','荷兰','卢森堡','德国','瑞士','奥地利','意大利','梵蒂冈','圣马力','摩纳哥','安道尔','马耳他','列支敦','美国','加拿大','墨西哥','危地马拉','伯利兹','洪都拉','萨尔瓦','尼加拉','哥斯达','巴拿马','古巴','牙买加','海地','多米尼','波多黎','巴哈马','特克斯','开曼','百慕大','格林纳','巴巴多','圣卢西','圣文森','多米尼克','安提瓜','圣基茨','瓜德罗','马提尼','阿鲁巴','库拉索','博奈尔','萨巴','圣尤斯','荷属圣','蒙特塞','安圭拉','英属维','美属维','波多黎','哥伦比亚','委内瑞拉','圭亚那','苏里南','法属圭','厄瓜多尔','秘鲁','玻利维','巴西','智利','阿根廷','乌拉圭','巴拉圭','福克兰','南乔治','南极','新西兰','澳大利亚','巴布亚','所罗门','瓦努阿','新喀里','斐济','汤加','萨摩亚','基里巴','瑙鲁','图瓦卢','马绍尔','密克罗','帕劳','关岛','北马里','美属萨','纽埃','库克','法属波','皮特凯','托克劳','瓦利斯','斐济','萨摩亚','汤加'],
+  },
+  supply: {
+    label: '补给舰',
+    color: '#6bc49a',
+    size: 24,
+    names: ['棕榈','橡树','雪松','竹子','荷花','樱花','梅花','松树','柏树','榕树','银杏','枫树','柳树','桃树','梨树','杏树','茶树','桂树','玉兰','海棠','杜鹃','牡丹','芍药','茉莉','玫瑰','月季','蔷薇','丁香','紫藤','凌霄','爬山虎','常春藤','吊兰','芦荟','仙人掌','仙人球','多肉','绿萝','发财树','幸福树','平安树','金钱树','摇钱树','鸿运当','一帆风顺','富贵竹','君子兰','蝴蝶兰','石斛兰','文心兰','万代兰','卡特兰','兜兰','贝母兰','石豆兰','独蒜兰','手参','红门兰','鸟巢蕨','铁线蕨','肾蕨','波士顿','鹿角蕨','槲蕨','石韦','瓦韦','水龙骨','贯众','鳞毛蕨','海金沙','芒萁','里白','桫椤','黑桫椤','笔筒树','苏铁','银杏','水杉','银杉','秃杉','红豆杉','白豆杉','台湾杉','福建柏','刺柏','侧柏','圆柏','龙柏','铺地柏','翠柏','福建柏','鸡毛松','竹柏','罗汉松','陆均松','三尖杉','粗榧','榧树','红豆树','花榈木','降香黄','紫檀','酸枝','鸡翅木','乌木','铁力木','柚木','樟树','楠木','檫木','黄樟','肉桂','阴香','月桂','山苍子','木姜子','山胡椒','香叶树','乌药','厚朴','含笑','白兰','黄兰','观光木','鹅掌楸','马褂木','北美鹅','乐昌含','金叶含','醉香含','火力楠','木莲','红花木','乳源木','石碌含笑','乐东拟','观光木','厚皮香','红淡比','杨桐','柃木','山茶','油茶','茶梅','杜鹃','马银花','映山红','满山红','羊踯躅','云锦杜','大树杜','美容杜','鹿角杜','百合杜','大白杜','马醉木','南烛','乌饭树','越桔','蓝莓','小叶越','笃斯越','红豆杉','榧树','三尖杉','罗汉松','竹柏','鸡毛松','陆均松','买麻藤','百岁兰','千岁兰','银杏','苏铁',' Cycad','Ginkgo','Wollemia','Araucaria','Agathis','Podocarp'],
+  },
+};
+
 const WAR_TEMPLATES = {
   morning: [
     '第{{turn}}作战日：{{faction}}在{{location}}部署{{count}}支舰队，其中{{overdue}}支进入威胁范围。',
@@ -116,6 +138,7 @@ const PLANETS = [
 const G = {
   turn: 5,
   units: [],
+  neutrals: [],
   warHistory: [],
   selectedId: null,
   stats: { kills: 0, missions: 0, streak: 0, maxStreak: 0 },
@@ -1635,6 +1658,19 @@ const AnimationEngine = {
       this.updateDOM(unit);
     });
 
+    // 中立单位轨道运动
+    G.neutrals.forEach(n => {
+      const planet = PLANETS[n.planetIndex];
+      n.orbitAngle += n.orbitSpeed * dt;
+      n.x = planet.x + Math.cos(n.orbitAngle) * n.orbitRadius;
+      n.y = planet.y + Math.sin(n.orbitAngle) * n.orbitRadius;
+      const el = document.querySelector(`.neutral-unit[data-id="${n.id}"]`);
+      if (el) {
+        el.style.left = n.x + '%';
+        el.style.top = n.y + '%';
+      }
+    });
+
     this.frameId = requestAnimationFrame(t => this.tick(t));
   },
 
@@ -2197,6 +2233,116 @@ function legacyShipIcon(cls) {
   return `<svg class="ship-icon" viewBox="0 0 100 100" aria-hidden="true">${p[cls] || p.destroyer}</svg>`;
 }
 
+// ============================================
+// 中立单位系统
+// ============================================
+function neutralIcon(type) {
+  const icons = {
+    cargo: `<svg class="ship-icon neutral-icon" viewBox="0 0 100 100" aria-hidden="true"><rect x="18" y="30" width="64" height="38" rx="4" fill="none" stroke="currentColor" stroke-width="5"/><rect x="28" y="38" width="12" height="10" rx="1" fill="currentColor" opacity="0.5"/><rect x="46" y="38" width="12" height="10" rx="1" fill="currentColor" opacity="0.5"/><rect x="64" y="38" width="12" height="10" rx="1" fill="currentColor" opacity="0.5"/><line x1="50" y1="30" x2="50" y2="16" stroke="currentColor" stroke-width="4"/><line x1="40" y1="16" x2="60" y2="16" stroke="currentColor" stroke-width="4"/></svg>`,
+    passenger: `<svg class="ship-icon neutral-icon" viewBox="0 0 100 100" aria-hidden="true"><ellipse cx="50" cy="52" rx="34" ry="18" fill="none" stroke="currentColor" stroke-width="5"/><line x1="28" y1="48" x2="72" y2="48" stroke="currentColor" stroke-width="3" opacity="0.5"/><line x1="32" y1="56" x2="68" y2="56" stroke="currentColor" stroke-width="3" opacity="0.5"/><path d="M50 34 L50 20" stroke="currentColor" stroke-width="4"/><path d="M38 20 L62 20" stroke="currentColor" stroke-width="4"/><path d="M42 34 L58 34" stroke="currentColor" stroke-width="3"/></svg>`,
+    supply: `<svg class="ship-icon neutral-icon" viewBox="0 0 100 100" aria-hidden="true"><rect x="30" y="28" width="40" height="44" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><line x1="30" y1="42" x2="70" y2="42" stroke="currentColor" stroke-width="3"/><line x1="30" y1="56" x2="70" y2="56" stroke="currentColor" stroke-width="3"/><circle cx="50" cy="68" r="5" fill="currentColor" opacity="0.5"/><line x1="50" y1="28" x2="50" y2="18" stroke="currentColor" stroke-width="4"/><line x1="42" y1="18" x2="58" y2="18" stroke="currentColor" stroke-width="4"/></svg>`,
+  };
+  return icons[type] || icons.cargo;
+}
+
+function spawnNeutralUnits() {
+  G.neutrals = [];
+  let idCounter = 1;
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  // 每个星球分配 3~6 艘中立舰（ cargo / passenger / supply 混合）
+  PLANETS.forEach((planet, pi) => {
+    const count = 3 + Math.floor(Math.random() * 4); // 3~6
+    const types = ['cargo', 'passenger', 'supply'];
+    for (let i = 0; i < count; i++) {
+      const type = types[i % 3];
+      const cfg = NEUTRAL_CONFIG[type];
+      const name = cfg.names[Math.floor(Math.random() * cfg.names.length)];
+      const num = String(Math.floor(Math.random() * 20) + 1).padStart(2, '0');
+      const orbitRadius = 6 + Math.random() * 10; // 轨道半径 6%~16%
+      const orbitSpeed = 0.05 + Math.random() * 0.1; // 很慢的轨道速度
+      const angle = Math.random() * Math.PI * 2;
+      const x = planet.x + Math.cos(angle) * orbitRadius;
+      const y = planet.y + Math.sin(angle) * orbitRadius;
+
+      G.neutrals.push({
+        id: `NEU-${String(idCounter++).padStart(3, '0')}`,
+        name: `${name}-${num}`,
+        type,
+        label: cfg.label,
+        color: cfg.color,
+        size: cfg.size,
+        planetIndex: pi,
+        orbitRadius,
+        orbitSpeed,
+        orbitAngle: angle,
+        x,
+        y,
+        _renderX: x,
+        _renderY: y,
+      });
+    }
+  });
+}
+
+function renderNeutrals() {
+  const layer = document.querySelector('#unitLayer');
+  if (!layer) return;
+  // 中立单位追加到 unitLayer 末尾，不影响战斗单位的事件委托
+  const existing = layer.querySelectorAll('.neutral-unit');
+  existing.forEach(el => el.remove());
+
+  G.neutrals.forEach(n => {
+    const el = document.createElement('button');
+    el.className = 'unit neutral-unit';
+    el.dataset.id = n.id;
+    el.type = 'button';
+    el.style.cssText = `left:${n.x}%;top:${n.y}%;--unit-color:${n.color};--ship-size:${n.size}px;color:${n.color};`;
+    el.innerHTML = `
+      ${neutralIcon(n.type)}
+      <span class="unit-code">${n.id}</span>
+      <span class="unit-label">${n.name}</span>
+    `;
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectNeutral(n.id);
+    });
+    layer.appendChild(el);
+  });
+}
+
+function selectNeutral(id) {
+  const n = G.neutrals.find(x => x.id === id);
+  if (!n) return;
+  // 高亮选中态
+  document.querySelectorAll('.unit').forEach(b => b.classList.remove('is-selected'));
+  const el = document.querySelector(`.neutral-unit[data-id="${id}"]`);
+  if (el) el.classList.add('is-selected');
+  // 渲染详情面板
+  renderNeutralDetail(n);
+}
+
+function renderNeutralDetail(n) {
+  const panel = document.querySelector('#unitDetail');
+  if (!panel) return;
+  panel.innerHTML = `
+    <p class="eyebrow">${n.id} / 中立单位 / ${n.label}</p>
+    <h2 class="unit-title" style="--unit-color:${n.color}">${n.name}</h2>
+    <div class="mission-card" style="--accent:${n.color}">
+      <p class="mission-title">归属星球：${PLANETS[n.planetIndex].name}</p>
+      <p class="mission-meta">${n.label} · 不可攻击单位</p>
+    </div>
+    <div class="tag-pills">
+      <span class="tag-pill">中立</span>
+      <span class="tag-pill">不可攻击</span>
+    </div>
+    <div class="info-grid">
+      <div><span>类型</span><strong>${n.label}</strong></div>
+      <div><span>归属</span><strong>${PLANETS[n.planetIndex].name}</strong></div>
+    </div>
+  `;
+}
+
 function renderUnits() {
   const layer = document.querySelector('#unitLayer');
   if (!layer) return;
@@ -2225,11 +2371,11 @@ function renderUnits() {
     `;
   }).join('');
 
-  // 可靠的事件委托：只绑定一次，永远不会丢失
+  // 可靠的事件委托：只绑定一次，永远不会丢失（排除中立单位）
   if (!layer._gvClickBound) {
     layer._gvClickBound = true;
     layer.addEventListener('click', e => {
-      const btn = e.target.closest('.unit');
+      const btn = e.target.closest('.unit:not(.neutral-unit)');
       if (!btn || !layer.contains(btn)) return;
       e.preventDefault();
       e.stopPropagation();
@@ -2979,6 +3125,8 @@ function bootMain() {
     step('renderFactions', renderFactions);
     step('renderWarZones', renderWarZones);
     step('renderUnits', renderUnits);
+    step('spawnNeutralUnits', spawnNeutralUnits);
+    step('renderNeutrals', renderNeutrals);
     step('renderBriefing', renderBriefing);
     step('renderWarHistory', renderWarHistory);
     step('initMap', initMap);
@@ -3103,8 +3251,11 @@ function renderFleet() {
     return `
       <div class="fleet-card" style="--faction-color:${fcolor}" onclick="window.__game.selectUnit('${u.id}'); window.__game.switchTab('situation');">
         <div class="fleet-card-header">
-          ${shipIcon(u.shipClass)}
-          <span class="fleet-card-name" style="color:${fcolor}">${u.name}</span>
+          <span class="fleet-card-icon" aria-hidden="true">${shipIcon(u.shipClass)}</span>
+          <span class="fleet-card-ident">
+            <span class="fleet-card-code">${u.id}</span>
+            <span class="fleet-card-name" style="color:${fcolor}">${u.name}</span>
+          </span>
         </div>
         <div class="fleet-card-mission">${u.mission?.title || '无任务'}</div>
         <div class="fleet-card-meta">

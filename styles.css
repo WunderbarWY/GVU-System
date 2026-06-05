@@ -1141,6 +1141,34 @@ h2 {
   }
 }
 
+/* 中立单位 — 无光晕、无威胁圈、不参与交战 */
+.neutral-unit {
+  --unit-glow: transparent;
+  cursor: pointer;
+}
+.neutral-unit .engine-flame {
+  display: none;
+}
+.neutral-unit:hover,
+.neutral-unit.is-selected {
+  transform: translate(-50%, -50%) scale(1.12);
+  filter: none;
+}
+.neutral-unit.is-selected::after {
+  inset: -7px;
+  border-style: dotted;
+  border-color: var(--unit-color);
+  opacity: 0.6;
+  animation: spin 14s linear infinite;
+}
+.neutral-unit .neutral-icon {
+  opacity: 0.85;
+}
+.neutral-unit:hover .neutral-icon,
+.neutral-unit.is-selected .neutral-icon {
+  opacity: 1;
+}
+
 .unit-label {
   position: absolute;
   left: 50%;
