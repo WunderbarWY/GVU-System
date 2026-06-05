@@ -2380,11 +2380,12 @@ function selectNeutral(id) {
 function renderNeutralDetail(n) {
   const panel = document.querySelector('#unitDetail');
   if (!panel) return;
+  const planetName = n.planetIndex >= 0 ? PLANETS[n.planetIndex]?.name : '深空航道';
   panel.innerHTML = `
     <p class="eyebrow">${n.id} / 中立单位 / ${n.label}</p>
     <h2 class="unit-title" style="--unit-color:${n.color}">${n.name}</h2>
     <div class="mission-card" style="--accent:${n.color}">
-      <p class="mission-title">归属星球：${PLANETS[n.planetIndex].name}</p>
+      <p class="mission-title">归属星球：${planetName}</p>
       <p class="mission-meta">${n.label} · 不可攻击单位</p>
     </div>
     <div class="tag-pills">
@@ -2393,7 +2394,7 @@ function renderNeutralDetail(n) {
     </div>
     <div class="info-grid">
       <div><span>类型</span><strong>${n.label}</strong></div>
-      <div><span>归属</span><strong>${PLANETS[n.planetIndex].name}</strong></div>
+      <div><span>归属</span><strong>${planetName}</strong></div>
     </div>
   `;
 }
