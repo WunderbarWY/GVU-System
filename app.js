@@ -2291,34 +2291,57 @@ function spawnNeutralUnits() {
       const cfg = NEUTRAL_CONFIG[type];
       const name = cfg.names[Math.floor(Math.random() * cfg.names.length)];
       const num = String(Math.floor(Math.random() * 20) + 1).padStart(2, '0');
-      // 放在星球附近，但不重叠
       const dist = 5 + Math.random() * 9;
       const angle = Math.random() * Math.PI * 2;
       const baseX = planet.x + Math.cos(angle) * dist;
       const baseY = planet.y + Math.sin(angle) * dist;
 
-      G.neutrals.push({
-        id: `NEU-${String(idCounter++).padStart(3, '0')}`,
-        name: `${name}-${num}`,
-        type,
-        label: cfg.label,
-        color: cfg.color,
-        size: cfg.size,
-        planetIndex: pi,
-        baseX,
-        baseY,
-        x: baseX,
-        y: baseY,
-        _renderX: baseX,
-        _renderY: baseY,
-        // 漂移参数 — 幅度小、频率和战斗舰艇一致（慢）
-        driftPhase: Math.random() * Math.PI * 2,
-        driftAmpX: 0.2 + Math.random() * 0.25,
-        driftAmpY: 0.15 + Math.random() * 0.2,
-        driftFreq: 0.008 + Math.random() * 0.012,
-      });
+      G.neutrals.push(makeNeutralUnit(idCounter++, type, cfg, name, num, pi, baseX, baseY));
     }
   });
+
+  // 地图空旷区域额外撒 15~25 艘 — 随机位置，避开战斗单位密集区
+  const extraCount = 15 + Math.floor(Math.random() * 11);
+  const types = ['cargo', 'passenger', 'supply'];
+  for (let i = 0; i < extraCount; i++) {
+    const type = types[i % 3];
+    const cfg = NEUTRAL_CONFIG[type];
+    const name = cfg.names[Math.floor(Math.random() * cfg.names.length)];
+    const num = String(Math.floor(Math.random() * 20) + 1).padStart(2, '0');
+
+    // 随机生成位置，最多试 20 次避开战斗单位
+    let baseX, baseY, tooClose;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      baseX = 5 + Math.random() * 88;
+      baseY = 5 + Math.random() * 88;
+      tooClose = G.units.some(u => u.status !== 'destroyed' && Math.hypot(u.x - baseX, u.y - baseY) < 4);
+      if (!tooClose) break;
+    }
+
+    G.neutrals.push(makeNeutralUnit(idCounter++, type, cfg, name, num, -1, baseX, baseY));
+  }
+}
+
+function makeNeutralUnit(idCounter, type, cfg, name, num, planetIndex, baseX, baseY) {
+  return {
+    id: `NEU-${String(idCounter).padStart(3, '0')}`,
+    name: `${name}-${num}`,
+    type,
+    label: cfg.label,
+    color: cfg.color,
+    size: cfg.size,
+    planetIndex,
+    baseX,
+    baseY,
+    x: baseX,
+    y: baseY,
+    _renderX: baseX,
+    _renderY: baseY,
+    driftPhase: Math.random() * Math.PI * 2,
+    driftAmpX: 0.2 + Math.random() * 0.25,
+    driftAmpY: 0.15 + Math.random() * 0.2,
+    driftFreq: 0.008 + Math.random() * 0.012,
+  };
 }
 
 function renderNeutrals() {
