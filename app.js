@@ -59,12 +59,12 @@ function normalizeShipClass(cls) {
 
 // 漂移参数按舰船量级分级 — 小船灵活漂移，大船庄重缓慢
 const DRIFT_PROFILES = {
-  raider:     { ampBase: 0.55, ampVar: 0.22, freqBase: 0.16, freqVar: 0.08 },  // 袭扰艇 — 轻快飘忽
-  frigate:    { ampBase: 0.42, ampVar: 0.18, freqBase: 0.13, freqVar: 0.07 },  // 护卫舰
-  destroyer:  { ampBase: 0.32, ampVar: 0.14, freqBase: 0.10, freqVar: 0.06 },  // 驱逐舰
-  cruiser:    { ampBase: 0.24, ampVar: 0.10, freqBase: 0.08, freqVar: 0.05 },  // 巡洋舰
-  battleship: { ampBase: 0.18, ampVar: 0.08, freqBase: 0.07, freqVar: 0.04 },  // 战列舰
-  dreadnought:{ ampBase: 0.12, ampVar: 0.06, freqBase: 0.05, freqVar: 0.03 },  // 旗舰/无畏舰 — 稳重
+  raider:     { ampBase: 0.55, ampVar: 0.22, freqBase: 0.08, freqVar: 0.04 },  // 袭扰艇 — 轻快飘忽
+  frigate:    { ampBase: 0.42, ampVar: 0.18, freqBase: 0.065, freqVar: 0.035 },  // 护卫舰
+  destroyer:  { ampBase: 0.32, ampVar: 0.14, freqBase: 0.05, freqVar: 0.03 },  // 驱逐舰
+  cruiser:    { ampBase: 0.24, ampVar: 0.10, freqBase: 0.04, freqVar: 0.025 },  // 巡洋舰
+  battleship: { ampBase: 0.18, ampVar: 0.08, freqBase: 0.035, freqVar: 0.02 },  // 战列舰
+  dreadnought:{ ampBase: 0.12, ampVar: 0.06, freqBase: 0.025, freqVar: 0.015 },  // 旗舰/无畏舰 — 稳重
 };
 
 const NATO_NAMES = {
