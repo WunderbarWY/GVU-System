@@ -7,6 +7,25 @@
  * ============================================================
  */
 
+// localStorage 安全包装 — 必须在所有配置初始化之前可用。
+const safeLS = {
+  get(key, fallback = null) {
+    try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+  },
+  set(key, value) {
+    try { localStorage.setItem(key, value); return true; } catch { return false; }
+  },
+  remove(key) {
+    try { localStorage.removeItem(key); return true; } catch { return false; }
+  },
+  getJSON(key, fallback = null) {
+    try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : fallback; } catch { return fallback; }
+  },
+  setJSON(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
+  },
+};
+
 // ============================================
 // 游戏配置与常量
 // ============================================
@@ -1022,25 +1041,6 @@ function daysUntil(dateStr) {
   return Math.ceil(diff / 86400000);
 }
 
-// localStorage 安全包装 — 隐私模式/存储满时不崩溃
-const safeLS = {
-  get(key, fallback = null) {
-    try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
-  },
-  set(key, value) {
-    try { localStorage.setItem(key, value); return true; } catch { return false; }
-  },
-  remove(key) {
-    try { localStorage.removeItem(key); return true; } catch { return false; }
-  },
-  getJSON(key, fallback = null) {
-    try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : fallback; } catch { return fallback; }
-  },
-  setJSON(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
-  },
-};
-
 // ============================================
 // 纯军事化命名系统
 // ============================================
@@ -1246,7 +1246,52 @@ function syncLinearToGame() {
     }
   });
 
+  // 保留永久部署的旗舰（不对应 Linear，任何时候不得删去）
+  const permanent = G.units.filter(u => u.isPermanent);
   G.units = units;
+  permanent.forEach(p => {
+    if (!G.units.some(u => u.id === p.id)) G.units.push(p);
+  });
+}
+
+// ============================================
+// 永久旗舰初始化 — 5 艘银河先遣队旗舰
+// 不对应 Linear 系统，手动部署，任何时候都不得删去
+// ============================================
+function initPermanentVanguard() {
+  const PERMANENT_SHIPS = [
+    { name: '双子星',   x: 18, y: 42, squadron: '第一特遣队' },
+    { name: '千城河',   x: 26, y: 44, squadron: '第一特遣队' },
+    { name: '深空星烛', x: 20, y: 52, squadron: '第一特遣队' },
+    { name: '野居23',   x: 72, y: 28, squadron: '深空侦察队' },
+    { name: '潜渊',     x: 78, y: 58, squadron: '机动打击群' },
+  ];
+
+  const existingNames = new Set(G.units.map(u => u.name));
+
+  PERMANENT_SHIPS.forEach((spec, i) => {
+    if (existingNames.has(spec.name)) return;
+
+    const id = `V-P${String(i + 1).padStart(3, '0')}`;
+    G.units.push({
+      id,
+      name: spec.name,
+      shipClass: 'dreadnought',
+      faction: 'vanguard',
+      x: spec.x,
+      y: spec.y,
+      status: 'patrol',
+      advanceDist: distToEarth(spec.x, spec.y),
+      power: 95,
+      supply: 100,
+      morale: 100,
+      commander: '未指定',
+      squadron: spec.squadron,
+      isPermanent: true,
+      deployedAt: '2026-05-29',
+      mission: { title: '永久部署', status: 'reserve' },
+    });
+  });
 }
 
 // ============================================
@@ -1511,10 +1556,10 @@ const StarshipSync = {
       this.spawnAnimation(unit);
     });
 
-    // 移除飞船（播放离场动画）
+    // 移除飞船（播放离场动画）— 永久旗舰除外
     diff.removed.forEach(issue => {
       const unit = G.units.find(u => u.mission?.linearId === issue.id);
-      if (unit && unit.status !== 'destroyed') {
+      if (unit && unit.status !== 'destroyed' && !unit.isPermanent) {
         this.despawnAnimation(unit.id);
         unit.status = 'destroyed';
       }
@@ -2856,17 +2901,29 @@ function renderDetail(id, animate = false) {
     `;
 
   } else if (isV) {
-    html += `
-      <div class="tag-pills">
-        <span class="tag-pill">${SHIP_CLASSES[u.shipClass].label}</span>
-        <span class="tag-pill">${u.status === 'patrol' ? '巡逻' : u.status}</span>
-      </div>
-      <div class="vanguard-info">
-        <div class="vg-row"><span class="vg-label">指挥官</span><span class="vg-value">${u.commander || '未指定'}</span></div>
-        <div class="vg-row"><span class="vg-label">所属编队</span><span class="vg-value">${u.squadron || '第一特遣队'}</span></div>
-      </div>
-      <p style="color:var(--muted);font-size:12px;margin-top:10px;">银河先遣队 ${SHIP_CLASSES[u.shipClass].label}，${u.status === 'patrol' ? '正在地球周围巡逻' : '待命'}。</p>
-    `;
+    if (u.isPermanent) {
+      html += `
+        <div class="tag-pills">
+          <span class="tag-pill">${SHIP_CLASSES[u.shipClass].label}</span>
+          <span class="tag-pill">永久部署</span>
+        </div>
+        <div class="vanguard-info">
+          <div class="vg-row"><span class="vg-label">部署时间</span><span class="vg-value">${u.deployedAt || '—'}</span></div>
+        </div>
+      `;
+    } else {
+      html += `
+        <div class="tag-pills">
+          <span class="tag-pill">${SHIP_CLASSES[u.shipClass].label}</span>
+          <span class="tag-pill">${u.status === 'patrol' ? '巡逻' : u.status}</span>
+        </div>
+        <div class="vanguard-info">
+          <div class="vg-row"><span class="vg-label">指挥官</span><span class="vg-value">${u.commander || '未指定'}</span></div>
+          <div class="vg-row"><span class="vg-label">所属编队</span><span class="vg-value">${u.squadron || '第一特遣队'}</span></div>
+        </div>
+        <p style="color:var(--muted);font-size:12px;margin-top:10px;">银河先遣队 ${SHIP_CLASSES[u.shipClass].label}，${u.status === 'patrol' ? '正在地球周围巡逻' : '待命'}。</p>
+      `;
+    }
   }
 
   // 相关战史
@@ -3450,6 +3507,7 @@ function bootMain() {
 
     showLoading('扫描星系威胁...', 30);
     step('syncLinearToGame', syncLinearToGame);
+    step('initPermanentVanguard', initPermanentVanguard);
     step('processAdvance', processAdvance);
     step('checkReinforcements', checkReinforcements);
 
@@ -3987,3 +4045,9 @@ function importGameData(input) {
 
 window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, focusOnUnit, deploy: confirmDeploy, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, doLogin, finishLogin, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory, switchTab, setFleetFilter, settingsConnect, settingsDemo, setPerfMode, setPomodoroDuration, toggleRadar, PomodoroTimer, exportGameData, importGameData };
 window.addEventListener('resize', drawStarfield);
+
+const loginButton = document.querySelector('#loginBtn');
+if (loginButton && !loginButton.dataset.bound) {
+  loginButton.dataset.bound = 'true';
+  loginButton.addEventListener('click', doLogin);
+}

@@ -154,6 +154,8 @@ const G = {
   commander: '张三',         // 指挥官（仅玩家舰队）
   squadron: '第一特遣队',     // 所属编队（仅玩家舰队）
   isDemoTraffic: false,     // 是否为演示假数据
+  isPermanent: false,       // 是否为永久旗舰（不对应 Linear，不可删去）
+  deployedAt: '2026-05-29', // 手动部署日期（仅 permanent）
   motion: { ... },          // 特殊运动轨迹（轨道/航道）
   _driftX: 0.5,             // 当前帧 X 漂移偏移（内部）
   _driftY: -0.3,            // 当前帧 Y 漂移偏移（内部）
@@ -367,6 +369,7 @@ const map = {
 
 | 函数 | 功能 |
 |------|------|
+| `initPermanentVanguard()` | 初始化 5 艘永久旗舰（不对应 Linear，任何时候不得删去） |
 | `initPanelResize()` | 初始化左侧面板宽度拖拽条 `.panel-resize-handle`，范围 240~540px，localStorage 记忆 |
 | `switchTab(tab)` | 切换顶部标签页：`situation`/`fleet`/`campaign`/`intel`/`settings` |
 | `renderFleet()` / `setFleetFilter(f)` | 舰队标签页渲染与筛选 |

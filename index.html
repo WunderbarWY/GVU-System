@@ -73,7 +73,7 @@
             <label>安全密钥</label>
             <input type="password" id="loginKey" value="••••••••" readonly />
           </div>
-          <button class="login-btn" id="loginBtn" onclick="window.__game.doLogin()">
+          <button class="login-btn" id="loginBtn" type="button">
             <span class="login-btn-text">接入系统</span>
             <span class="login-btn-glow"></span>
           </button>
@@ -371,7 +371,7 @@
     </div>
 
     <script src="./src/config/game.js?v=pomodoro-21"></script>
-    <script src="./app.js?v=abyss-1"></script>
+    <script src="./app.js?v=bootfix-2"></script>
     <script>
       // 版本检测：如果旧 JS 被缓存，PomodoroTimer 不存在，提示刷新
       (function checkVersion() {
