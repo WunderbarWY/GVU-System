@@ -174,7 +174,7 @@ function cleanKey(key) {
 
 const LinearAPI = {
   endpoint: 'http://localhost:5180/api/linear',
-  key: cleanKey(localStorage.getItem('gv_linear_key')),
+  key: cleanKey(safeLS.get('gv_linear_key')),
   pollingId: null,
   isPolling: false,
   lastSyncTime: 0,
@@ -253,7 +253,7 @@ const LinearAPI = {
     Linear.issues = mapped.issues;
     Linear.done = mapped.done;
     this.lastSyncTime = Date.now();
-    localStorage.setItem('gv_linear_sync', Date.now());
+    safeLS.set('gv_linear_sync', Date.now());
     return mapped;
   },
 };
@@ -333,7 +333,7 @@ const WIPStore = {
   load() {
     try { return JSON.parse(localStorage.getItem(this._key)) || {}; } catch { return {}; }
   },
-  save(data) { localStorage.setItem(this._key, JSON.stringify({ ...data, _version: this._version })); },
+  save(data) { safeLS.setJSON(this._key, { ...data, _version: this._version }); },
 
   get() {
     const data = this.load();
@@ -434,7 +434,7 @@ const WarHistoryStore = {
   load() {
     try { return JSON.parse(localStorage.getItem(this._key)) || { records: [], stats: {} }; } catch { return { records: [], stats: {} }; }
   },
-  save(data) { localStorage.setItem(this._key, JSON.stringify(data)); },
+  save(data) { safeLS.setJSON(this._key, data); },
 
   get() {
     const data = this.load();
@@ -576,7 +576,7 @@ const PomodoroTimer = {
   },
 
   setDuration(minutes) {
-    localStorage.setItem(this._settingsKey, JSON.stringify({ duration: minutes }));
+    safeLS.setJSON(this._settingsKey, { duration: minutes });
     const s = this.getState();
     s.duration = minutes * 60;
     if (s.state === 'idle') s.remaining = s.duration;
@@ -588,7 +588,7 @@ const PomodoroTimer = {
     try { const raw = localStorage.getItem(this._key); if (raw) return JSON.parse(raw); } catch {}
     return null;
   },
-  save(data) { localStorage.setItem(this._key, JSON.stringify(data)); },
+  save(data) { safeLS.setJSON(this._key, data); },
 
   getState() {
     const today = new Date().toISOString().split('T')[0];
@@ -756,8 +756,7 @@ function openDeployModal(classType) {
   document.getElementById('deployShipIcon').innerHTML = shipIcon(classType);
 
   // 随机生成默认舰名
-  const used = new Set(G.units.map(x => x.name));
-  document.getElementById('deployName').value = genShipName('vanguard', used);
+  document.getElementById('deployName').value = genShipName('vanguard', usedShipNames());
   document.getElementById('deployCommander').value = '';
 
   // 重置扇区选择
@@ -780,8 +779,7 @@ function closeDeployModal() {
 }
 
 function randomDeployName() {
-  const used = new Set(G.units.map(x => x.name));
-  document.getElementById('deployName').value = genShipName('vanguard', used);
+  document.getElementById('deployName').value = genShipName('vanguard', usedShipNames());
 }
 
 function selectDeploySector(btn) {
@@ -802,8 +800,7 @@ function confirmDeploy() {
     return;
   }
 
-  const used = new Set(G.units.map(x => x.name));
-  if (used.has(name)) {
+  if (usedShipNames().has(name)) {
     const statusEl = document.querySelector('#connectStatus');
     if (statusEl) { statusEl.textContent = '该舰名已存在'; statusEl.style.color = '#ff3f52'; }
     return;
@@ -1009,6 +1006,7 @@ function updatePomodoroUI() {
 function rand(n) { return Math.floor(Math.random() * n); }
 function pick(a) { return a[rand(a.length)]; }
 function clamp(v, lo, hi) { return Math.min(Math.max(v, lo), hi); }
+function usedShipNames() { return new Set(G.units.map(u => u.name)); }
 function distToEarth(x, y) {
   const dx = x - CONFIG.EARTH.x, dy = y - CONFIG.EARTH.y;
   return Math.sqrt(dx * dx + dy * dy);
@@ -1023,6 +1021,25 @@ function daysUntil(dateStr) {
   const diff = new Date(dateStr) - new Date();
   return Math.ceil(diff / 86400000);
 }
+
+// localStorage 安全包装 — 隐私模式/存储满时不崩溃
+const safeLS = {
+  get(key, fallback = null) {
+    try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+  },
+  set(key, value) {
+    try { localStorage.setItem(key, value); return true; } catch { return false; }
+  },
+  remove(key) {
+    try { localStorage.removeItem(key); return true; } catch { return false; }
+  },
+  getJSON(key, fallback = null) {
+    try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : fallback; } catch { return fallback; }
+  },
+  setJSON(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
+  },
+};
 
 // ============================================
 // 纯军事化命名系统
@@ -1487,7 +1504,6 @@ const StarshipSync = {
     if (diff.added.length === 0 && diff.removed.length === 0 && diff.changed.length === 0) return;
 
     // 新增飞船
-    const used = new Set(G.units.map(u => u.name));
     const enemyCount = G.units.filter(u => u.faction !== 'vanguard').length;
     diff.added.forEach((issue, i) => {
       const unit = this.createUnit(issue, enemyCount + i, used);
@@ -3011,7 +3027,7 @@ function initPanelResize() {
   const STORAGE_KEY = 'gv_panel_width';
 
   // 恢复保存的宽度
-  const saved = localStorage.getItem(STORAGE_KEY);
+  const saved = safeLS.get(STORAGE_KEY);
   if (saved) {
     const w = parseInt(saved, 10);
     if (w >= MIN_WIDTH && w <= MAX_WIDTH) {
@@ -3050,7 +3066,7 @@ function initPanelResize() {
     document.body.style.userSelect = '';
     const panel = document.querySelector('.command-panel');
     if (panel) {
-      localStorage.setItem(STORAGE_KEY, Math.round(panel.getBoundingClientRect().width));
+      safeLS.set(STORAGE_KEY, Math.round(panel.getBoundingClientRect().width));
     }
   });
 
@@ -3164,7 +3180,7 @@ function spawnReinforcement(faction) {
 
   G.units.push({
     id: genCode(faction, G.units.length + 100),
-    name: genShipName(faction, new Set(G.units.map(u => u.name))),
+    name: genShipName(faction, usedShipNames()),
     shipClass: 'raider',
     faction,
     x: clamp(x, 5, 95),
@@ -3301,7 +3317,7 @@ function initLinearUI() {
 
     try {
       await LinearAPI.sync();
-      localStorage.setItem('gv_linear_key', key);
+      safeLS.set('gv_linear_key', key);
       status.textContent = '✓ 已连接，任务已同步';
       status.style.color = '#17d7b6';
 
@@ -3330,7 +3346,7 @@ function initLinearUI() {
   btnDemo?.addEventListener('click', () => {
     status.textContent = '使用演示数据';
     status.style.color = '#4da3ff';
-    localStorage.removeItem('gv_linear_key');
+    safeLS.remove('gv_linear_key');
     LinearAPI.key = '';
     input.value = '';
     // 重置为演示数据
@@ -3842,7 +3858,7 @@ function renderSettings() {
     </div>
   `;
 
-  const mode = localStorage.getItem('gv_perf_mode') || 'auto';
+  const mode = safeLS.get('gv_perf_mode', 'auto');
   const sel = document.querySelector('#perfMode');
   if (sel) sel.value = mode;
 
@@ -3862,7 +3878,7 @@ function settingsConnect() {
   LinearAPI.key = key;
 
   LinearAPI.sync().then(() => {
-    localStorage.setItem('gv_linear_key', key);
+    safeLS.set('gv_linear_key', key);
     status.textContent = '✓ 已连接';
     status.style.color = '#17d7b6';
     LinearAPI.startPolling(30000);
@@ -3876,13 +3892,13 @@ function settingsConnect() {
 }
 
 function settingsDemo() {
-  localStorage.removeItem('gv_linear_key');
+  safeLS.remove('gv_linear_key');
   LinearAPI.key = '';
   location.reload();
 }
 
 function setPerfMode(mode) {
-  localStorage.setItem('gv_perf_mode', mode);
+  safeLS.set('gv_perf_mode', mode);
   if (mode === 'low' || mode === 'medium' || mode === 'high') {
     PerformanceMonitor.setQuality(mode);
   }
@@ -3942,8 +3958,8 @@ function exportGameData() {
     warHistory: WarHistoryStore.load(),
     pomodoro: PomodoroTimer.load(),
     settings: {
-      perfMode: localStorage.getItem('gv_perf_mode') || 'auto',
-      apiKey: localStorage.getItem('gv_linear_key') || '',
+      perfMode: safeLS.get('gv_perf_mode', 'auto'),
+      apiKey: safeLS.get('gv_linear_key', ''),
     },
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -3968,7 +3984,7 @@ function importGameData(input) {
       if (data.wip) { WIPStore.save(data.wip); }
       if (data.warHistory) { WarHistoryStore.save(data.warHistory); }
       if (data.pomodoro) { PomodoroTimer.save(data.pomodoro); }
-      if (data.settings?.perfMode) { localStorage.setItem('gv_perf_mode', data.settings.perfMode); }
+      if (data.settings?.perfMode) { safeLS.set('gv_perf_mode', data.settings.perfMode); }
       const status = document.querySelector('#settingsStatus');
       if (status) { status.textContent = '✓ 数据已恢复，刷新生效'; status.style.color = '#17d7b6'; }
       setTimeout(() => location.reload(), 800);
