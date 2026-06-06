@@ -9,7 +9,7 @@
     <title>银河先遣队作战指挥台</title>
     <link rel="stylesheet" href="./styles.css?v=pomodoro-21" />
     <link rel="stylesheet" href="./effects.css?v=pomodoro-21" />
-    <link rel="stylesheet" href="./console-skin.css?v=pomodoro-21" />
+    <link rel="stylesheet" href="./console-skin.css?v=abyss-1" />
     <script>
       // 应急诊断脚本 — 检测启动卡死
       console.log('[DIAG] Emergency script loaded');
@@ -52,7 +52,11 @@
 
         <h1 class="login-title">银河先遣队</h1>
         <p class="login-subtitle">GALACTIC VANGUARD UNIT</p>
-        <p class="login-system">战略指挥系统 <span class="login-version">v4.0</span></p>
+        <div class="login-mission">
+          <span>MISSION CODE</span>
+          <strong>ABYSS</strong>
+          <small>START FROM 2026.05</small>
+        </div>
 
         <div class="login-divider">
           <span></span>
@@ -80,8 +84,6 @@
           <p class="welcome-sub" id="welcomeSub"></p>
           <div class="welcome-cursor" id="welcomeCursor"></div>
         </div>
-
-        <p class="login-hint">按住 <kbd>SPACE</kbd> 快速跳过</p>
       </div>
     </div>
 
@@ -369,7 +371,7 @@
     </div>
 
     <script src="./src/config/game.js?v=pomodoro-21"></script>
-    <script src="./app.js?v=pomodoro-21"></script>
+    <script src="./app.js?v=abyss-1"></script>
     <script>
       // 版本检测：如果旧 JS 被缓存，PomodoroTimer 不存在，提示刷新
       (function checkVersion() {

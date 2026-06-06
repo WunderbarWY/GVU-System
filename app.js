@@ -3427,18 +3427,6 @@ function finishLogin() {
   setTimeout(bootMain, 250);
 }
 
-// Space 键跳过登录动画
-document.addEventListener('keydown', e => {
-  if (e.code === 'Space' && !_loginSkip) {
-    e.preventDefault();
-    _loginSkip = true;
-    console.log('[GV] Space skip');
-    const screen = document.querySelector('#loginScreen');
-    if (screen) screen.classList.add('is-done');
-    setTimeout(bootMain, 120);
-  }
-});
-
 // ============================================
 // 主系统启动
 // ============================================

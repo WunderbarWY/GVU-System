@@ -1856,8 +1856,7 @@
 }
 
 .login-subtitle,
-.login-system,
-.login-hint {
+.login-mission {
   font-family: var(--font-display);
   letter-spacing: 1.5px;
 }
@@ -1868,14 +1867,34 @@
   font-size: 11px;
 }
 
-.login-system {
-  margin: 8px 0 0;
-  color: rgba(169, 205, 234, 0.54);
-  font-size: 11px;
+.login-mission {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 10px;
+  align-items: baseline;
+  width: fit-content;
+  margin: 18px auto 0;
+  text-align: left;
 }
 
-.login-version {
-  color: rgba(255, 210, 81, 0.76);
+.login-mission span,
+.login-mission small {
+  color: rgba(169, 205, 234, 0.48);
+  font-size: 8px;
+  letter-spacing: 1.7px;
+}
+
+.login-mission strong {
+  color: rgba(232, 251, 255, 0.94);
+  font-size: 14px;
+  letter-spacing: 2.5px;
+  text-shadow: 0 0 14px rgba(77, 163, 255, 0.22);
+}
+
+.login-mission small {
+  grid-column: 2;
+  font-size: 8px;
+  letter-spacing: 1.2px;
 }
 
 .login-divider {
@@ -2003,22 +2022,6 @@
   margin-top: 12px;
   background: rgba(255, 210, 81, 0.74);
   animation: loginCursor 900ms steps(2) infinite;
-}
-
-.login-hint {
-  margin: 18px 0 0;
-  color: rgba(169, 205, 234, 0.44);
-  font-size: 10px;
-  text-align: center;
-}
-
-.login-hint kbd {
-  padding: 2px 6px;
-  border: 1px solid rgba(118, 154, 182, 0.18);
-  border-radius: 0;
-  color: rgba(232, 251, 255, 0.72);
-  background: rgba(0, 4, 9, 0.52);
-  font-family: var(--font-display);
 }
 
 @keyframes loginPanelIn {
