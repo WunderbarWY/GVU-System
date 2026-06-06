@@ -2196,3 +2196,192 @@ body[data-quality="low"] .unit.is-previewed .ship-glyph {
 body[data-quality="low"] .neutral-unit {
   opacity: 0.48;
 }
+
+/* v5.3 Mission-to-unit targeting */
+.brief-row {
+  position: relative;
+}
+
+.brief-row.is-active {
+  border-color: rgba(125, 205, 255, 0.5) !important;
+  color: rgba(235, 248, 255, 0.96);
+  background:
+    linear-gradient(90deg, rgba(77, 163, 255, 0.16), transparent 72%),
+    rgba(2, 8, 14, 0.82) !important;
+  box-shadow:
+    inset 2px 0 0 rgba(125, 205, 255, 0.82),
+    0 0 18px rgba(77, 163, 255, 0.08);
+}
+
+.brief-row.is-active::after {
+  position: absolute;
+  right: 8px;
+  bottom: 4px;
+  width: 18px;
+  height: 1px;
+  content: "";
+  background: rgba(125, 205, 255, 0.72);
+  box-shadow: 0 0 8px rgba(77, 163, 255, 0.46);
+}
+
+.map-world.is-focusing-unit {
+  transition: transform 680ms cubic-bezier(0.2, 0.82, 0.2, 1) !important;
+}
+
+.coordinate-lock {
+  position: absolute;
+  z-index: 18;
+  width: 116px;
+  height: 116px;
+  pointer-events: none;
+  color: var(--lock-color, #4da3ff);
+  transform: translate(-50%, -50%);
+  animation: coordinateLockFade 1120ms ease-out both;
+}
+
+.coordinate-lock-ring,
+.coordinate-lock-cross,
+.coordinate-lock-corner {
+  position: absolute;
+  display: block;
+}
+
+.coordinate-lock-ring {
+  inset: 19px;
+  border: 1px solid color-mix(in srgb, var(--lock-color), transparent 18%);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 9px color-mix(in srgb, var(--lock-color), transparent 96%),
+    0 0 12px color-mix(in srgb, var(--lock-color), transparent 62%);
+  animation: coordinateRingAcquire 820ms cubic-bezier(0.16, 0.84, 0.22, 1) both;
+}
+
+.coordinate-lock-ring::before,
+.coordinate-lock-ring::after {
+  position: absolute;
+  content: "";
+  background: color-mix(in srgb, var(--lock-color), white 18%);
+}
+
+.coordinate-lock-ring::before {
+  top: 50%;
+  left: -17px;
+  width: calc(100% + 34px);
+  height: 1px;
+  transform: scaleX(0);
+  animation: coordinateAxisX 440ms ease-out 360ms both;
+}
+
+.coordinate-lock-ring::after {
+  top: -17px;
+  left: 50%;
+  width: 1px;
+  height: calc(100% + 34px);
+  transform: scaleY(0);
+  animation: coordinateAxisY 440ms ease-out 420ms both;
+}
+
+.coordinate-lock-cross {
+  top: 50%;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  border: 1px solid color-mix(in srgb, var(--lock-color), white 36%);
+  transform: translate(-50%, -50%) rotate(45deg);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--lock-color), transparent 36%);
+  animation: coordinateConfirm 380ms ease-out 560ms both;
+}
+
+.coordinate-lock-corner {
+  width: 19px;
+  height: 19px;
+  opacity: 0;
+  animation: coordinateCornerAcquire 680ms cubic-bezier(0.16, 0.84, 0.22, 1) 80ms both;
+}
+
+.corner-nw {
+  top: 0;
+  left: 0;
+  border-top: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+}
+
+.corner-ne {
+  top: 0;
+  right: 0;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+}
+
+.corner-sw {
+  bottom: 0;
+  left: 0;
+  border-bottom: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+}
+
+.corner-se {
+  right: 0;
+  bottom: 0;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+}
+
+@keyframes coordinateLockFade {
+  0%, 76% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes coordinateRingAcquire {
+  0% {
+    opacity: 0;
+    transform: scale(1.72) rotate(-22deg);
+  }
+  45% { opacity: 1; }
+  100% {
+    opacity: 0.82;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes coordinateCornerAcquire {
+  0% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+  100% {
+    opacity: 0.92;
+    transform: scale(1);
+  }
+}
+
+@keyframes coordinateAxisX {
+  0% { opacity: 0; transform: scaleX(0); }
+  100% { opacity: 0.72; transform: scaleX(1); }
+}
+
+@keyframes coordinateAxisY {
+  0% { opacity: 0; transform: scaleY(0); }
+  100% { opacity: 0.72; transform: scaleY(1); }
+}
+
+@keyframes coordinateConfirm {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(45deg) scale(3);
+  }
+  55% { opacity: 1; }
+  100% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) rotate(45deg) scale(1);
+  }
+}
+
+body[data-quality="low"] .coordinate-lock {
+  width: 104px;
+  height: 104px;
+}
+
+body[data-quality="low"] .coordinate-lock-ring {
+  box-shadow: none;
+}

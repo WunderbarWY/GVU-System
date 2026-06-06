@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GVU 单元测试 · Core</title>
+  <style>
+    :root {
+      --bg: #02060c;
+      --panel: rgba(4, 8, 15, 0.96);
+      --text: #e8fbff;
+      --muted: #7da0b3;
+      --pass: #6bc49a;
+      --fail: #ff3f52;
+      --skip: #8aa8c4;
+      --accent: #4da3ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: 'JetBrains Mono', 'SF Mono', monospace;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    h1 {
+      font-size: 18px;
+      margin: 0 0 16px;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+    }
+    .meta { color: var(--muted); margin-bottom: 16px; font-size: 12px; }
+    #runTests {
+      padding: 8px 18px;
+      border: 1px solid var(--accent);
+      background: rgba(77,163,255,0.12);
+      color: var(--accent);
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      margin-bottom: 20px;
+      letter-spacing: 0.05em;
+    }
+    #runTests:hover { background: rgba(77,163,255,0.2); }
+    .suite { margin-bottom: 16px; }
+    .suite h3 {
+      font-size: 13px;
+      margin: 0 0 8px;
+      color: var(--accent);
+      border-bottom: 1px solid rgba(77,163,255,0.15);
+      padding-bottom: 4px;
+    }
+    .case {
+      padding: 4px 0;
+      border-left: 2px solid transparent;
+      padding-left: 8px;
+      margin-left: 4px;
+    }
+    .case.pass { border-left-color: var(--pass); }
+    .case.fail { border-left-color: var(--fail); }
+    .case.skip { border-left-color: var(--skip); opacity: 0.6; }
+    .err {
+      color: var(--fail);
+      font-size: 11px;
+      margin-top: 4px;
+      padding: 4px 8px;
+      background: rgba(255,63,82,0.06);
+      border-left: 2px solid var(--fail);
+    }
+    .stack {
+      color: var(--muted);
+      font-size: 10px;
+      margin: 4px 0 0;
+      padding: 4px 8px;
+      background: rgba(0,0,0,0.3);
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+    .summary {
+      margin-top: 20px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(125,157,184,0.2);
+      font-size: 14px;
+      font-weight: bold;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+  <h1>GVU 单元测试 · Core</h1>
+  <p class="meta">纯逻辑测试 · 零 DOM 依赖 · 覆盖工具函数与数据转换</p>
+  <button id="runTests">▶ 运行测试</button>
+  <div id="testOutput"></div>
+
+  <script src="test-runner.js"></script>
+  <script src="core.test.js"></script>
+</body>
+</html>

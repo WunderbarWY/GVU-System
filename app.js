@@ -1616,6 +1616,7 @@ const AnimationEngine = {
   elCache: new Map(),       // unitId -> { unit, pulse, trail }
   neutralCache: new Map(),  // neutralId -> element
   neutralAccum: 0,
+  activeCoordinateLock: null,
 
   start() {
     if (this.running) return;
@@ -1850,6 +1851,12 @@ const AnimationEngine = {
       unit._renderX = rx;
       unit._renderY = ry;
     }
+
+    const activeLock = this.activeCoordinateLock;
+    if (activeLock?.unitId === unit.id && activeLock.el?.isConnected) {
+      activeLock.el.style.left = rx + '%';
+      activeLock.el.style.top = ry + '%';
+    }
   },
 
   // ---------- 轨道系统接口（预留） ----------
@@ -1955,10 +1962,10 @@ function generateReport() {
   return {
     narrative,
     work: {
-      done: Linear.done.map(i => ({ id: i.linearId || i.id, title: i.title })),
-      inProgress: inProg.map(i => ({ id: i.linearId || i.id, title: i.title, due: i.due, days: daysUntil(i.due) })),
-      todo: todo.filter(i => i.status === 'todo').map(i => ({ id: i.linearId || i.id, title: i.title, due: i.due, days: daysUntil(i.due) })),
-      overdue: odIssues.map(i => ({ id: i.linearId || i.id, title: i.title, days: daysOverdue(i.due) })),
+      done: Linear.done.map(i => ({ id: i.id || i.linearId, title: i.title })),
+      inProgress: inProg.map(i => ({ id: i.id || i.linearId, title: i.title, due: i.due, days: daysUntil(i.due) })),
+      todo: todo.filter(i => i.status === 'todo').map(i => ({ id: i.id || i.linearId, title: i.title, due: i.due, days: daysUntil(i.due) })),
+      overdue: odIssues.map(i => ({ id: i.id || i.linearId, title: i.title, days: daysOverdue(i.due) })),
     },
     counts: { done: Linear.done.length, todo: todo.length, overdue: odIssues.length, advancing: advancing.length, critical: critical.length },
   };
@@ -2435,7 +2442,7 @@ function selectNeutral(id) {
   const n = G.neutrals.find(x => x.id === id);
   if (!n) return;
   document.querySelectorAll('.unit').forEach(b => b.classList.remove('is-selected'));
-  const el = document.querySelector(`.neutral-unit[data-id="${n.id}"]`);
+  const el = document.querySelector(`.neutral-unit[data-id="${cssEscape(n.id)}"]`);
   if (el) el.classList.add('is-selected');
   renderNeutralDetail(n);
 }
@@ -2540,11 +2547,23 @@ function renderBriefing() {
   html += `</div>`;
 
   el.innerHTML = html;
+
+  if (!el._missionSelectBound) {
+    el._missionSelectBound = true;
+    el.addEventListener('click', event => {
+      const row = event.target.closest('.brief-row[data-mission-ref]');
+      if (!row || !el.contains(row)) return;
+      event.preventDefault();
+      const missionRef = decodeURIComponent(row.dataset.missionRef || '');
+      selectByMission(missionRef);
+    });
+  }
 }
 
 function briefRow(t, color, label) {
+  const missionRef = encodeURIComponent(String(t.id || ''));
   return `
-    <button class="brief-row" type="button" onclick="window.__game.selectByMission('${t.id}')">
+    <button class="brief-row" type="button" data-mission-ref="${missionRef}">
       <span class="dot" style="--color:${color}"></span>
       <span>${t.title}</span>
       <small>${label}</small>
@@ -2555,20 +2574,98 @@ function briefRow(t, color, label) {
 function selectUnit(id) {
   const u = G.units.find(x => x.id === id);
   if (!u) return;
+  const newlySelected = G.selectedId !== id;
   G.selectedId = id;
+  if (newlySelected) {
+    u._driftX = (u._driftX || 0) * 0.15;
+    u._driftY = (u._driftY || 0) * 0.15;
+    u._renderX = u.x + u._driftX;
+    u._renderY = u.y + u._driftY;
+    const unitEl = document.querySelector(`.unit[data-id="${cssEscape(id)}"]`);
+    if (unitEl) {
+      unitEl.style.left = u._renderX + '%';
+      unitEl.style.top = u._renderY + '%';
+    }
+  }
   document.querySelectorAll('.unit').forEach(b => b.classList.toggle('is-selected', b.dataset.id === id));
   renderDetail(id, true);
 }
 
-function selectByMission(linearId) {
-  const u = G.units.find(x => x.mission?.linearId === linearId);
-  if (!u) return;
-  if (_activeTab !== 'situation') switchTab('situation');
-  selectUnit(u.id);
-  // 延迟一帧确保布局更新后再定位（switchTab 会改变 display）
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => focusOnUnit(u.id));
+function normalizeMissionRef(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function findUnitByMissionRef(missionRef) {
+  const wanted = normalizeMissionRef(missionRef);
+  if (!wanted) return null;
+
+  const linkedIssue = Linear.issues.find(issue => {
+    return [issue.id, issue.linearId, issue.identifier]
+      .some(value => normalizeMissionRef(value) === wanted);
   });
+  const acceptedRefs = new Set(
+    [missionRef, linkedIssue?.id, linkedIssue?.linearId, linkedIssue?.identifier]
+      .map(normalizeMissionRef)
+      .filter(Boolean)
+  );
+
+  return G.units.find(unit => {
+    const mission = unit.mission || {};
+    return [mission.linearId, mission.id, mission.identifier]
+      .map(normalizeMissionRef)
+      .some(value => acceptedRefs.has(value));
+  }) || null;
+}
+
+function selectByMission(missionRef) {
+  const u = findUnitByMissionRef(missionRef);
+  if (!u) {
+    console.warn('[GV] No unit mapped for mission:', missionRef);
+    return false;
+  }
+  const needsTabSwitch = _activeTab !== 'situation';
+  if (needsTabSwitch) switchTab('situation');
+  selectUnit(u.id);
+  document.querySelectorAll('.brief-row[data-mission-ref]').forEach(row => {
+    const rowUnit = findUnitByMissionRef(decodeURIComponent(row.dataset.missionRef || ''));
+    row.classList.toggle('is-active', rowUnit?.id === u.id);
+  });
+  if (needsTabSwitch) {
+    // 切换标签后等待布局恢复；当前就在星图页时直接定位，避免低帧率下延迟。
+    requestAnimationFrame(() => focusOnUnit(u.id));
+  } else {
+    focusOnUnit(u.id);
+  }
+  return true;
+}
+
+function playCoordinateLock(unit) {
+  const worldEl = document.querySelector('#mapWorld');
+  if (!worldEl || !unit) return;
+
+  worldEl.querySelectorAll('.coordinate-lock').forEach(el => el.remove());
+  const color = FACTIONS[unit.faction]?.color || '#4da3ff';
+  const renderX = unit._renderX ?? (unit.x + (unit._driftX || 0));
+  const renderY = unit._renderY ?? (unit.y + (unit._driftY || 0));
+  const lock = document.createElement('div');
+  lock.className = 'coordinate-lock';
+  lock.style.cssText = `left:${renderX}%;top:${renderY}%;--lock-color:${color};`;
+  lock.innerHTML = `
+    <span class="coordinate-lock-ring"></span>
+    <span class="coordinate-lock-cross"></span>
+    <i class="coordinate-lock-corner corner-nw"></i>
+    <i class="coordinate-lock-corner corner-ne"></i>
+    <i class="coordinate-lock-corner corner-sw"></i>
+    <i class="coordinate-lock-corner corner-se"></i>
+  `;
+  worldEl.appendChild(lock);
+  AnimationEngine.activeCoordinateLock = { unitId: unit.id, el: lock };
+  window.setTimeout(() => {
+    if (AnimationEngine.activeCoordinateLock?.el === lock) {
+      AnimationEngine.activeCoordinateLock = null;
+    }
+    lock.remove();
+  }, 1180);
 }
 
 function focusOnUnit(id) {
@@ -2576,15 +2673,23 @@ function focusOnUnit(id) {
   if (!u) return;
   const worldEl = document.querySelector('#mapWorld');
   if (!worldEl) return;
+  playCoordinateLock(u);
   const worldW = parseFloat(getComputedStyle(worldEl).width) || 7200;
   const worldH = parseFloat(getComputedStyle(worldEl).height) || 4700;
-  const wx = (u.x / 100) * worldW;
-  const wy = (u.y / 100) * worldH;
+  const focusX = u._renderX ?? (u.x + (u._driftX || 0));
+  const focusY = u._renderY ?? (u.y + (u._driftY || 0));
+  const wx = (focusX / 100) * worldW;
+  const wy = (focusY / 100) * worldH;
+  map.zoom = Math.max(map.zoom, 0.42);
   // #mapWorld 有 left:50% + translate(-50%,-50%)，中心始终对准父元素中心
   // panX/panY 只需补偿 (世界中心 - 舰船位置) × zoom
   map.panX = (worldW / 2 - wx) * map.zoom;
   map.panY = (worldH / 2 - wy) * map.zoom;
+  worldEl.classList.remove('is-focusing-unit');
+  void worldEl.offsetWidth;
+  worldEl.classList.add('is-focusing-unit');
   applyMap();
+  window.setTimeout(() => worldEl.classList.remove('is-focusing-unit'), 760);
 }
 
 function previewUnit(id) {
@@ -3081,7 +3186,26 @@ function spawnReinforcement(faction) {
 
 function cssEscape(value) {
   if (window.CSS?.escape) return CSS.escape(value);
-  return String(value).replace(/["\\]/g, '\\$&');
+  // 降级实现：转义 CSS 选择器中的所有特殊字符
+  const s = String(value);
+  if (s === '') return '\ ';
+  let out = '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    const ch = s[i];
+    if (c === 0) { out += '\FFFD '; continue; }
+    if (c >= 0x01 && c <= 0x1F || c === 0x7F) {
+      out += '\\' + c.toString(16).toUpperCase().padStart(2, '0') + ' ';
+      continue;
+    }
+    if (/[0-9A-Za-z_-]/.test(ch)) { out += ch; continue; }
+    // 首字符如果是数字，前面需要加 \
+    if (i === 0 && /[0-9]/.test(ch)) { out += '\\' + ch; continue; }
+    // 第二个字符如果是数字且第一个是连字符，前面需要加 \
+    if (i === 1 && s[0] === '-' && /[0-9]/.test(ch)) { out += '\\' + ch; continue; }
+    out += '\\' + ch;
+  }
+  return out;
 }
 
 function unitStagePoint(unitId, unit) {
