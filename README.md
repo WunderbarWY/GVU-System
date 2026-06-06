@@ -69,6 +69,7 @@ open http://localhost:5180
 
 ## 项目文档
 
+- `TERMINOLOGY.md` — **项目术语库（必读）** — 200+ 自定义概念的精确释义、数据结构字段、CSS 类名体系、DOM ID 体系、状态枚举、命名约定、关键工程认知
 - `MEMORY.md` — 详细进度、已知问题、TODO、架构说明
 - `DEVLOG.md` — 开发日志与需求 backlog
 - `INSTRUCTIONS_FOR_CODEX.md` — Codex 协作分工指令
