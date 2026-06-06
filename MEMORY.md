@@ -2,20 +2,20 @@
 
 ## 当前版本
 
-v3.0 — 中立单位系统 + 任务栏定位 + 面板拖拽 + 测试框架 + localStorage 安全化 + cssEscape 修复
+v3.2 — 战术任务雷达 + 引擎尾焰跟随朝向 + 永久旗舰 + 项目术语库
 
 ## 代码规模
 
 | 文件 | 行数 |
 |------|------|
-| app.js | ~4,053 |
+| app.js | ~4,184 |
 | styles.css | ~3,176 |
-| console-skin.css | ~2,387 |
+| console-skin.css | ~2,602 |
 | effects.css | ~1,057 |
-| index.html | ~384 |
+| index.html | ~386 |
 | tests/ (3 files) | ~330 |
-| TERMINOLOGY.md | ~430 |
-| **总计** | **~11,800+** |
+| TERMINOLOGY.md | ~1,003 |
+| **总计** | **~12,700+** |
 
 ---
 
@@ -92,6 +92,21 @@ v3.0 — 中立单位系统 + 任务栏定位 + 面板拖拽 + 测试框架 + lo
 - `tests/core.test.js`：覆盖 12 个纯函数，50+ 测试用例
 - `tests/index.html`：浏览器运行页面
 
+### 🚀 战术任务雷达（2026-06-06）
+- 点击 📡 雷达按钮 → 冻结所有动画（`AnimationEngine.stop()`）
+- 扫描并高亮 `in_progress` 或 `due ≤ 3 天` 的任务舰
+- 非目标舰船和中立单位变暗（`is-radar-muted`）
+- 自动计算目标区域边界框，缩放并聚焦到最优视图
+- 显示扫描线动画（`radar-sweep-line`）和状态面板（`TACTICAL FREEZE / N 个优先目标`）
+- 再次点击恢复原始视图和动画状态
+- 三种目标状态样式：`radar-active-task`（进行中）/ `radar-due-soon`（黄色警告）/ `radar-overdue`（红色危急）
+
+### 🚀 引擎尾焰跟随朝向（2026-06-06）
+- `AnimationEngine` 新增 heading 平滑系统：`_headingVelocityX/Y` 速度滤波 + `_headingDeg` 角度差分插值
+- 引擎尾焰 `.engine-flame` 使用 `rotate(var(--ship-heading))` 跟随舰船实际朝向
+- 推进中（`advancing`）的敌舰尾焰更长更亮
+- `.map-ship-glyph` 添加 transform transition 实现平滑旋转过渡
+
 ---
 
 ## 项目架构
@@ -123,7 +138,7 @@ v3.0 — 中立单位系统 + 任务栏定位 + 面板拖拽 + 测试框架 + lo
 - `PomodoroTimer` — 番茄钟/巡航系统：rAF 倒计时、打断检测、自定义时长、持久化
 - `PerformanceMonitor` — FPS 监控，自动降级动画
 - `LinearAPI` — 封装 fetch，自动轮询
-- `Radar` — 势力雷达层，显示势力控制区域底色（`toggleRadar`）
+- `Radar` — 战术任务雷达（`toggleRadar`）：冻结战场、扫描 in_progress / due≤3days 任务舰、自动缩放聚焦、恢复视图
 - `safeLS` — localStorage 安全包装器，隐私模式/存储满时不崩溃
 
 ### 五标签页
@@ -148,9 +163,9 @@ v3.0 — 中立单位系统 + 任务栏定位 + 面板拖拽 + 测试框架 + lo
 - **API Key**：`~/.gv_linear_key`（chmod 600）
 - **服务器**：`python3 server.py` → `http://localhost:5180`
 - **健康检查**：`http://localhost:5180/api/health`
-- **版本号**：`?v=pomodoro-21`
+- **版本号**：`?v=radar-1`
 - **缓存策略**：所有 CSS/JS 统一 cache-bust；tab-page 带内联 fallback 样式
-- **雷达键**：左下角 📡 按钮，切换势力控制区底色显示
+- **雷达键**：左下角 📡 按钮，战术扫描优先任务（in_progress / 临近截止），冻结动画并聚焦目标
 - **番茄钟文案**：「发动巡航」/「巡航中」
 - **测试页面**：`http://localhost:5180/tests/`
 
@@ -197,4 +212,5 @@ v3.0 — 中立单位系统 + 任务栏定位 + 面板拖拽 + 测试框架 + lo
 - v2.8 — **优先级位置映射** + **增强漂移**
 - v2.9 — **番茄钟** + **打断检测** + **自定义巡航时长** + **经济账** + **数据导出/导入** + **雷达键**
 - v3.0 — 中立单位系统 + 任务栏点击定位 + 面板拖拽 + 测试框架 + localStorage 安全化 + cssEscape 修复
-- **v3.1 — 5 艘永久旗舰（双子星/千城河/深空星烛/野居23/潜渊）+ 项目术语库 TERMINOLOGY.md**
+- v3.1 — 5 艘永久旗舰（双子星/千城河/深空星烛/野居23/潜渊）+ 项目术语库 TERMINOLOGY.md
+- **v3.2 — 战术任务雷达（冻结战场 + 扫描优先任务 + 自动聚焦）+ 引擎尾焰跟随舰船朝向（heading-aware）**

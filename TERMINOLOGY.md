@@ -161,7 +161,10 @@ const G = {
   _driftY: -0.3,            // 当前帧 Y 漂移偏移（内部）
   _renderX: 65.4,           // 上一帧实际渲染 X（内部）
   _renderY: 32.1,           // 上一帧实际渲染 Y（内部）
-  _lastHeading: '45deg',    // 上一帧朝向（内部，CSS 变量）
+  _lastHeading: '45deg',    // 上一帧朝向字符串（内部，CSS 变量）
+  _headingVelocityX: 0,     // heading 平滑速度 X（内部）
+  _headingVelocityY: 0,     // heading 平滑速度 Y（内部）
+  _headingDeg: 0,           // 平滑后的朝向角度（内部）
 }
 ```
 
@@ -370,6 +373,11 @@ const map = {
 | 函数 | 功能 |
 |------|------|
 | `initPermanentVanguard()` | 初始化 5 艘永久旗舰（不对应 Linear，任何时候不得删去） |
+| `radarTargetState(unit)` | 计算单位的雷达目标状态（in_progress / dueSoon / overdue / null） |
+| `applyRadarTargets()` | 应用雷达高亮：目标舰加 `is-radar-target`，其余加 `is-radar-muted` |
+| `frameRadarTargets(targets)` | 计算目标区域边界框，自动缩放并聚焦到最优视图 |
+| `clearRadarTargets()` | 清除所有雷达状态类 |
+| `toggleRadar()` | 战术任务雷达开关：冻结动画 → 扫描 → 聚焦 → 恢复 |
 | `initPanelResize()` | 初始化左侧面板宽度拖拽条 `.panel-resize-handle`，范围 240~540px，localStorage 记忆 |
 | `switchTab(tab)` | 切换顶部标签页：`situation`/`fleet`/`campaign`/`intel`/`settings` |
 | `renderFleet()` / `setFleetFilter(f)` | 舰队标签页渲染与筛选 |

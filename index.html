@@ -7,9 +7,9 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>银河先遣队作战指挥台</title>
-    <link rel="stylesheet" href="./styles.css?v=pomodoro-21" />
-    <link rel="stylesheet" href="./effects.css?v=pomodoro-21" />
-    <link rel="stylesheet" href="./console-skin.css?v=abyss-1" />
+    <link rel="stylesheet" href="./styles.css?v=radar-1" />
+    <link rel="stylesheet" href="./effects.css?v=radar-1" />
+    <link rel="stylesheet" href="./console-skin.css?v=radar-1" />
     <script>
       // 应急诊断脚本 — 检测启动卡死
       console.log('[DIAG] Emergency script loaded');
@@ -160,7 +160,7 @@
             <span class="frame-corner corner-br"></span>
           </div>
           <div class="radar-layer" id="radarLayer" aria-hidden="true" style="display:none;"></div>
-          <button type="button" class="radar-toggle" id="radarToggle" onclick="window.__game.toggleRadar()" title="开启/关闭势力雷达">📡 雷达</button>
+          <button type="button" class="radar-toggle" id="radarToggle" title="冻结星图并扫描优先任务">📡 雷达</button>
           <div class="scanline" aria-hidden="true"></div>
           <div class="map-controls" aria-label="星图缩放控制">
             <button type="button" data-zoom="in" aria-label="放大星图">+</button>
@@ -370,8 +370,8 @@
       </div>
     </div>
 
-    <script src="./src/config/game.js?v=pomodoro-21"></script>
-    <script src="./app.js?v=bootfix-2"></script>
+    <script src="./src/config/game.js?v=radar-1"></script>
+    <script src="./app.js?v=headingfix-1"></script>
     <script>
       // 版本检测：如果旧 JS 被缓存，PomodoroTimer 不存在，提示刷新
       (function checkVersion() {

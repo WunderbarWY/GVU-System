@@ -2123,6 +2123,7 @@
 .map-ship-glyph {
   overflow: visible;
   color: var(--unit-color);
+  transition: transform 160ms cubic-bezier(0.2, 0.72, 0.2, 1) !important;
 }
 
 .map-ship-glyph path,
@@ -2166,6 +2167,50 @@
 
 .engine-flame {
   opacity: 0.62;
+}
+
+/* v5.5 Heading-aware engine plume */
+.unit .engine-flame {
+  top: 50% !important;
+  bottom: auto !important;
+  left: 50% !important;
+  width: 8px !important;
+  height: calc(var(--ship-size, 42px) * 0.5 + 18px) !important;
+  border-radius: 0 0 50% 50%;
+  background:
+    linear-gradient(
+      180deg,
+      transparent 0,
+      transparent calc(100% - 18px),
+      color-mix(in srgb, var(--unit-color), white 28%) calc(100% - 17px),
+      color-mix(in srgb, var(--unit-color), transparent 18%) calc(100% - 11px),
+      transparent 100%
+    ) !important;
+  transform:
+    translateX(-50%)
+    rotate(var(--ship-heading, 0deg)) !important;
+  transform-origin: 50% 0;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--unit-color), transparent 42%)) !important;
+}
+
+.unit.advancing .engine-flame {
+  width: 10px !important;
+  height: calc(var(--ship-size, 42px) * 0.5 + 24px) !important;
+  background:
+    linear-gradient(
+      180deg,
+      transparent 0,
+      transparent calc(100% - 24px),
+      rgba(232, 251, 255, 0.92) calc(100% - 23px),
+      color-mix(in srgb, var(--unit-color), white 22%) calc(100% - 18px),
+      color-mix(in srgb, var(--unit-color), transparent 16%) calc(100% - 9px),
+      transparent 100%
+    ) !important;
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--unit-color), transparent 30%)) !important;
+}
+
+.unit.is-deploying .engine-flame.deploy-boost {
+  height: calc(var(--ship-size, 42px) * 0.5 + 32px) !important;
 }
 
 body[data-quality="medium"] .radar-zone,
@@ -2387,4 +2432,171 @@ body[data-quality="low"] .coordinate-lock {
 
 body[data-quality="low"] .coordinate-lock-ring {
   box-shadow: none;
+}
+
+/* v5.4 Tactical task radar */
+.radar-toggle {
+  right: 14px !important;
+  bottom: 14px !important;
+  left: auto !important;
+}
+
+.map-stage.radar-is-active .radar-layer {
+  display: block !important;
+  z-index: 12;
+  opacity: 1 !important;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(77, 163, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(77, 163, 255, 0.025) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mix-blend-mode: normal;
+}
+
+.radar-sweep-line {
+  position: absolute;
+  top: -12%;
+  left: 0;
+  width: 100%;
+  height: 18%;
+  border-bottom: 1px solid rgba(125, 205, 255, 0.58);
+  background: linear-gradient(180deg, transparent, rgba(77, 163, 255, 0.08));
+  box-shadow: 0 10px 24px rgba(77, 163, 255, 0.05);
+  animation: tacticalRadarSweep 1100ms cubic-bezier(0.24, 0.72, 0.22, 1) both;
+}
+
+.radar-status {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  display: grid;
+  gap: 3px;
+  padding: 9px 12px;
+  border-left: 2px solid rgba(125, 205, 255, 0.68);
+  color: rgba(232, 251, 255, 0.82);
+  background: rgba(1, 5, 10, 0.74);
+  font-family: var(--font-display);
+  pointer-events: none;
+}
+
+.radar-status span,
+.radar-status small {
+  color: rgba(126, 194, 255, 0.6);
+  font-size: 8px;
+  letter-spacing: 1.4px;
+}
+
+.radar-status strong {
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.map-stage.radar-is-active .route,
+.map-stage.radar-is-active .scanline,
+.map-stage.radar-is-active .engine-flame,
+.map-stage.radar-is-active .unit-trail,
+.map-stage.radar-is-active .threat-pulse {
+  animation-play-state: paused !important;
+}
+
+.map-stage.radar-is-active .unit,
+.map-stage.radar-is-active .neutral-unit {
+  transition:
+    opacity 240ms ease,
+    filter 240ms ease,
+    transform 240ms ease !important;
+}
+
+.map-stage.radar-is-active .unit.is-radar-muted,
+.map-stage.radar-is-active .neutral-unit.is-radar-muted {
+  opacity: 0.13 !important;
+  filter: grayscale(0.9) brightness(0.52) !important;
+}
+
+.map-stage.radar-is-active .unit.is-radar-target {
+  z-index: 24;
+  opacity: 1 !important;
+  transform: translate(-50%, -50%) scale(1.14);
+}
+
+.map-stage.radar-is-active .unit.is-radar-target::before {
+  position: absolute;
+  inset: -13px;
+  content: "";
+  border: 1px solid rgba(125, 205, 255, 0.66);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 5px rgba(77, 163, 255, 0.035),
+    0 0 12px rgba(77, 163, 255, 0.24);
+  animation: radarTargetAcquire 620ms cubic-bezier(0.16, 0.84, 0.22, 1) both;
+}
+
+.map-stage.radar-is-active .unit.is-radar-target::after {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  display: block !important;
+  width: max-content;
+  max-width: 160px;
+  padding: 3px 6px;
+  content: attr(data-radar-label) !important;
+  border: 1px solid rgba(125, 205, 255, 0.24);
+  color: rgba(225, 244, 255, 0.9);
+  background: rgba(1, 5, 10, 0.88);
+  font-family: var(--font-display);
+  font-size: 8px;
+  letter-spacing: 0;
+  white-space: nowrap;
+  opacity: 1 !important;
+  transform: translateX(-50%);
+}
+
+.map-stage.radar-is-active .unit.radar-due-soon::before {
+  border-color: rgba(255, 210, 81, 0.88);
+  box-shadow:
+    inset 0 0 0 5px rgba(255, 210, 81, 0.04),
+    0 0 14px rgba(255, 210, 81, 0.3);
+}
+
+.map-stage.radar-is-active .unit.radar-overdue::before {
+  border-color: rgba(255, 63, 82, 0.9);
+  box-shadow:
+    inset 0 0 0 5px rgba(255, 63, 82, 0.05),
+    0 0 16px rgba(255, 63, 82, 0.34);
+}
+
+.map-stage.radar-is-active .unit.radar-due-soon::after {
+  border-color: rgba(255, 210, 81, 0.34);
+  color: rgba(255, 226, 132, 0.94);
+}
+
+.map-stage.radar-is-active .unit.radar-overdue::after {
+  border-color: rgba(255, 63, 82, 0.38);
+  color: rgba(255, 130, 143, 0.96);
+}
+
+.radar-toggle.is-active {
+  min-width: 92px;
+  border-color: rgba(125, 205, 255, 0.72) !important;
+  color: rgba(232, 251, 255, 0.94) !important;
+  background: rgba(4, 21, 34, 0.94) !important;
+  box-shadow:
+    inset 0 0 18px rgba(77, 163, 255, 0.1),
+    0 0 18px rgba(77, 163, 255, 0.12);
+}
+
+@keyframes tacticalRadarSweep {
+  from { transform: translateY(0); }
+  to { transform: translateY(690%); }
+}
+
+@keyframes radarTargetAcquire {
+  from {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }

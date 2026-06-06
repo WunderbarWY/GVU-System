@@ -1867,11 +1867,23 @@ const AnimationEngine = {
     const lastY = unit._renderY ?? unit.y;
     const vx = rx - lastX;
     const vy = ry - lastY;
-    const moving = Math.hypot(vx, vy) > 0.002;
+    const movement = Math.hypot(vx, vy);
+    const moving = movement > 0.00025;
 
     if (moving) {
-      const heading = Math.atan2(vy, vx) * 180 / Math.PI;
-      const headingStr = `${heading + 90}deg`;
+      const smoothing = unit._headingVelocityX == null ? 1 : 0.24;
+      unit._headingVelocityX = (unit._headingVelocityX || 0) * (1 - smoothing) + vx * smoothing;
+      unit._headingVelocityY = (unit._headingVelocityY || 0) * (1 - smoothing) + vy * smoothing;
+
+      const heading = Math.atan2(unit._headingVelocityY, unit._headingVelocityX) * 180 / Math.PI;
+      const desiredHeading = heading + 90;
+      if (unit._headingDeg == null) {
+        unit._headingDeg = desiredHeading;
+      } else {
+        const delta = ((desiredHeading - unit._headingDeg + 540) % 360) - 180;
+        unit._headingDeg += delta;
+      }
+      const headingStr = `${unit._headingDeg}deg`;
       if (unit._lastHeading !== headingStr) {
         cached.unit.style.setProperty('--ship-heading', headingStr);
         unit._lastHeading = headingStr;
@@ -3961,38 +3973,151 @@ function setPomodoroDuration(minutes) {
   if (status) { status.textContent = `✓ 巡航时长已设为 ${minutes} 分钟`; status.style.color = '#17d7b6'; }
 }
 
-// v2.9: 雷达键 — 显示势力控制区域
+// 雷达任务扫描：冻结战场并突出进行中或临近截止的任务舰。
 let _radarActive = false;
+let _radarResumeAnimation = false;
+let _radarMapSnapshot = null;
+
+function radarTargetState(unit) {
+  const mission = unit?.mission;
+  if (!mission?.linearId) return null;
+
+  const inProgress = mission.status === 'in_progress';
+  const dueDays = daysUntil(mission.due);
+  const hasDue = dueDays != null;
+  const overdue = hasDue && dueDays < 0;
+  const dueSoon = hasDue && dueDays >= 0 && dueDays <= 3;
+  if (!inProgress && !dueSoon && !overdue) return null;
+
+  return {
+    inProgress,
+    dueSoon,
+    overdue,
+    dueDays,
+    level: overdue ? 'critical' : dueSoon ? 'warning' : 'active',
+  };
+}
+
+function clearRadarTargets() {
+  document.querySelectorAll('#unitLayer .unit').forEach(el => {
+    el.classList.remove('is-radar-target', 'radar-active-task', 'radar-due-soon', 'radar-overdue', 'is-radar-muted');
+    el.removeAttribute('data-radar-label');
+  });
+  document.querySelectorAll('#neutralLayer .neutral-unit').forEach(el => el.classList.remove('is-radar-muted'));
+}
+
+function applyRadarTargets() {
+  clearRadarTargets();
+  const targets = [];
+
+  G.units.forEach(unit => {
+    if (unit.status === 'destroyed') return;
+    const el = document.querySelector(`#unitLayer .unit[data-id="${cssEscape(unit.id)}"]`);
+    if (!el) return;
+    const state = radarTargetState(unit);
+    if (!state) {
+      el.classList.add('is-radar-muted');
+      return;
+    }
+
+    el.classList.add('is-radar-target');
+    if (state.inProgress) el.classList.add('radar-active-task');
+    if (state.dueSoon) el.classList.add('radar-due-soon');
+    if (state.overdue) el.classList.add('radar-overdue');
+
+    const labels = [];
+    if (state.inProgress) labels.push('IN PROGRESS');
+    if (state.overdue) labels.push(`逾期 ${Math.abs(state.dueDays)} 天`);
+    else if (state.dueSoon) labels.push(state.dueDays === 0 ? '今日截止' : `${state.dueDays} 天内截止`);
+    el.dataset.radarLabel = labels.join(' / ');
+    targets.push({ unit, state });
+  });
+
+  document.querySelectorAll('#neutralLayer .neutral-unit').forEach(el => el.classList.add('is-radar-muted'));
+  return targets;
+}
+
+function frameRadarTargets(targets) {
+  const stage = document.querySelector('#mapStage');
+  const worldEl = document.querySelector('#mapWorld');
+  if (!stage || !worldEl || !targets.length) return;
+
+  const worldW = parseFloat(getComputedStyle(worldEl).width) || 7200;
+  const worldH = parseFloat(getComputedStyle(worldEl).height) || 4700;
+  const stageRect = stage.getBoundingClientRect();
+  const points = targets.map(({ unit }) => ({
+    x: unit._renderX ?? (unit.x + (unit._driftX || 0)),
+    y: unit._renderY ?? (unit.y + (unit._driftY || 0)),
+  }));
+  const minX = Math.min(...points.map(p => p.x));
+  const maxX = Math.max(...points.map(p => p.x));
+  const minY = Math.min(...points.map(p => p.y));
+  const maxY = Math.max(...points.map(p => p.y));
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+  const spanW = Math.max((maxX - minX) / 100 * worldW, 620);
+  const spanH = Math.max((maxY - minY) / 100 * worldH, 420);
+  const fitZoom = Math.min(
+    stageRect.width * 0.72 / spanW,
+    stageRect.height * 0.68 / spanH,
+    0.58
+  );
+
+  map.zoom = clamp(fitZoom, MAP_MIN_ZOOM, MAP_MAX_ZOOM);
+  map.panX = (worldW / 2 - centerX / 100 * worldW) * map.zoom;
+  map.panY = (worldH / 2 - centerY / 100 * worldH) * map.zoom;
+  worldEl.classList.remove('is-focusing-unit');
+  void worldEl.offsetWidth;
+  worldEl.classList.add('is-focusing-unit');
+  applyMap();
+  window.setTimeout(() => worldEl.classList.remove('is-focusing-unit'), 760);
+}
+
 function toggleRadar() {
   _radarActive = !_radarActive;
   const layer = document.querySelector('#radarLayer');
   const btn = document.querySelector('#radarToggle');
-  if (!layer) return;
+  const stage = document.querySelector('#mapStage');
+  if (!layer || !stage) return;
+
   if (!_radarActive) {
     layer.style.display = 'none';
     layer.innerHTML = '';
     btn?.classList.remove('is-active');
+    if (btn) btn.textContent = '📡 雷达';
+    stage.classList.remove('radar-is-active');
+    clearRadarTargets();
+    if (_radarMapSnapshot) {
+      map.zoom = _radarMapSnapshot.zoom;
+      map.panX = _radarMapSnapshot.panX;
+      map.panY = _radarMapSnapshot.panY;
+      _radarMapSnapshot = null;
+      applyMap();
+    }
+    if (_radarResumeAnimation && safeLS.get('gv_perf_mode', 'auto') !== 'low') {
+      AnimationEngine.start();
+    }
+    _radarResumeAnimation = false;
     return;
   }
+
+  _radarMapSnapshot = { zoom: map.zoom, panX: map.panX, panY: map.panY };
+  _radarResumeAnimation = AnimationEngine.running;
+  AnimationEngine.stop();
+  const targets = applyRadarTargets();
+  frameRadarTargets(targets);
   btn?.classList.add('is-active');
+  if (btn) btn.textContent = `📡 扫描 ${targets.length}`;
+  stage.classList.add('radar-is-active');
   layer.style.display = 'block';
-  const zones = [
-    { faction: 'egov',    zone: spawnZone('egov'),    color: CONFIG.FACTION_COLORS.egov || '#4da3ff',    label: '地球联合政府控制区' },
-    { faction: 'jupiter', zone: spawnZone('jupiter'), color: CONFIG.FACTION_COLORS.jupiter || '#ffd251', label: '木星兵团控制区' },
-    { faction: 'remnant', zone: spawnZone('remnant'), color: CONFIG.FACTION_COLORS.remnant || '#ff3f52', label: '星际遗民控制区' },
-  ];
-  layer.innerHTML = zones.map(z => {
-    const cx = (z.zone.x[0] + z.zone.x[1]) / 2;
-    const cy = (z.zone.y[0] + z.zone.y[1]) / 2;
-    const rx = (z.zone.x[1] - z.zone.x[0]) / 2;
-    const ry = (z.zone.y[1] - z.zone.y[0]) / 2;
-    const size = Math.max(rx, ry) * 2.4;
-    return `
-      <div class="radar-zone" style="left:${cx - size/2}%;top:${cy - size/2}%;width:${size}%;height:${size}%;background:radial-gradient(circle at center, ${z.color}22, ${z.color}08, transparent 70%);box-shadow:inset 0 0 60px ${z.color}18, 0 0 40px ${z.color}10;">
-        <span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:${z.color};font-family:var(--font-display);font-size:11px;letter-spacing:1px;text-shadow:0 0 8px ${z.color}40;white-space:nowrap;">${z.label}</span>
-      </div>
-    `;
-  }).join('');
+  layer.innerHTML = `
+    <div class="radar-sweep-line"></div>
+    <div class="radar-status">
+      <span>TACTICAL FREEZE</span>
+      <strong>${targets.length} 个优先目标</strong>
+      <small>IN PROGRESS / DDL ≤ 3 DAYS</small>
+    </div>
+  `;
 }
 
 // v2.9: 数据导出 / 导入（为 Supabase 迁移预留接口）
@@ -4050,4 +4175,10 @@ const loginButton = document.querySelector('#loginBtn');
 if (loginButton && !loginButton.dataset.bound) {
   loginButton.dataset.bound = 'true';
   loginButton.addEventListener('click', doLogin);
+}
+
+const radarButton = document.querySelector('#radarToggle');
+if (radarButton && !radarButton.dataset.bound) {
+  radarButton.dataset.bound = 'true';
+  radarButton.addEventListener('click', toggleRadar);
 }
