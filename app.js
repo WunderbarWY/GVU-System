@@ -198,7 +198,7 @@ function cleanKey(key) {
 }
 
 const LinearAPI = {
-  endpoint: 'http://localhost:5180/api/linear',
+  endpoint: 'https://xsawiocbacbnvidqraxh.supabase.co/functions/v1/linear-proxy',
   key: cleanKey(safeLS.get('gv_linear_key')),
   pollingId: null,
   isPolling: false,
