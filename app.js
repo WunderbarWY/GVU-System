@@ -26,6 +26,12 @@ const safeLS = {
   },
 };
 
+// XSS 防护 — 所有外部/用户数据插入 HTML 前必须转义
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+
 // ============================================
 // 游戏配置与常量
 // ============================================
@@ -61,12 +67,12 @@ const SHIP_CLASSES = {
 };
 
 const MAP_SHIP_SIZES = {
-  raider: 28,
-  frigate: 34,
-  destroyer: 42,
-  cruiser: 50,
-  battleship: 60,
-  dreadnought: 72,
+  raider: 16,
+  frigate: 20,
+  destroyer: 25,
+  cruiser: 31,
+  battleship: 38,
+  dreadnought: 46,
 };
 
 const MAP_MOTION_SPEED_SCALE = 1 / 16;
@@ -148,13 +154,13 @@ const WAR_TEMPLATES = {
 };
 
 const PLANETS = [
-  { name: '水星前哨', x: 36, y: 50, size: 28, color: '#9fb5c8', glow: 'rgba(77,163,255,.42)' },
-  { name: '金星航道', x: 76, y: 22, size: 48, color: '#17d7b6', glow: 'rgba(23,215,182,.45)' },
-  { name: '地球司令部', x: 22, y: 47, size: 68, color: '#4da3ff', glow: 'rgba(77,163,255,.56)' },
-  { name: '月球封锁线', x: 50, y: 38, size: 20, color: '#c8fff6', glow: 'rgba(23,215,182,.48)' },
-  { name: '木星船坞', x: 85, y: 63, size: 118, color: '#ffd251', glow: 'rgba(255,210,81,.48)' },
-  { name: '土星议庭', x: 55, y: 82, size: 92, color: '#d7b14a', glow: 'rgba(255,210,81,.36)', ring: true },
-  { name: '冥王星暗港', x: 13, y: 88, size: 36, color: '#ff3f52', glow: 'rgba(255,63,82,.4)' },
+  { name: '水星前哨', x: 36, y: 50, size: 96, color: '#9fb5c8', glow: 'rgba(77,163,255,.42)' },
+  { name: '金星航道', x: 76, y: 22, size: 168, color: '#17d7b6', glow: 'rgba(23,215,182,.45)' },
+  { name: '地球司令部', x: 22, y: 47, size: 260, color: '#4da3ff', glow: 'rgba(77,163,255,.56)' },
+  { name: '月球封锁线', x: 50, y: 38, size: 74, color: '#c8fff6', glow: 'rgba(23,215,182,.48)' },
+  { name: '木星船坞', x: 85, y: 63, size: 520, color: '#ffd251', glow: 'rgba(255,210,81,.48)' },
+  { name: '土星议庭', x: 55, y: 82, size: 420, color: '#d7b14a', glow: 'rgba(255,210,81,.36)', ring: true },
+  { name: '冥王星暗港', x: 13, y: 88, size: 128, color: '#ff3f52', glow: 'rgba(255,63,82,.4)' },
 ];
 
 // ============================================
@@ -488,6 +494,7 @@ const WarHistoryStore = {
     if (data.records.length > this._maxRecords) data.records.pop();
 
     data.stats.totalKills = (data.stats.totalKills || 0) + 1;
+    data.stats.enemiesDestroyed = data.stats.totalKills;
     data.stats.todayKills = (data.stats.todayKills || 0) + 1;
     data.stats.todayWip = (data.stats.todayWip || 0) + (wipEarned || 0);
     this._incFactionStat(data.stats, unit.faction);
@@ -509,6 +516,7 @@ const WarHistoryStore = {
       factionName: FACTIONS.vanguard.name,
       wipSpent: DEPLOY_COSTS[ship.shipClass] || 0,
     });
+    data.stats.totalDeployments = (data.stats.totalDeployments || 0) + 1;
     if (data.records.length > this._maxRecords) data.records.pop();
     this.save(data);
     return data;
@@ -524,7 +532,7 @@ const WarHistoryStore = {
       time: now.toISOString(),
       wipEarned: wipEarned || 0,
       sessionNum: sessionNum || 1,
-      desc: `完成第 ${sessionNum} 个番茄钟，专注 ${s.duration / 60} 分钟`,
+      desc: `完成第 ${sessionNum} 个番茄钟，专注 ${PomodoroTimer.getState().duration / 60} 分钟`,
     });
     if (data.records.length > this._maxRecords) data.records.pop();
     this.save(data);
@@ -564,7 +572,16 @@ const WarHistoryStore = {
   },
 
   getStats() {
-    return this.get().stats;
+    const s = this.get().stats;
+    return {
+      totalKills: s.totalKills || 0,
+      todayKills: s.todayKills || 0,
+      todayWip: s.todayWip || 0,
+      totalDeployments: s.totalDeployments || 0,
+      enemiesDestroyed: s.enemiesDestroyed || 0,
+      byFaction: s.byFaction || {},
+      date: s.date,
+    };
   },
 
   getRecords(limit = 8) {
@@ -883,8 +900,8 @@ function playDeployAnimation(ship) {
   el.innerHTML = `
     ${shipIcon(ship.shipClass)}
     <span class="engine-flame deploy-boost" style="background:linear-gradient(180deg, ${f.color}, transparent);"></span>
-    <span class="unit-code">${ship.id}</span>
-    <span class="unit-label">${ship.name}</span>
+    <span class="unit-code">${escapeHtml(ship.id)}</span>
+    <span class="unit-label">${escapeHtml(ship.name)}</span>
   `;
   layer.appendChild(el);
 
@@ -1070,10 +1087,10 @@ function priorityToClass(p) {
 
 function spawnZone(faction, priority, status) {
   const base = {
-    egov: { x: [58, 90], y: [12, 42] },
-    jupiter: { x: [55, 92], y: [54, 88] },
-    remnant: { x: [6, 40], y: [66, 96] },
-  }[faction] || { x: [50, 80], y: [50, 80] };
+    egov: { x: [50, 94], y: [8, 46] },
+    jupiter: { x: [48, 96], y: [50, 92] },
+    remnant: { x: [3, 46], y: [60, 98] },
+  }[faction] || { x: [38, 88], y: [36, 86] };
 
   if (!priority) return base;
 
@@ -1412,8 +1429,8 @@ const StarshipSync = {
     el.innerHTML = `
       ${shipIcon(unit.shipClass)}
       <span class="engine-flame" style="background:linear-gradient(180deg, ${f.color}, transparent);"></span>
-      <span class="unit-code">${unit.id}</span>
-      <span class="unit-label">${unit.name}</span>
+      <span class="unit-code">${escapeHtml(unit.id)}</span>
+      <span class="unit-label">${escapeHtml(unit.name)}</span>
     `;
     layer.appendChild(el);
 
@@ -1530,6 +1547,9 @@ const StarshipSync = {
 
   // ---------- 跃迁闪光 ----------
   createWarpFlash(x, y, color) {
+    if (window.TacticalRenderer?.playEffect?.('warp', { x, y, color, duration: 850 })) {
+      return;
+    }
     const world = document.querySelector('#mapWorld');
     if (!world) return;
     const flash = document.createElement('div');
@@ -1550,6 +1570,7 @@ const StarshipSync = {
 
     // 新增飞船
     const enemyCount = G.units.filter(u => u.faction !== 'vanguard').length;
+    const used = new Set(G.units.map(u => u.name));
     diff.added.forEach((issue, i) => {
       const unit = this.createUnit(issue, enemyCount + i, used);
       G.units.push(unit);
@@ -1734,7 +1755,7 @@ const AnimationEngine = {
       } else {
         this.updateEnemy(unit, motionDt);
       }
-      this.updateDOM(unit);
+      this.updateDOM(unit, now);
     });
 
     // 中立单位是背景交通，降低刷新频率并复用缓存，避免舰船变多后卡顿。
@@ -1748,10 +1769,13 @@ const AnimationEngine = {
         n.driftPhase += n.driftFreq * ndt;
         n.x = n.baseX + Math.sin(n.driftPhase) * n.driftAmpX;
         n.y = n.baseY + Math.cos(n.driftPhase * 0.73) * n.driftAmpY;
+        const canvasActive = document.documentElement.classList.contains('canvas-tactical-rendering');
         const el = this.neutralCache.get(n.id);
-        if (el && el.isConnected) {
+        const domSyncDue = !canvasActive || !n._lastDomSync || now - n._lastDomSync >= 100;
+        if (el && el.isConnected && domSyncDue) {
           el.style.left = n.x + '%';
           el.style.top = n.y + '%';
+          n._lastDomSync = now;
         }
       });
     }
@@ -1849,7 +1873,7 @@ const AnimationEngine = {
   },
 
   // ---------- DOM 更新 ----------
-  updateDOM(unit) {
+  updateDOM(unit, now = performance.now()) {
     const cached = this.elCache.get(unit.id);
     if (!cached || !cached.unit.isConnected) {
       // 缓存失效，尝试重建
@@ -1858,7 +1882,7 @@ const AnimationEngine = {
       const p = document.querySelector(`.threat-pulse[data-unit-id="${cssEscape(unit.id)}"]`);
       const t = document.querySelector(`.unit-trail[data-unit-id="${cssEscape(unit.id)}"]`);
       this.elCache.set(unit.id, { unit: u, pulse: p, trail: t });
-      return this.updateDOM(unit); // 递归一次
+      return this.updateDOM(unit, now); // 递归一次
     }
 
     const rx = unit.x + (unit._driftX || 0);
@@ -1883,33 +1907,20 @@ const AnimationEngine = {
         const delta = ((desiredHeading - unit._headingDeg + 540) % 360) - 180;
         unit._headingDeg += delta;
       }
-      const headingStr = `${unit._headingDeg}deg`;
-      if (unit._lastHeading !== headingStr) {
-        cached.unit.style.setProperty('--ship-heading', headingStr);
-        unit._lastHeading = headingStr;
-      }
-      const motionOp = unit.status === 'advancing' ? '0.78' : '0.46';
-      if (unit._lastMotionOp !== motionOp) {
-        cached.unit.style.setProperty('--motion-opacity', motionOp);
-        unit._lastMotionOp = motionOp;
-      }
-      if (cached.trail) {
-        const angleStr = `${heading}deg`;
-        const trailAlpha = unit.status === 'advancing' ? '0.62' : '0.4';
-        if (unit._lastTrailAngle !== angleStr) {
-          cached.trail.style.setProperty('--angle', angleStr);
-          unit._lastTrailAngle = angleStr;
-        }
-        if (unit._lastTrailAlpha !== trailAlpha) {
-          cached.trail.style.setProperty('--trail-alpha', trailAlpha);
-          unit._lastTrailAlpha = trailAlpha;
-        }
-      }
     }
 
-    // 只有当位置确实变化时才写 DOM，避免每帧无条件触发布局重排
-    const posChanged = Math.abs(rx - lastX) > 0.001 || Math.abs(ry - lastY) > 0.001;
-    if (posChanged) {
+    // Canvas 每帧读取实时投影；DOM 只作为低频交互热区，避免隐藏节点持续触发布局。
+    unit._renderX = rx;
+    unit._renderY = ry;
+    const canvasActive = document.documentElement.classList.contains('canvas-tactical-rendering');
+    const quality = PerformanceMonitor.quality || document.body.dataset.quality || 'high';
+    const syncInterval = quality === 'low' ? 140 : quality === 'medium' ? 100 : 72;
+    const interactionPriority = G.selectedId === unit.id || map.hoverId === unit.id;
+    const domSyncDue = !canvasActive || interactionPriority || !unit._lastDomSync || now - unit._lastDomSync >= syncInterval;
+    const domX = unit._domX ?? lastX;
+    const domY = unit._domY ?? lastY;
+    const posChanged = Math.abs(rx - domX) > 0.001 || Math.abs(ry - domY) > 0.001;
+    if (domSyncDue && posChanged) {
       cached.unit.style.left = rx + '%';
       cached.unit.style.top = ry + '%';
 
@@ -1921,8 +1932,35 @@ const AnimationEngine = {
         cached.trail.style.left = (rx - 1.4) + '%';
         cached.trail.style.top = (ry + 1.1) + '%';
       }
-      unit._renderX = rx;
-      unit._renderY = ry;
+      unit._domX = rx;
+      unit._domY = ry;
+      unit._lastDomSync = now;
+    }
+
+    if (domSyncDue && moving) {
+      const headingStr = `${unit._headingDeg}deg`;
+      if (unit._lastHeading !== headingStr) {
+        cached.unit.style.setProperty('--ship-heading', headingStr);
+        unit._lastHeading = headingStr;
+      }
+      const motionOp = unit.status === 'advancing' ? '0.78' : '0.46';
+      if (unit._lastMotionOp !== motionOp) {
+        cached.unit.style.setProperty('--motion-opacity', motionOp);
+        unit._lastMotionOp = motionOp;
+      }
+      if (cached.trail) {
+        const angle = Math.atan2(unit._headingVelocityY || 0, unit._headingVelocityX || 0) * 180 / Math.PI;
+        const angleStr = `${angle}deg`;
+        const trailAlpha = unit.status === 'advancing' ? '0.62' : '0.4';
+        if (unit._lastTrailAngle !== angleStr) {
+          cached.trail.style.setProperty('--angle', angleStr);
+          unit._lastTrailAngle = angleStr;
+        }
+        if (unit._lastTrailAlpha !== trailAlpha) {
+          cached.trail.style.setProperty('--trail-alpha', trailAlpha);
+          unit._lastTrailAlpha = trailAlpha;
+        }
+      }
     }
 
     const activeLock = this.activeCoordinateLock;
@@ -2080,7 +2118,7 @@ function renderWarHistory() {
           <div class="wh-item kill">
             <span class="wh-time${isToday ? ' today' : ''}">${timeStr}</span>
             <span class="wh-dot" style="background:${fcolor};box-shadow:0 0 6px ${fcolor}40;"></span>
-            <span class="wh-text">击沉 <strong style="color:${fcolor}">${r.shipName}</strong> <span class="wh-class">${r.shipClass}</span></span>
+            <span class="wh-text">击沉 <strong style="color:${fcolor}">${escapeHtml(r.shipName)}</strong> <span class="wh-class">${escapeHtml(r.shipClass)}</span></span>
             ${r.wipEarned ? `<span class="wh-wip">+${r.wipEarned}</span>` : ''}
           </div>`;
       } else if (r.type === 'deploy') {
@@ -2088,7 +2126,7 @@ function renderWarHistory() {
           <div class="wh-item deploy">
             <span class="wh-time${isToday ? ' today' : ''}">${timeStr}</span>
             <span class="wh-dot" style="background:#4da3ff;box-shadow:0 0 6px rgba(77,163,255,0.25);"></span>
-            <span class="wh-text">部署 <strong style="color:#4da3ff">${r.shipName}</strong> <span class="wh-class">${r.shipClass}</span></span>
+            <span class="wh-text">部署 <strong style="color:#4da3ff">${escapeHtml(r.shipName)}</strong> <span class="wh-class">${escapeHtml(r.shipClass)}</span></span>
             <span class="wh-wip" style="color:#ff3f52;">-${r.wipSpent || 0}</span>
           </div>`;
       } else if (r.type === 'sync-in') {
@@ -2096,14 +2134,14 @@ function renderWarHistory() {
           <div class="wh-item sync">
             <span class="wh-time${isToday ? ' today' : ''}">${timeStr}</span>
             <span class="wh-dot" style="background:#ffd251;box-shadow:0 0 6px rgba(255,210,81,0.25);"></span>
-            <span class="wh-text">${r.desc}</span>
+            <span class="wh-text">${escapeHtml(r.desc)}</span>
           </div>`;
       } else if (r.type === 'sync-out') {
         html += `
           <div class="wh-item sync">
             <span class="wh-time${isToday ? ' today' : ''}">${timeStr}</span>
             <span class="wh-dot" style="background:#17d7b6;box-shadow:0 0 6px rgba(23,215,182,0.25);"></span>
-            <span class="wh-text">${r.desc}</span>
+            <span class="wh-text">${escapeHtml(r.desc)}</span>
           </div>`;
       }
     }
@@ -2323,32 +2361,22 @@ function shipIcon(cls) {
   const type = normalizeShipClass(cls);
   const paths = {
     raider: `
-      <path d="M50 13 L66 51 L56 48 L50 88 L44 48 L34 51 Z" opacity="0.82"/>
-      <path d="M50 18 L50 78 M41 40 L28 34 M59 40 L72 34" fill="none" stroke-width="5" stroke-linecap="round" opacity="0.92"/>
+      <path d="M50 8 L66 52 L57 49 L50 90 L43 49 L34 52 Z" opacity="0.82"/>
     `,
     frigate: `
-      <path d="M50 8 L64 31 L70 62 L57 58 L50 90 L43 58 L30 62 L36 31 Z" opacity="0.82"/>
-      <path d="M50 17 L50 78 M39 43 L61 43 M42 58 L58 58" fill="none" stroke-width="5" stroke-linecap="round" opacity="0.92"/>
+      <path d="M50 6 L65 29 L72 64 L59 59 L53 90 L47 90 L41 59 L28 64 L35 29 Z" opacity="0.82"/>
     `,
     destroyer: `
-      <path d="M50 7 L67 30 L75 62 L59 58 L50 92 L41 58 L25 62 L33 30 Z" opacity="0.82"/>
-      <path d="M50 16 L50 80 M37 39 L63 39 M34 55 L66 55 M42 70 L58 70" fill="none" stroke-width="5" stroke-linecap="round" opacity="0.92"/>
+      <path d="M50 5 L68 29 L77 64 L60 59 L54 91 L46 91 L40 59 L23 64 L32 29 Z" opacity="0.82"/>
     `,
     cruiser: `
-      <path d="M50 6 L72 31 L81 66 L61 62 L50 94 L39 62 L19 66 L28 31 Z" opacity="0.82"/>
-      <path d="M50 15 L50 82 M35 37 L65 37 M30 53 L70 53 M39 69 L61 69" fill="none" stroke-width="5" stroke-linecap="round" opacity="0.92"/>
-      <path d="M28 45 L16 39 M72 45 L84 39" fill="none" stroke-width="4" stroke-linecap="round" opacity="0.65"/>
+      <path d="M50 4 L72 29 L83 66 L62 61 L55 93 L45 93 L38 61 L17 66 L28 29 Z" opacity="0.82"/>
     `,
     battleship: `
-      <path d="M50 4 L77 32 L88 70 L64 64 L50 96 L36 64 L12 70 L23 32 Z" opacity="0.82"/>
-      <path d="M50 14 L50 84 M31 38 L69 38 M25 55 L75 55 M35 72 L65 72" fill="none" stroke-width="5" stroke-linecap="round" opacity="0.92"/>
-      <path d="M24 48 L8 39 M76 48 L92 39 M31 66 L16 74 M69 66 L84 74" fill="none" stroke-width="4" stroke-linecap="round" opacity="0.62"/>
+      <path d="M50 3 L76 30 L89 69 L66 63 L58 94 L50 98 L42 94 L34 63 L11 69 L24 30 Z" opacity="0.82"/>
     `,
     dreadnought: `
-      <path d="M50 3 L80 29 L94 67 L70 68 L59 95 L50 99 L41 95 L30 68 L6 67 L20 29 Z" opacity="0.82"/>
-      <path d="M50 13 L50 87 M32 32 L68 32 M22 50 L78 50 M28 67 L72 67 M39 82 L61 82" fill="none" stroke-width="5" stroke-linecap="round" opacity="0.92"/>
-      <path d="M20 42 L5 32 M80 42 L95 32 M23 61 L7 70 M77 61 L93 70" fill="none" stroke-width="4.5" stroke-linecap="round" opacity="0.66"/>
-      <circle cx="50" cy="50" r="7" opacity="0.95"/>
+      <path d="M50 3 L79 28 L94 66 L72 66 L60 94 L50 99 L40 94 L28 66 L6 66 L21 28 Z" opacity="0.82"/>
     `,
   };
   return `
@@ -2494,6 +2522,7 @@ function renderNeutrals() {
     el.className = 'unit neutral-unit';
     el.dataset.id = n.id;
     el.type = 'button';
+    el.setAttribute('aria-label', `${n.id} ${n.name}`);
     el.style.cssText = `left:${n.x}%;top:${n.y}%;--unit-color:${n.color};--ship-size:${n.size}px;color:${n.color};`;
     el.innerHTML = `
       ${neutralIcon(n.type)}
@@ -2525,19 +2554,19 @@ function renderNeutralDetail(n) {
   if (!panel) return;
   const planetName = n.planetIndex >= 0 ? PLANETS[n.planetIndex]?.name : '深空航道';
   panel.innerHTML = `
-    <p class="eyebrow">${n.id} / 中立单位 / ${n.label}</p>
-    <h2 class="unit-title" style="--unit-color:${n.color}">${n.name}</h2>
+    <p class="eyebrow">${escapeHtml(n.id)} / 中立单位 / ${escapeHtml(n.label)}</p>
+    <h2 class="unit-title" style="--unit-color:${n.color}">${escapeHtml(n.name)}</h2>
     <div class="mission-card" style="--accent:${n.color}">
-      <p class="mission-title">归属星球：${planetName}</p>
-      <p class="mission-meta">${n.label} · 不可攻击单位</p>
+      <p class="mission-title">归属星球：${escapeHtml(planetName)}</p>
+      <p class="mission-meta">${escapeHtml(n.label)} · 不可攻击单位</p>
     </div>
     <div class="tag-pills">
       <span class="tag-pill">中立</span>
       <span class="tag-pill">不可攻击</span>
     </div>
     <div class="info-grid">
-      <div><span>类型</span><strong>${n.label}</strong></div>
-      <div><span>归属</span><strong>${planetName}</strong></div>
+      <div><span>类型</span><strong>${escapeHtml(n.label)}</strong></div>
+      <div><span>归属</span><strong>${escapeHtml(planetName)}</strong></div>
     </div>
   `;
 }
@@ -2560,12 +2589,12 @@ function renderUnits() {
       ${!isV ? `<span class="threat-pulse" data-unit-id="${u.id}" style="left:${u.x}%;top:${u.y}%;--radius:${threat}px;--unit-color:${crit ? '#ff3f52' : f.color}"></span>` : ''}
       ${hasTrail ? `<span class="unit-trail" data-unit-id="${u.id}" style="left:${u.x - 1.4}%;top:${u.y + 1.1}%;--trail-width:${54 + u.power * 0.32}px;--angle:${angle};--unit-color:${f.color}"></span>` : ''}
       <button class="unit ship-${u.shipClass} ${u.status} ${u.isDemoTraffic ? 'is-demo-traffic' : ''} ${G.selectedId === u.id ? 'is-selected' : ''}"
-        data-id="${u.id}" type="button" onclick="event.stopPropagation(); window.__game.selectUnit('${u.id}')"
+        data-id="${escapeHtml(u.id)}" type="button" aria-label="${escapeHtml(u.id)} ${escapeHtml(u.name)}"
         style="left:${u.x}%;top:${u.y}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};--ship-size:${shipMapSize(u.shipClass)}px;color:${f.color}">
         ${shipIcon(u.shipClass)}
         <span class="engine-flame" style="background:linear-gradient(180deg, ${f.color}, transparent);"></span>
-        <span class="unit-code">${u.id}</span>
-        <span class="unit-label">${u.name}</span>
+        <span class="unit-code">${escapeHtml(u.id)}</span>
+        <span class="unit-label">${escapeHtml(u.name)}</span>
       </button>
     `;
   }).join('');
@@ -2638,8 +2667,8 @@ function briefRow(t, color, label) {
   return `
     <button class="brief-row" type="button" data-mission-ref="${missionRef}">
       <span class="dot" style="--color:${color}"></span>
-      <span>${t.title}</span>
-      <small>${label}</small>
+      <span>${escapeHtml(t.title)}</span>
+      <small>${escapeHtml(label)}</small>
     </button>
   `;
 }
@@ -2661,6 +2690,7 @@ function selectUnit(id) {
     }
   }
   document.querySelectorAll('.unit').forEach(b => b.classList.toggle('is-selected', b.dataset.id === id));
+  playCoordinateLock(u);
   renderDetail(id, true);
 }
 
@@ -2713,6 +2743,13 @@ function selectByMission(missionRef) {
 }
 
 function playCoordinateLock(unit) {
+  if (window.TacticalRenderer?.playEffect?.('lock', {
+    unitId: unit?.id,
+    color: FACTIONS[unit?.faction]?.color || '#4da3ff',
+    duration: 1180,
+  })) {
+    return;
+  }
   const worldEl = document.querySelector('#mapWorld');
   if (!worldEl || !unit) return;
 
@@ -2746,9 +2783,8 @@ function focusOnUnit(id) {
   if (!u) return;
   const worldEl = document.querySelector('#mapWorld');
   if (!worldEl) return;
-  playCoordinateLock(u);
-  const worldW = parseFloat(getComputedStyle(worldEl).width) || 7200;
-  const worldH = parseFloat(getComputedStyle(worldEl).height) || 4700;
+  const worldW = parseFloat(getComputedStyle(worldEl).width) || 16000;
+  const worldH = parseFloat(getComputedStyle(worldEl).height) || 10400;
   const focusX = u._renderX ?? (u.x + (u._driftX || 0));
   const focusY = u._renderY ?? (u.y + (u._driftY || 0));
   const wx = (focusX / 100) * worldW;
@@ -2787,21 +2823,42 @@ function unitFromPoint(clientX, clientY) {
     .find(Boolean);
   if (direct) return direct;
 
+  const world = document.querySelector('#mapWorld');
+  if (!world) return null;
+  const worldRect = world.getBoundingClientRect();
+  const candidates = [
+    ...G.units.filter(unit => unit.status !== 'destroyed').map(unit => ({
+      id: unit.id,
+      x: unit._renderX ?? (unit.x + (unit._driftX || 0)),
+      y: unit._renderY ?? (unit.y + (unit._driftY || 0)),
+      size: shipMapSize(unit.shipClass),
+      neutral: false,
+    })),
+    ...G.neutrals.map(unit => ({
+      id: unit.id,
+      x: unit.x,
+      y: unit.y,
+      size: unit.size || 30,
+      neutral: true,
+    })),
+  ];
+
   let best = null;
   let bestDist = Infinity;
-  document.querySelectorAll('.unit').forEach(unit => {
-    const rect = unit.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
+  candidates.forEach(unit => {
+    const cx = worldRect.left + worldRect.width * unit.x / 100;
+    const cy = worldRect.top + worldRect.height * unit.y / 100;
     const dist = Math.hypot(clientX - cx, clientY - cy);
     if (dist < bestDist) {
       best = unit;
       bestDist = dist;
     }
   });
-  // 缩放感知阈值：缩得越小小，阈值越大（确保远距缩放下也能点到）
-  const threshold = 44 / Math.max(map.zoom, 0.3);
-  return bestDist <= threshold ? best : null;
+  if (!best) return null;
+  const threshold = clamp(24 + best.size * map.zoom * 0.42, 28, 58);
+  if (bestDist > threshold) return null;
+  const layer = best.neutral ? '#neutralLayer' : '#unitLayer';
+  return document.querySelector(`${layer} .unit[data-id="${cssEscape(best.id)}"]`);
 }
 
 // 拖拽距离检测 — click 和 pointerdown 之间移动超过此距离不算点击
@@ -2809,6 +2866,7 @@ const CLICK_DRAG_THRESHOLD = 6;
 let _clickStart = { x: 0, y: 0, time: 0 };
 
 function selectUnitAtPoint(e) {
+  if (e.__tacticalHandled) return false;
   // 如果直接点击了飞船，让 layer 事件委托处理（避免双重触发）
   if (e.target.closest?.('.unit')) return false;
 
@@ -2865,8 +2923,8 @@ function renderDetail(id, animate = false) {
   }
 
   let html = `
-    <p class="eyebrow">${u.id} / ${f.name} / ${SHIP_CLASSES[u.shipClass].label}</p>
-    <h2 class="unit-title" style="--unit-color:${f.color}">${u.name}</h2>
+    <p class="eyebrow">${escapeHtml(u.id)} / ${escapeHtml(f.name)} / ${escapeHtml(SHIP_CLASSES[u.shipClass].label)}</p>
+    <h2 class="unit-title" style="--unit-color:${f.color}">${escapeHtml(u.name)}</h2>
   `;
 
   if (!isV && u.mission) {
@@ -2876,8 +2934,8 @@ function renderDetail(id, animate = false) {
 
     html += `
       <div class="mission-card" style="--accent:${f.color}">
-        <p class="mission-title">${m.title}</p>
-        <p class="mission-meta">${m.linearId} · 预估 ${m.estimate || 3} 点</p>
+        <p class="mission-title">${escapeHtml(m.title)}</p>
+        <p class="mission-meta">${escapeHtml(m.linearId)} · 预估 ${m.estimate || 3} 点</p>
       </div>
     `;
 
@@ -2888,7 +2946,7 @@ function renderDetail(id, animate = false) {
     // 标签
     const allLabels = [priorityLabel, ...(m.labels || [])];
     if (allLabels.length) {
-      html += `<div class="tag-pills">${allLabels.map(l => `<span class="tag-pill ${priorityClass}">${l}</span>`).join('')}</div>`;
+      html += `<div class="tag-pills">${allLabels.map(l => `<span class="tag-pill ${priorityClass}">${escapeHtml(l)}</span>`).join('')}</div>`;
     }
 
     // 描述
@@ -2898,7 +2956,7 @@ function renderDetail(id, animate = false) {
         html += `
           <div class="mission-desc">
             <p class="desc-label">任务描述</p>
-            <p class="desc-text">${desc.length > 200 ? desc.slice(0, 200) + '…' : desc}</p>
+            <p class="desc-text">${escapeHtml(desc.length > 200 ? desc.slice(0, 200) + '…' : desc)}</p>
           </div>
         `;
       }
@@ -2916,24 +2974,24 @@ function renderDetail(id, animate = false) {
     if (u.isPermanent) {
       html += `
         <div class="tag-pills">
-          <span class="tag-pill">${SHIP_CLASSES[u.shipClass].label}</span>
+          <span class="tag-pill">${escapeHtml(SHIP_CLASSES[u.shipClass].label)}</span>
           <span class="tag-pill">永久部署</span>
         </div>
         <div class="vanguard-info">
-          <div class="vg-row"><span class="vg-label">部署时间</span><span class="vg-value">${u.deployedAt || '—'}</span></div>
+          <div class="vg-row"><span class="vg-label">部署时间</span><span class="vg-value">${escapeHtml(u.deployedAt || '—')}</span></div>
         </div>
       `;
     } else {
       html += `
         <div class="tag-pills">
-          <span class="tag-pill">${SHIP_CLASSES[u.shipClass].label}</span>
-          <span class="tag-pill">${u.status === 'patrol' ? '巡逻' : u.status}</span>
+          <span class="tag-pill">${escapeHtml(SHIP_CLASSES[u.shipClass].label)}</span>
+          <span class="tag-pill">${u.status === 'patrol' ? '巡逻' : escapeHtml(u.status)}</span>
         </div>
         <div class="vanguard-info">
-          <div class="vg-row"><span class="vg-label">指挥官</span><span class="vg-value">${u.commander || '未指定'}</span></div>
-          <div class="vg-row"><span class="vg-label">所属编队</span><span class="vg-value">${u.squadron || '第一特遣队'}</span></div>
+          <div class="vg-row"><span class="vg-label">指挥官</span><span class="vg-value">${escapeHtml(u.commander || '未指定')}</span></div>
+          <div class="vg-row"><span class="vg-label">所属编队</span><span class="vg-value">${escapeHtml(u.squadron || '第一特遣队')}</span></div>
         </div>
-        <p style="color:var(--muted);font-size:12px;margin-top:10px;">银河先遣队 ${SHIP_CLASSES[u.shipClass].label}，${u.status === 'patrol' ? '正在地球周围巡逻' : '待命'}。</p>
+        <p style="color:var(--muted);font-size:12px;margin-top:10px;">银河先遣队 ${escapeHtml(SHIP_CLASSES[u.shipClass].label)}，${u.status === 'patrol' ? '正在地球周围巡逻' : '待命'}。</p>
       `;
     }
   }
@@ -2943,7 +3001,7 @@ function renderDetail(id, animate = false) {
   if (hist.length) {
     html += `<div class="history-block"><p class="history-label">作战记录</p>`;
     hist.forEach(h => {
-      html += `<p class="history-item">· 第${h.turn}日 ${h.shipName} 于 ${h.location}</p>`;
+      html += `<p class="history-item">· 第${h.turn}日 ${escapeHtml(h.shipName)} 于 ${escapeHtml(h.location)}</p>`;
     });
     html += `</div>`;
   }
@@ -2969,8 +3027,8 @@ function meter(label, value, color) {
 // ============================================
 // 地图控制（保留 Codex 全部交互）
 // ============================================
-const MAP_DEFAULT_ZOOM = 0.22;
-const MAP_MIN_ZOOM = 0.14;
+const MAP_DEFAULT_ZOOM = 0.14;
+const MAP_MIN_ZOOM = 0.045;
 const MAP_MAX_ZOOM = 2.4;
 const map = { zoom: MAP_DEFAULT_ZOOM, panX: 0, panY: 0, dragging: false, sx: 0, sy: 0, ox: 0, oy: 0, frame: 0, hoverId: null };
 function applyMap() {
@@ -2997,6 +3055,8 @@ function resetMap() { map.zoom = MAP_DEFAULT_ZOOM; map.panX = 0; map.panY = 0; a
 let _hoverRafId = null;
 let _pendingHoverEvent = null;
 function throttledHoverCheck(e) {
+  // Canvas 战术渲染模式下，交互完全由 TacticalRenderer 接管，DOM hover 逻辑短路
+  if (document.documentElement.classList.contains('canvas-tactical-rendering')) return;
   _pendingHoverEvent = e;
   if (_hoverRafId) return;
   _hoverRafId = requestAnimationFrame(() => {
@@ -3029,8 +3089,8 @@ function initMap() {
   document.querySelectorAll('[data-zoom]').forEach(b => {
     b.addEventListener('click', () => {
       const a = b.dataset.zoom;
-      if (a === 'in') zoom(0.18);
-      if (a === 'out') zoom(-0.18);
+      if (a === 'in') zoom(0.1);
+      if (a === 'out') zoom(-0.1);
       if (a === 'reset') resetMap();
     });
   });
@@ -3039,7 +3099,7 @@ function initMap() {
     e.stopPropagation();
     const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
     if (!delta) return;
-    zoom(delta < 0 ? 0.12 : -0.12);
+    zoom(delta < 0 ? 0.07 : -0.07);
   };
   stage.addEventListener('wheel', onWheel, { passive: false, capture: true });
   stage.addEventListener('click', selectUnitAtPoint, { capture: true });
@@ -3047,10 +3107,17 @@ function initMap() {
     // 记录 click 起点（用于拖拽距离检测）
     _clickStart = { x: e.clientX, y: e.clientY, time: Date.now() };
 
-    // 用 elementsFromPoint 检查点击位置是否有飞船（避免 threat-pulse 等 pointer-events:none 元素穿透）
-    const hasUnit = document.elementsFromPoint(e.clientX, e.clientY)
-      .some(el => el.closest?.('.unit'));
-    if (hasUnit || e.target.closest('.unit, .map-controls')) return;
+    // Canvas 战术渲染模式下，通过 TacticalRenderer 检测命中，避免 DOM pointer-events:none 导致误判
+    const canvasActive = document.documentElement.classList.contains('canvas-tactical-rendering');
+    if (canvasActive) {
+      const canvasHit = window.TacticalRenderer?.hitTest?.(e.clientX, e.clientY);
+      if (canvasHit || e.target.closest('.map-controls')) return;
+    } else {
+      // 用 elementsFromPoint 检查点击位置是否有飞船（避免 threat-pulse 等 pointer-events:none 元素穿透）
+      const hasUnit = document.elementsFromPoint(e.clientX, e.clientY)
+        .some(el => el.closest?.('.unit'));
+      if (hasUnit || e.target.closest('.unit, .map-controls')) return;
+    }
 
     map.dragging = true; map.sx = e.clientX; map.sy = e.clientY; map.ox = map.panX; map.oy = map.panY;
     stage.classList.add('is-panning');
@@ -3066,6 +3133,8 @@ function initMap() {
     scheduleMap();
   });
   stage.addEventListener('pointerleave', () => {
+    // Canvas 模式下 hover 清除由 TacticalRenderer 负责，避免双重触发
+    if (document.documentElement.classList.contains('canvas-tactical-rendering')) return;
     map.hoverId = null;
     clearUnitPreview();
   });
@@ -3321,6 +3390,9 @@ function unitStagePoint(unitId, unit) {
 // 战术击沉效果
 // ============================================
 function tacticalStrike(x, y, color) {
+  if (window.TacticalRenderer?.playEffect?.('strike', { stageX: x, stageY: y, color, duration: 900 })) {
+    return;
+  }
   const stage = document.querySelector('#mapStage');
   if (!stage) return;
 
@@ -3343,6 +3415,9 @@ function tacticalStrike(x, y, color) {
 // 跃迁效果
 // ============================================
 function warpJump(px, py, color) {
+  if (window.TacticalRenderer?.playEffect?.('warp', { x: px, y: py, color, duration: 1000 })) {
+    return;
+  }
   const stage = document.querySelector('#mapStage');
   if (!stage) return;
   const rect = stage.getBoundingClientRect();
@@ -3574,7 +3649,7 @@ function bootMain() {
     console.error('[GV] BOOT FAILED:', err);
     showLoading('系统启动失败: ' + err.message, 0);
     const panel = document.querySelector('#unitDetail');
-    if (panel) panel.innerHTML = `<p style="color:#ff3f52">系统启动失败: ${err.message}<br>请打开浏览器控制台(F12)查看详情。</p>`;
+    if (panel) panel.innerHTML = `<p style="color:#ff3f52">系统启动失败: ${escapeHtml(err.message)}<br>请打开浏览器控制台(F12)查看详情。</p>`;
   }
 }
 
@@ -3654,18 +3729,18 @@ function renderFleet() {
     const statusColor = u.status === 'destroyed' ? '#ff3f52' : '#17d7b6';
     const clsLabel = SHIP_CLASSES[u.shipClass]?.label || u.shipClass;
     return `
-      <div class="fleet-card" style="--faction-color:${fcolor}" onclick="window.__game.selectUnit('${u.id}'); window.__game.switchTab('situation');">
+      <div class="fleet-card" style="--faction-color:${fcolor}" onclick="window.__game.selectUnit('${escapeHtml(u.id)}'); window.__game.switchTab('situation');">
         <div class="fleet-card-header">
           <span class="fleet-card-icon" aria-hidden="true">${shipIcon(u.shipClass)}</span>
           <span class="fleet-card-ident">
-            <span class="fleet-card-code">${u.id}</span>
-            <span class="fleet-card-name" style="color:${fcolor}">${u.name}</span>
+            <span class="fleet-card-code">${escapeHtml(u.id)}</span>
+            <span class="fleet-card-name" style="color:${fcolor}">${escapeHtml(u.name)}</span>
           </span>
         </div>
-        <div class="fleet-card-mission">${u.mission?.title || '无任务'}</div>
+        <div class="fleet-card-mission">${escapeHtml(u.mission?.title || '无任务')}</div>
         <div class="fleet-card-meta">
-          <span style="color:${statusColor}">● ${statusLabel}</span>
-          <span>${clsLabel}</span>
+          <span style="color:${statusColor}">● ${escapeHtml(statusLabel)}</span>
+          <span>${escapeHtml(clsLabel)}</span>
           <span>战力 ${u.power || 0}</span>
         </div>
       </div>
@@ -3686,10 +3761,17 @@ function renderCampaign() {
   const timelineEl = document.querySelector('#campaignTimeline');
   if (!statsEl || !timelineEl) return;
 
-  const stats = WarHistoryStore.getStats();
+  const whStats = WarHistoryStore.getStats();
   const records = WarHistoryStore.getRecords(20);
 
-  // 统计卡片
+  // 统计卡片：WarHistoryStore 持久化统计 + G.stats 内存统计组合
+  const stats = {
+    totalDeployments: whStats.totalDeployments || 0,
+    completedMissions: whStats.enemiesDestroyed || 0,
+    currentStreak: G.stats.streak || 0,
+    enemiesDestroyed: whStats.enemiesDestroyed || 0,
+  };
+
   statsEl.innerHTML = `
     <div class="stat-card"><div class="stat-card-value" style="color:#4da3ff">${stats.totalDeployments}</div><div class="stat-card-label">总部署</div></div>
     <div class="stat-card"><div class="stat-card-value" style="color:#17d7b6">${stats.completedMissions}</div><div class="stat-card-label">完成任务</div></div>
@@ -3710,10 +3792,10 @@ function renderCampaign() {
     return `
       <div class="timeline-item">
         <span style="color:${color};font-size:14px;width:20px;text-align:center">${icon}</span>
-        <span class="timeline-date">${r.date}</span>
+        <span class="timeline-date">${escapeHtml(r.date)}</span>
         <div class="timeline-content">
-          <div class="timeline-title">${r.title}</div>
-          <div class="timeline-desc">${r.description || ''}</div>
+          <div class="timeline-title">${escapeHtml(r.title)}</div>
+          <div class="timeline-desc">${escapeHtml(r.description || '')}</div>
         </div>
       </div>
     `;
@@ -3775,7 +3857,7 @@ function renderIntel() {
         const width = (count / maxLabel) * 100;
         return `
           <div class="intel-bar">
-            <span class="intel-bar-label">${label}</span>
+            <span class="intel-bar-label">${escapeHtml(label)}</span>
             <div class="intel-bar-track"><div class="intel-bar-fill" style="width:${width}%;background:#4da3ff"></div></div>
             <span>${count}</span>
           </div>
@@ -3793,13 +3875,13 @@ function renderIntel() {
     <div class="intel-card">
       <h3>威胁预警</h3>
       ${overdue.length > 0 ? `<div style="margin-bottom:10px"><span style="color:#ff3f52;font-size:12px">逾期任务 (${overdue.length})</span></div>` + overdue.slice(0, 5).map(i =>
-        `<div class="intel-alert">${i.title} — 逾期 ${daysOverdue(i.due)} 天</div>`
+        `<div class="intel-alert">${escapeHtml(i.title)} — 逾期 ${daysOverdue(i.due)} 天</div>`
       ).join('') : '<p class="muted">暂无逾期任务</p>'}
       ${urgent.length > 0 ? `<div style="margin:16px 0 10px"><span style="color:#ffd251;font-size:12px">紧急任务 (${urgent.length})</span></div>` + urgent.slice(0, 3).map(i =>
-        `<div class="intel-alert" style="background:rgba(255,210,81,0.08);border-color:rgba(255,210,81,0.2);color:#ffd251">${i.title}</div>`
+        `<div class="intel-alert" style="background:rgba(255,210,81,0.08);border-color:rgba(255,210,81,0.2);color:#ffd251">${escapeHtml(i.title)}</div>`
       ).join('') : ''}
       ${high.length > 0 ? `<div style="margin:16px 0 10px"><span style="color:#4da3ff;font-size:12px">高优先级 (${high.length})</span></div>` + high.slice(0, 3).map(i =>
-        `<div class="intel-alert" style="background:rgba(77,163,255,0.08);border-color:rgba(77,163,255,0.2);color:#8fc8ff">${i.title}</div>`
+        `<div class="intel-alert" style="background:rgba(77,163,255,0.08);border-color:rgba(77,163,255,0.2);color:#8fc8ff">${escapeHtml(i.title)}</div>`
       ).join('') : ''}
     </div>
   `;
@@ -3822,11 +3904,11 @@ function renderIntel() {
     const txRows = records.slice(0, 8).map(r => {
       const time = r.time ? new Date(r.time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
       let icon = '•', text = r.desc || '', amount = '';
-      if (r.type === 'kill') { icon = '⚔️'; text = `击沉 ${r.shipName}`; amount = `+${r.wipEarned || 0}`; }
-      else if (r.type === 'deploy') { icon = '🚀'; text = `部署 ${r.shipName}`; amount = `-${r.wipSpent || 0}`; }
-      else if (r.type === 'pomodoro') { icon = '⏱️'; text = r.desc; amount = `+${r.wipEarned || 0}`; }
-      else if (r.type === 'sync-in') { icon = '⚡'; text = r.desc; amount = ''; }
-      else if (r.type === 'sync-out') { icon = '✓'; text = r.desc; amount = ''; }
+      if (r.type === 'kill') { icon = '⚔️'; text = `击沉 ${escapeHtml(r.shipName)}`; amount = `+${r.wipEarned || 0}`; }
+      else if (r.type === 'deploy') { icon = '🚀'; text = `部署 ${escapeHtml(r.shipName)}`; amount = `-${r.wipSpent || 0}`; }
+      else if (r.type === 'pomodoro') { icon = '⏱️'; text = escapeHtml(r.desc); amount = `+${r.wipEarned || 0}`; }
+      else if (r.type === 'sync-in') { icon = '⚡'; text = escapeHtml(r.desc); amount = ''; }
+      else if (r.type === 'sync-out') { icon = '✓'; text = escapeHtml(r.desc); amount = ''; }
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(77,163,255,0.08);font-size:12px;"><span>${icon} ${text}</span><span style="color:${amount.startsWith('+')?'#17d7b6':amount.startsWith('-')?'#ff3f52':'var(--muted)'}">${amount}</span></div>`;
     }).join('');
 
@@ -4042,8 +4124,8 @@ function frameRadarTargets(targets) {
   const worldEl = document.querySelector('#mapWorld');
   if (!stage || !worldEl || !targets.length) return;
 
-  const worldW = parseFloat(getComputedStyle(worldEl).width) || 7200;
-  const worldH = parseFloat(getComputedStyle(worldEl).height) || 4700;
+  const worldW = parseFloat(getComputedStyle(worldEl).width) || 16000;
+  const worldH = parseFloat(getComputedStyle(worldEl).height) || 10400;
   const stageRect = stage.getBoundingClientRect();
   const points = targets.map(({ unit }) => ({
     x: unit._renderX ?? (unit.x + (unit._driftX || 0)),

@@ -14,8 +14,8 @@
 
 /* Solar core pass: replace the cheap uniform halo with broken corona layers. */
 .sun {
-  width: 136px;
-  height: 136px;
+  width: 520px;
+  height: 520px;
   background:
     radial-gradient(circle at 45% 40%, rgba(255, 250, 210, 0.82) 0 7%, rgba(255, 190, 72, 0.22) 18%, transparent 42%),
     radial-gradient(circle, transparent 0 51%, rgba(3, 6, 10, 0.34) 72%),
@@ -180,13 +180,13 @@
 }
 
 #celestialBodies .body-marker:nth-child(1) {
-  --planet-ui-size: 28px;
+  --planet-ui-size: 96px;
   --planet-accent: rgba(77, 163, 255, 0.5);
   --planet-scan: rgba(77, 163, 255, 0.16);
 }
 
 #celestialBodies .body-marker:nth-child(2) {
-  --planet-ui-size: 48px;
+  --planet-ui-size: 168px;
   --planet-accent: rgba(23, 215, 182, 0.62);
   --planet-scan: rgba(23, 215, 182, 0.2);
 }
@@ -198,7 +198,7 @@
 }
 
 #celestialBodies .body-marker:nth-child(3) {
-  --planet-ui-size: 68px;
+  --planet-ui-size: 260px;
   --planet-accent: rgba(77, 163, 255, 0.72);
   --planet-scan: rgba(77, 163, 255, 0.26);
 }
@@ -212,13 +212,13 @@
 }
 
 #celestialBodies .body-marker:nth-child(4) {
-  --planet-ui-size: 20px;
+  --planet-ui-size: 74px;
   --planet-accent: rgba(200, 255, 246, 0.52);
   --planet-scan: rgba(200, 255, 246, 0.14);
 }
 
 #celestialBodies .body-marker:nth-child(5) {
-  --planet-ui-size: 118px;
+  --planet-ui-size: 520px;
   --planet-accent: rgba(255, 210, 81, 0.64);
   --planet-scan: rgba(255, 210, 81, 0.18);
 }
@@ -231,7 +231,7 @@
 }
 
 #celestialBodies .body-marker:nth-child(6) {
-  --planet-ui-size: 92px;
+  --planet-ui-size: 420px;
   --planet-accent: rgba(255, 210, 81, 0.52);
   --planet-scan: rgba(255, 210, 81, 0.16);
 }
@@ -244,7 +244,7 @@
 }
 
 #celestialBodies .body-marker:nth-child(7) {
-  --planet-ui-size: 36px;
+  --planet-ui-size: 128px;
   --planet-accent: rgba(255, 63, 82, 0.56);
   --planet-scan: rgba(255, 63, 82, 0.22);
 }
@@ -1200,20 +1200,115 @@
 #celestialBodies,
 #unitLayer,
 #neutralLayer {
-  width: 7200px;
-  height: 4700px;
+  width: 16000px;
+  height: 10400px;
 }
 
 .map-world {
-  transform: translate3d(-50%, -50%, 0) translate3d(var(--pan-x, 0px), var(--pan-y, 0px), 0) scale(var(--zoom, 0.22));
+  transform: translate3d(-50%, -50%, 0) translate3d(var(--pan-x, 0px), var(--pan-y, 0px), 0) scale(var(--zoom, 0.14));
 }
 
-.orbit-mercury { width: 1260px; height: 832px; }
-.orbit-venus { width: 2205px; height: 1418px; }
-.orbit-earth { width: 3082px; height: 1980px; }
-.orbit-jupiter { width: 4635px; height: 2880px; }
-.orbit-saturn { width: 5715px; height: 3555px; }
-.orbit-pluto { width: 7110px; height: 4545px; }
+.orbit-mercury { width: 2800px; height: 1844px; }
+.orbit-venus { width: 4900px; height: 3143px; }
+.orbit-earth { width: 6850px; height: 4390px; }
+.orbit-jupiter { width: 10300px; height: 6383px; }
+.orbit-saturn { width: 12700px; height: 7880px; }
+.orbit-pluto { width: 15800px; height: 10073px; }
+
+/* v6.0 Layered tactical renderer
+   Canvas owns high-frequency visuals; DOM remains the interaction/accessibility layer. */
+.tactical-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.tactical-static-canvas {
+  z-index: 2;
+}
+
+.tactical-unit-canvas {
+  z-index: 4;
+}
+
+.canvas-tactical-rendering .map-world {
+  z-index: 5;
+}
+
+.canvas-tactical-rendering .routes,
+.canvas-tactical-rendering .orbit,
+.canvas-tactical-rendering .threat-pulse,
+.canvas-tactical-rendering .unit-trail,
+.canvas-tactical-rendering .unit .ship-glyph,
+.canvas-tactical-rendering .unit .ship-icon,
+.canvas-tactical-rendering .unit .engine-flame {
+  visibility: hidden !important;
+}
+
+.canvas-tactical-rendering .unit {
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+.canvas-tactical-rendering .unit:hover,
+.canvas-tactical-rendering .unit.is-selected,
+.canvas-tactical-rendering .unit.is-previewed {
+  transform: translate(-50%, -50%) !important;
+  filter: none !important;
+}
+
+.canvas-tactical-rendering #unitLayer .unit,
+.canvas-tactical-rendering #neutralLayer .unit {
+  pointer-events: none !important;
+}
+
+.canvas-tactical-rendering .unit-code,
+.canvas-tactical-rendering .unit-label {
+  display: none !important;
+}
+
+.tactical-tooltip {
+  position: absolute;
+  z-index: 32;
+  display: grid;
+  min-width: 126px;
+  max-width: 230px;
+  gap: 2px;
+  padding: 7px 10px 8px;
+  border: 1px solid color-mix(in srgb, var(--tooltip-color, #4da3ff), transparent 54%);
+  border-left: 2px solid var(--tooltip-color, #4da3ff);
+  color: rgba(231, 246, 255, 0.92);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--tooltip-color, #4da3ff), transparent 90%), transparent 68%),
+    rgba(1, 5, 10, 0.94);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42);
+  font-family: var(--font-display);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(12px, -50%, 0);
+  transition: opacity 90ms ease;
+}
+
+.tactical-tooltip.is-visible {
+  opacity: 1;
+}
+
+.tactical-tooltip strong {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tactical-tooltip span {
+  color: color-mix(in srgb, var(--tooltip-color, #4da3ff), white 34%);
+  font-size: 9px;
+  letter-spacing: 0.8px;
+}
 
 .sector-label {
   padding: 5px 9px;

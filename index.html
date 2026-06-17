@@ -9,7 +9,7 @@
     <title>银河先遣队作战指挥台</title>
     <link rel="stylesheet" href="./styles.css?v=radar-1" />
     <link rel="stylesheet" href="./effects.css?v=radar-1" />
-    <link rel="stylesheet" href="./console-skin.css?v=radar-1" />
+    <link rel="stylesheet" href="./console-skin.css?v=solar-theater-3" />
     <script>
       // 应急诊断脚本 — 检测启动卡死
       console.log('[DIAG] Emergency script loaded');
@@ -151,6 +151,9 @@
 
         <div class="map-stage" id="mapStage">
           <canvas id="starfield" aria-hidden="true"></canvas>
+          <canvas id="tacticalStaticCanvas" class="tactical-canvas tactical-static-canvas" aria-hidden="true"></canvas>
+          <canvas id="tacticalUnitCanvas" class="tactical-canvas tactical-unit-canvas" aria-hidden="true"></canvas>
+          <div id="tacticalTooltip" class="tactical-tooltip" role="status" aria-live="polite"></div>
           <div class="strategic-grid" aria-hidden="true"></div>
           <div class="map-grid-overlay" aria-hidden="true"></div>
           <div class="command-frame" aria-hidden="true">
@@ -371,7 +374,8 @@
     </div>
 
     <script src="./src/config/game.js?v=radar-1"></script>
-    <script src="./app.js?v=headingfix-1"></script>
+    <script src="./app.js?v=solar-theater-3"></script>
+    <script src="./tactical-renderer.js?v=solar-theater-3"></script>
     <script>
       // 版本检测：如果旧 JS 被缓存，PomodoroTimer 不存在，提示刷新
       (function checkVersion() {

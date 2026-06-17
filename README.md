@@ -78,3 +78,6 @@ open http://localhost:5180
 ## GitHub
 
 https://github.com/WunderbarWY/GVU-System
+# Codex visual layer
+
+- `tactical-renderer.js` - viewport-sized Canvas renderer for routes, orbits, ships, engine plumes, threat rings, and selection indicators. Gameplay state and DOM interaction remain in `app.js`.
