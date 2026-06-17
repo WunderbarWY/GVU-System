@@ -36,12 +36,30 @@ export default {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
+          "Authorization": apiKey,
         },
         body: JSON.stringify(body),
       });
 
       const data = await response.json();
+
+      // Debug 401 from Linear
+      if (response.status === 401) {
+        return Response.json(
+          {
+            ...data,
+            _proxyDebug: {
+              keyPrefix: apiKey.slice(0, 10),
+              keyLength: apiKey.length,
+              authHeader: apiKey.startsWith("lin_api_") || apiKey.startsWith("user_api_")
+                ? "raw key"
+                : "unknown format",
+            },
+          },
+          { status: response.status, headers: corsHeaders }
+        );
+      }
+
       return Response.json(data, { status: response.status, headers: corsHeaders });
     } catch (err: any) {
       return Response.json(

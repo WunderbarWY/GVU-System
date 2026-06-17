@@ -246,7 +246,7 @@ const LinearAPI = {
   },
 
   async fetchIssues() {
-    const { data, errors } = await this.query(`
+    const { data, errors, _proxyDebug } = await this.query(`
       query {
         issues(first: 100) {
           nodes {
@@ -268,7 +268,11 @@ const LinearAPI = {
         }
       }
     `);
-    if (errors) throw new Error(errors[0].message);
+    if (errors) {
+      console.error('[GV] Linear errors:', errors, 'debug:', _proxyDebug);
+      const debugMsg = _proxyDebug ? ` (debug: ${JSON.stringify(_proxyDebug)})` : '';
+      throw new Error(errors[0].message + debugMsg);
+    }
     return data.issues.nodes;
   },
 
