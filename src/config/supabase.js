@@ -11,8 +11,8 @@
  */
 
 const SUPABASE_CONFIG = {
-  URL: 'https://YOUR_PROJECT_ID.supabase.co',
-  ANON_KEY: 'YOUR_ANON_PUBLIC_KEY',
+  URL: 'https://xsawiocbacbnvidqraxh.supabase.co',
+  ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzYXdpb2NiYWNibnZpZHFyYXhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODcxODksImV4cCI6MjA5NzI2MzE4OX0.Qwded55Q3aZ7k0n5-WzVoi5ixozfg3EqbCcqSO39rIE',
 };
 
 // 全局暴露，方便其他模块使用
