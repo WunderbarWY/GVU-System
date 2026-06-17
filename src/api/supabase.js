@@ -66,10 +66,14 @@
     return currentUser?.id || null;
   }
 
-  async function upsert(table, payload) {
+  async function upsert(table, payload, options = {}) {
     const auth = await ensureAuth();
     if (auth.error) return { error: auth.error };
-    const { data, error } = await client.from(table).upsert(payload, { onConflict: Object.keys(payload).filter(k => k !== 'updated_at').join(',') }).select();
+    const conflictCols = options.onConflict || Object.keys(payload).filter(k => k !== 'updated_at').join(',');
+    if (!options.onConflict) {
+      console.warn(`[Supabase] upsert ${table} 未指定 onConflict，自动推断为: ${conflictCols}`);
+    }
+    const { data, error } = await client.from(table).upsert(payload, { onConflict: conflictCols }).select();
     if (error) console.error(`[Supabase] upsert ${table} failed:`, error);
     return { data, error };
   }

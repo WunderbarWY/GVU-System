@@ -377,7 +377,7 @@ const WIPStore = {
       updated_at: new Date().toISOString(),
     };
     try {
-      await gv.upsert('wip_balances', payload);
+      await gv.upsert('wip_balances', payload, { onConflict: 'user_id,date' });
     } catch (err) {
       console.warn('[WIPStore] 云端同步失败:', err.message);
     }
