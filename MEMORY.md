@@ -2,7 +2,7 @@
 
 ## 当前版本
 
-**v3.2 — 1.0 功能开发完成** ✅
+**v4.0 — 1.0 功能开发完成 + Canvas 战术渲染层** ✅
 
 功能清单：战术任务雷达 + 引擎尾焰跟随朝向 + 5 艘永久旗舰 + 中立单位系统 + 任务栏定位 + 面板拖拽 + 测试框架 + localStorage 安全化 + 番茄钟 + WIP 工时 + 战史系统 + 五标签页控制台
 
@@ -14,12 +14,12 @@
 |------|------|
 | app.js | ~4,184 |
 | styles.css | ~3,176 |
-| console-skin.css | ~2,602 |
+| console-skin.css | ~2,700 |
 | effects.css | ~1,057 |
 | index.html | ~386 |
 | tests/ (3 files) | ~330 |
 | TERMINOLOGY.md | ~1,003 |
-| **总计** | **~12,700+** |
+| **总计** | **~13,500+** |
 
 ---
 
@@ -167,7 +167,7 @@
 - **API Key**：`~/.gv_linear_key`（chmod 600）
 - **服务器**：`python3 server.py` → `http://localhost:5180`
 - **健康检查**：`http://localhost:5180/api/health`
-- **版本号**：`?v=radar-1`
+- **版本号**：`?v=zoomfix-1`
 - **部署地址**：`https://gvu.pinme.dev`（Pinme IPFS）
 - **缓存策略**：所有 CSS/JS 统一 cache-bust；tab-page 带内联 fallback 样式
 - **雷达键**：左下角 📡 按钮，战术扫描优先任务（in_progress / 临近截止），冻结动画并聚焦目标
@@ -230,7 +230,7 @@
 - v2.9 — **番茄钟** + **打断检测** + **自定义巡航时长** + **经济账** + **数据导出/导入** + **雷达键**
 - v3.0 — 中立单位系统 + 任务栏点击定位 + 面板拖拽 + 测试框架 + localStorage 安全化 + cssEscape 修复
 - v3.1 — 5 艘永久旗舰（双子星/千城河/深空星烛/野居23/潜渊）+ 项目术语库 TERMINOLOGY.md
-- **v3.2 — 战术任务雷达（冻结战场 + 扫描优先任务 + 自动聚焦）+ 引擎尾焰跟随舰船朝向（heading-aware）**
+- **v4.0 — Canvas 战术渲染层 + 世界尺寸放大 + 缩放体验优化 + 引擎尾焰跟随舰船朝向（heading-aware）**
 
 ---
 

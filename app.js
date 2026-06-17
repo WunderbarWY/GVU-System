@@ -2586,8 +2586,8 @@ function renderUnits() {
     const hasTrail = !isV || u.isDemoTraffic;
 
     return `
-      ${!isV ? `<span class="threat-pulse" data-unit-id="${u.id}" style="left:${u.x}%;top:${u.y}%;--radius:${threat}px;--unit-color:${crit ? '#ff3f52' : f.color}"></span>` : ''}
-      ${hasTrail ? `<span class="unit-trail" data-unit-id="${u.id}" style="left:${u.x - 1.4}%;top:${u.y + 1.1}%;--trail-width:${54 + u.power * 0.32}px;--angle:${angle};--unit-color:${f.color}"></span>` : ''}
+      ${!isV ? `<span class="threat-pulse" data-unit-id="${escapeHtml(u.id)}" style="left:${u.x}%;top:${u.y}%;--radius:${threat}px;--unit-color:${crit ? '#ff3f52' : f.color}"></span>` : ''}
+      ${hasTrail ? `<span class="unit-trail" data-unit-id="${escapeHtml(u.id)}" style="left:${u.x - 1.4}%;top:${u.y + 1.1}%;--trail-width:${54 + u.power * 0.32}px;--angle:${angle};--unit-color:${f.color}"></span>` : ''}
       <button class="unit ship-${u.shipClass} ${u.status} ${u.isDemoTraffic ? 'is-demo-traffic' : ''} ${G.selectedId === u.id ? 'is-selected' : ''}"
         data-id="${escapeHtml(u.id)}" type="button" aria-label="${escapeHtml(u.id)} ${escapeHtml(u.name)}"
         style="left:${u.x}%;top:${u.y}%;--unit-color:${f.color};--unit-glow:${f.glow};--status-color:${adv ? '#ff3f52' : '#4da3ff'};--ship-size:${shipMapSize(u.shipClass)}px;color:${f.color}">
@@ -3049,7 +3049,30 @@ function scheduleMap() {
     applyMap();
   });
 }
-function zoom(d) { map.zoom = clamp(map.zoom + d, MAP_MIN_ZOOM, MAP_MAX_ZOOM); scheduleMap(); }
+// 以指定屏幕焦点为中心缩放（未传焦点时默认以舞台中心缩放）
+// factor > 1 放大，factor < 1 缩小；内部使用指数缩放，体验更自然
+function zoom(factor, focusX, focusY) {
+  const oldZoom = map.zoom;
+  const newZoom = clamp(oldZoom * factor, MAP_MIN_ZOOM, MAP_MAX_ZOOM);
+  if (newZoom === oldZoom) return;
+
+  const stage = document.querySelector('#mapStage');
+  const rect = stage.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const cx = focusX ?? centerX;
+  const cy = focusY ?? centerY;
+
+  // 计算焦点在当前世界坐标系中的位置
+  const worldX = (cx - centerX - map.panX) / oldZoom;
+  const worldY = (cy - centerY - map.panY) / oldZoom;
+
+  // 保持该世界点继续对准焦点屏幕位置
+  map.panX = cx - centerX - worldX * newZoom;
+  map.panY = cy - centerY - worldY * newZoom;
+  map.zoom = newZoom;
+  scheduleMap();
+}
 function resetMap() { map.zoom = MAP_DEFAULT_ZOOM; map.panX = 0; map.panY = 0; applyMap(); }
 // hover 检测节流 — 避免 pointermove 每帧都触发 getBoundingClientRect 强制同步布局
 let _hoverRafId = null;
@@ -3089,8 +3112,8 @@ function initMap() {
   document.querySelectorAll('[data-zoom]').forEach(b => {
     b.addEventListener('click', () => {
       const a = b.dataset.zoom;
-      if (a === 'in') zoom(0.1);
-      if (a === 'out') zoom(-0.1);
+      if (a === 'in') zoom(1.25);
+      if (a === 'out') zoom(0.8);
       if (a === 'reset') resetMap();
     });
   });
@@ -3099,7 +3122,11 @@ function initMap() {
     e.stopPropagation();
     const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
     if (!delta) return;
-    zoom(delta < 0 ? 0.07 : -0.07);
+    // 指数缩放：每滚轮一步约 12%；trackpad 大滑动会按 delta 幅度加速
+    const direction = delta < 0 ? 1 : -1;
+    const steps = Math.max(1, Math.min(3, Math.abs(delta) / 60));
+    const factor = Math.pow(1.12, direction * steps);
+    zoom(factor, e.clientX, e.clientY);
   };
   stage.addEventListener('wheel', onWheel, { passive: false, capture: true });
   stage.addEventListener('click', selectUnitAtPoint, { capture: true });
@@ -3352,11 +3379,11 @@ function cssEscape(value) {
       out += '\\' + c.toString(16).toUpperCase().padStart(2, '0') + ' ';
       continue;
     }
-    if (/[0-9A-Za-z_-]/.test(ch)) { out += ch; continue; }
     // 首字符如果是数字，前面需要加 \
     if (i === 0 && /[0-9]/.test(ch)) { out += '\\' + ch; continue; }
     // 第二个字符如果是数字且第一个是连字符，前面需要加 \
     if (i === 1 && s[0] === '-' && /[0-9]/.test(ch)) { out += '\\' + ch; continue; }
+    if (/[0-9A-Za-z_-]/.test(ch)) { out += ch; continue; }
     out += '\\' + ch;
   }
   return out;

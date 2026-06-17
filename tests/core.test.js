@@ -65,7 +65,23 @@ function nearestPlanet(x, y) {
 }
 function cssEscape(value) {
   if (typeof window !== 'undefined' && window.CSS?.escape) return CSS.escape(value);
-  return String(value).replace(/["\\]/g, '\\$&');
+  const s = String(value);
+  if (s === '') return '\ ';
+  let out = '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    const ch = s[i];
+    if (c === 0) { out += '\\FFFD '; continue; }
+    if (c >= 0x01 && c <= 0x1F || c === 0x7F) {
+      out += '\\' + c.toString(16).toUpperCase().padStart(2, '0') + ' ';
+      continue;
+    }
+    if (i === 0 && /[0-9]/.test(ch)) { out += '\\' + ch; continue; }
+    if (i === 1 && s[0] === '-' && /[0-9]/.test(ch)) { out += '\\' + ch; continue; }
+    if (/[0-9A-Za-z_-]/.test(ch)) { out += ch; continue; }
+    out += '\\' + ch;
+  }
+  return out;
 }
 
 // ========== 测试用例 ==========
