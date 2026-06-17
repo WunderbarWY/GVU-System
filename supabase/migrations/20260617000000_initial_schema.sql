@@ -2,7 +2,7 @@
 -- 在 Supabase SQL Editor 中执行，或作为 migrations 使用
 
 -- 启用 UUID 扩展（Supabase 通常已启用，保险起见）
-extension if not exists "uuid-ossp";
+create extension if not exists "uuid-ossp";
 
 -- ============================================
 -- 用户扩展资料表
