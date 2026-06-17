@@ -2,9 +2,9 @@
 
 ## 当前版本
 
-**v4.0 — 1.0 功能开发完成 + Canvas 战术渲染层** ✅
+**v4.1 — 1.0 功能开发完成 + Canvas 战术渲染层 + Supabase 云端持久化** ✅
 
-功能清单：战术任务雷达 + 引擎尾焰跟随朝向 + 5 艘永久旗舰 + 中立单位系统 + 任务栏定位 + 面板拖拽 + 测试框架 + localStorage 安全化 + 番茄钟 + WIP 工时 + 战史系统 + 五标签页控制台
+功能清单：战术任务雷达 + 引擎尾焰跟随朝向 + 5 艘永久旗舰 + 中立单位系统 + 任务栏定位 + 面板拖拽 + 测试框架 + localStorage 安全化 + 番茄钟 + WIP 工时 + 战史系统 + 五标签页控制台 + **Supabase 云端数据库同步**
 
 **已部署**：`https://gvu.pinme.dev`
 
@@ -12,14 +12,14 @@
 
 | 文件 | 行数 |
 |------|------|
-| app.js | ~4,184 |
+| app.js | ~4,441 |
 | styles.css | ~3,176 |
 | console-skin.css | ~2,700 |
 | effects.css | ~1,057 |
-| index.html | ~386 |
+| index.html | ~389 |
 | tests/ (3 files) | ~330 |
 | TERMINOLOGY.md | ~1,003 |
-| **总计** | **~13,500+** |
+| **总计** | **~14,000+** |
 
 ---
 
@@ -167,7 +167,12 @@
 - **API Key**：`~/.gv_linear_key`（chmod 600）
 - **服务器**：`python3 server.py` → `http://localhost:5180`
 - **健康检查**：`http://localhost:5180/api/health`
-- **版本号**：`?v=zoomfix-1`
+- **版本号**：`?v=supabase-1`
+- **数据库**：Supabase (PostgreSQL) + 匿名认证
+- **数据表**：`profiles`, `wip_balances`, `war_history`, `pomodoro_sessions`, `sync_logs`, `deployed_fleets`, `user_settings`
+- **安全**：RLS 行级安全，用户只能访问自己的数据
+- **配置**：`src/config/supabase.js` 需填入 Supabase URL 和 anon key
+- **建表 SQL**：`supabase/migrations/20260617000000_initial_schema.sql`
 - **部署地址**：`https://gvu.pinme.dev`（Pinme IPFS）
 - **缓存策略**：所有 CSS/JS 统一 cache-bust；tab-page 带内联 fallback 样式
 - **雷达键**：左下角 📡 按钮，战术扫描优先任务（in_progress / 临近截止），冻结动画并聚焦目标

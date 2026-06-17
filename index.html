@@ -7,9 +7,9 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>银河先遣队作战指挥台</title>
-    <link rel="stylesheet" href="./styles.css?v=zoomfix-1" />
-    <link rel="stylesheet" href="./effects.css?v=zoomfix-1" />
-    <link rel="stylesheet" href="./console-skin.css?v=zoomfix-1" />
+    <link rel="stylesheet" href="./styles.css?v=supabase-1" />
+    <link rel="stylesheet" href="./effects.css?v=supabase-1" />
+    <link rel="stylesheet" href="./console-skin.css?v=supabase-1" />
     <script>
       // 应急诊断脚本 — 检测启动卡死
       console.log('[DIAG] Emergency script loaded');
@@ -373,9 +373,12 @@
       </div>
     </div>
 
-    <script src="./src/config/game.js?v=zoomfix-1"></script>
-    <script src="./app.js?v=zoomfix-1"></script>
-    <script src="./tactical-renderer.js?v=zoomfix-1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="./src/config/supabase.js?v=supabase-1"></script>
+    <script src="./src/config/game.js?v=supabase-1"></script>
+    <script src="./src/api/supabase.js?v=supabase-1"></script>
+    <script src="./app.js?v=supabase-1"></script>
+    <script src="./tactical-renderer.js?v=supabase-1"></script>
     <script>
       // 版本检测：如果旧 JS 被缓存，PomodoroTimer 不存在，提示刷新
       (function checkVersion() {

@@ -358,7 +358,60 @@ const WIPStore = {
   load() {
     try { return JSON.parse(localStorage.getItem(this._key)) || {}; } catch { return {}; }
   },
-  save(data) { safeLS.setJSON(this._key, { ...data, _version: this._version }); },
+  save(data) { safeLS.setJSON(this._key, { ...data, _version: this._version }); this._sync(data); },
+
+  // 异步同步到 Supabase，失败不阻塞 UI
+  async _sync(data) {
+    const gv = window.GVSupabase;
+    if (!gv || !gv.isReady) return;
+    const userId = gv.getUserId();
+    if (!userId) return;
+    const payload = {
+      user_id: userId,
+      total: data.total || 0,
+      today_online: data.todayOnline || 0,
+      daily_kill_bonus: !!data.dailyKillBonus,
+      kill_streak: data.killStreak || 0,
+      date: data.date || new Date().toISOString().split('T')[0],
+      deployed: data.deployed || [],
+      updated_at: new Date().toISOString(),
+    };
+    try {
+      await gv.upsert('wip_balances', payload);
+    } catch (err) {
+      console.warn('[WIPStore] 云端同步失败:', err.message);
+    }
+  },
+
+  // 从云端拉取最新 WIP 数据，返回本地格式
+  async pullFromCloud() {
+    const gv = window.GVSupabase;
+    if (!gv || !gv.isReady) return null;
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await gv.select('wip_balances', {
+      eq: { date: today },
+      order: [{ column: 'updated_at', ascending: false }],
+      limit: 1,
+    });
+    if (error || !data || !data.length) return null;
+    const row = data[0];
+    return {
+      total: row.total || 0,
+      todayOnline: row.today_online || 0,
+      dailyKillBonus: !!row.daily_kill_bonus,
+      killStreak: row.kill_streak || 0,
+      date: row.date,
+      deployed: row.deployed || [],
+    };
+  },
+
+  // 把本地数据完整迁移到云端（首次使用）
+  async migrateToCloud() {
+    const local = this.load();
+    if (!local || Object.keys(local).length === 0) return false;
+    await this._sync(local);
+    return true;
+  },
 
   get() {
     const data = this.load();
@@ -461,6 +514,89 @@ const WarHistoryStore = {
   },
   save(data) { safeLS.setJSON(this._key, data); },
 
+  // 把单条记录同步到 Supabase
+  async _syncRecord(record) {
+    const gv = window.GVSupabase;
+    if (!gv || !gv.isReady) return;
+    const userId = gv.getUserId();
+    if (!userId) return;
+    const payload = {
+      user_id: userId,
+      type: record.type,
+      time: record.time || new Date().toISOString(),
+      ship_name: record.shipName || null,
+      ship_class: record.shipClass || null,
+      faction: record.faction || null,
+      faction_name: record.factionName || null,
+      mission_title: record.missionTitle || null,
+      mission_id: record.missionId || null,
+      wip_earned: record.wipEarned || 0,
+      wip_spent: record.wipSpent || 0,
+      location: record.location || null,
+      session_num: record.sessionNum || null,
+      description: record.desc || null,
+      count: record.count || null,
+      metadata: { client_id: record.id },
+    };
+    try {
+      await gv.insert('war_history', payload);
+    } catch (err) {
+      console.warn('[WarHistoryStore] 云端同步失败:', err.message);
+    }
+  },
+
+  // 从云端拉取战史记录，返回本地格式（含 stats）
+  async pullFromCloud(limit = 50) {
+    const gv = window.GVSupabase;
+    if (!gv || !gv.isReady) return null;
+    const { data, error } = await gv.select('war_history', {
+      order: [{ column: 'time', ascending: false }],
+      limit,
+    });
+    if (error || !data) return null;
+    const records = data.map(row => ({
+      id: row.metadata?.client_id || ('wh-cloud-' + row.id),
+      type: row.type,
+      time: row.time,
+      shipName: row.ship_name || '',
+      shipClass: row.ship_class || '',
+      faction: row.faction || '',
+      factionName: row.faction_name || '',
+      missionTitle: row.mission_title || '',
+      missionId: row.mission_id || '',
+      wipEarned: row.wip_earned || 0,
+      wipSpent: row.wip_spent || 0,
+      location: row.location || '',
+      sessionNum: row.session_num || null,
+      desc: row.description || '',
+      count: row.count || null,
+    }));
+    const today = new Date().toISOString().split('T')[0];
+    const stats = {
+      totalKills: records.filter(r => r.type === 'kill').length,
+      todayKills: records.filter(r => r.type === 'kill' && r.time.startsWith(today)).length,
+      todayWip: records.filter(r => r.time.startsWith(today)).reduce((s, r) => s + (r.wipEarned || 0), 0),
+      totalDeployments: records.filter(r => r.type === 'deploy').length,
+      enemiesDestroyed: records.filter(r => r.type === 'kill').length,
+      byFaction: {},
+      date: today,
+    };
+    records.filter(r => r.type === 'kill' && r.faction).forEach(r => {
+      stats.byFaction[r.faction] = (stats.byFaction[r.faction] || 0) + 1;
+    });
+    return { records, stats };
+  },
+
+  // 首次使用：把本地战史批量迁移到云端
+  async migrateToCloud() {
+    const local = this.load();
+    if (!local.records || local.records.length === 0) return false;
+    for (const r of local.records.slice().reverse()) {
+      await this._syncRecord(r);
+    }
+    return true;
+  },
+
   get() {
     const data = this.load();
     const today = new Date().toISOString().split('T')[0];
@@ -499,6 +635,7 @@ const WarHistoryStore = {
     data.stats.todayWip = (data.stats.todayWip || 0) + (wipEarned || 0);
     this._incFactionStat(data.stats, unit.faction);
     this.save(data);
+    this._syncRecord(data.records[0]);
     return data;
   },
 
@@ -519,6 +656,7 @@ const WarHistoryStore = {
     data.stats.totalDeployments = (data.stats.totalDeployments || 0) + 1;
     if (data.records.length > this._maxRecords) data.records.pop();
     this.save(data);
+    this._syncRecord(data.records[0]);
     return data;
   },
 
@@ -536,7 +674,29 @@ const WarHistoryStore = {
     });
     if (data.records.length > this._maxRecords) data.records.pop();
     this.save(data);
+    if (added > 0) this._syncRecord(data.records.find(r => r.type === 'sync-in'));
+    if (removed > 0) this._syncRecord(data.records.find(r => r.type === 'sync-out'));
     return data;
+  },
+
+  // 记录同步日志到 Supabase（不含 UI 记录，只记时间/统计）
+  async recordSyncLog(added, removed, changed, issueCount) {
+    const gv = window.GVSupabase;
+    if (!gv || !gv.isReady) return;
+    const userId = gv.getUserId();
+    if (!userId) return;
+    try {
+      await gv.insert('sync_logs', {
+        user_id: userId,
+        added: added || 0,
+        removed: removed || 0,
+        changed: changed || 0,
+        raw_issue_count: issueCount || 0,
+        synced_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn('[SyncLog] 云端同步失败:', err.message);
+    }
   },
 
   // 记录同步事件（新威胁/撤离）
@@ -1606,6 +1766,7 @@ const StarshipSync = {
       WarHistoryStore.recordSync(diff.added.length, diff.removed.length);
       renderWarHistory();
     }
+    WarHistoryStore.recordSyncLog(diff.added.length, diff.removed.length, diff.changed.length, newIssues.length);
   },
 };
 
@@ -3601,7 +3762,7 @@ function finishLogin() {
 // ============================================
 // 主系统启动
 // ============================================
-function bootMain() {
+async function bootMain() {
   console.log('[GV] bootMain start');
   const _bootSteps = [];
   function step(name, fn) {
@@ -3616,7 +3777,42 @@ function bootMain() {
     }
   }
   try {
-    showLoading('初始化战术系统...', 10);
+    showLoading('连接云端指挥部...', 5);
+    // 等待 Supabase 匿名认证完成
+    if (window.GVSupabase && window.GVSupabase.ensureAuth) {
+      try {
+        const auth = await window.GVSupabase.ensureAuth();
+        if (auth.user) {
+          console.log('[GV] 云端身份已就绪，开始同步数据');
+          showLoading('同步云端战史与 WIP...', 10);
+          // 拉取云端 WIP
+          const cloudWip = await WIPStore.pullFromCloud();
+          if (cloudWip) {
+            console.log('[GV] 从云端恢复 WIP');
+            WIPStore.save(cloudWip);
+          } else {
+            // 云端为空，迁移本地数据
+            console.log('[GV] 云端无 WIP，迁移本地数据');
+            await WIPStore.migrateToCloud();
+          }
+          // 拉取云端战史
+          const cloudWar = await WarHistoryStore.pullFromCloud(50);
+          if (cloudWar && cloudWar.records.length > 0) {
+            console.log('[GV] 从云端恢复战史:', cloudWar.records.length, '条');
+            WarHistoryStore.save(cloudWar);
+          } else {
+            console.log('[GV] 云端无战史，迁移本地数据');
+            await WarHistoryStore.migrateToCloud();
+          }
+        } else {
+          console.warn('[GV] 匿名认证未完成，继续使用本地存储');
+        }
+      } catch (e) {
+        console.warn('[GV] 云端同步失败，回退到本地存储:', e.message);
+      }
+    }
+
+    showLoading('初始化战术系统...', 15);
     step('initLinearUI', initLinearUI);
 
     showLoading('扫描星系威胁...', 30);

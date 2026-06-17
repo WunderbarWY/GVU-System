@@ -6,6 +6,38 @@
 
 ---
 
+## 2026-06-17 — v4.1 Supabase 云端持久化
+
+### 新增的
+- **Supabase 数据库集成**：接上 PostgreSQL 云端数据库，数据不再只存 localStorage
+  - 匿名认证：`signInAnonymously()`，零登录门槛
+  - 表：`profiles`, `wip_balances`, `war_history`, `pomodoro_sessions`, `sync_logs`, `deployed_fleets`, `user_settings`
+  - RLS 行级安全：每个用户只能访问自己的数据
+- **WIP 云端同步**：每日余额、部署舰队、击杀连击自动双写本地 + 云端
+- **战史云端同步**：每次击沉/部署/番茄钟/同步事件同时写入云端
+- **同步日志云端化**：每次 Linear 同步的时间、新增/移除/变更数量记录到 `sync_logs`
+- **启动云端恢复**：boot 时先匿名登录，从云端拉取 WIP 和战史；云端为空则迁移本地数据
+- **SQL Migration**：`supabase/migrations/20260617000000_initial_schema.sql`
+
+### 改动的
+- `index.html`：引入 `@supabase/supabase-js` CDN 和新的 `src/api/supabase.js`
+- `app.js`：
+  - `bootMain` 改为 async，开头加入云端同步/迁移
+  - `WIPStore` 增加 `_sync`, `pullFromCloud`, `migrateToCloud`
+  - `WarHistoryStore` 增加 `_syncRecord`, `pullFromCloud`, `migrateToCloud`, `recordSyncLog`
+  - `StarshipSync.applyIncremental` 调用 `recordSyncLog`
+- 新增 `src/config/supabase.js`：存放 Supabase URL 和 anon key（需用户填入真实值）
+- 新增 `src/api/supabase.js`：Supabase 客户端封装、匿名认证、CRUD 封装
+
+### 配置说明
+1. 在 [supabase.com](https://supabase.com) 创建项目
+2. 进入 Project Settings -> API，复制 URL 和 `anon public` key
+3. 填入 `src/config/supabase.js`
+4. 在 Supabase SQL Editor 执行 `supabase/migrations/20260617000000_initial_schema.sql`
+5. 重新部署即可
+
+---
+
 ## 2026-06-17 — v4.0 Canvas 战术渲染层 + 缩放体验优化
 
 ### 新增的
