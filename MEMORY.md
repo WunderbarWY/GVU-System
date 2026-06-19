@@ -168,9 +168,9 @@
 - **服务器**：`python3 server.py` → `http://localhost:5180`
 - **健康检查**：`http://localhost:5180/api/health`
 - **版本号**：`?v=supabase-1`
-- **数据库**：Supabase (PostgreSQL) + 匿名认证
+- **数据库**：Supabase (PostgreSQL) + 指挥官邮箱/密码认证
 - **数据表**：`profiles`, `wip_balances`, `war_history`, `pomodoro_sessions`, `sync_logs`, `deployed_fleets`, `user_settings`
-- **安全**：RLS 行级安全，用户只能访问自己的数据
+- **安全**：RLS 行级安全，用户只能访问自己的数据；指挥官代号映射为 `xxx@gvu.pinme.dev` 邮箱
 - **配置**：`src/config/supabase.js` 需填入 Supabase URL 和 anon key
 - **建表 SQL**：`supabase/migrations/20260617000000_initial_schema.sql`
 - **部署地址**：`https://gvu.pinme.dev`（Pinme IPFS）
@@ -198,12 +198,28 @@
 - [x] **Pinme 部署**：`https://gvu.pinme.dev`
 
 ### P1：数据库建立与部署（下一阶段重点）
-- [ ] 选型：Supabase / Firebase / 自建 PostgreSQL
-- [ ] 设计数据表：units, missions, war_history, wip, users
-- [ ] 迁移现有 localStorage 数据到数据库
-- [ ] 用户认证（与 Linear OAuth 联动或独立）
-- [ ] 多设备同步（WIP / 战史 / 番茄钟 / 部署舰队）
+- [x] 选型：Supabase / Firebase / 自建 PostgreSQL → **Supabase**
+- [x] 设计数据表：units, missions, war_history, wip, users → **见 20260617000000_initial_schema.sql**
+- [x] 迁移现有 localStorage 数据到数据库 → **登录时自动迁移**
+- [x] 用户认证（与 Linear OAuth 联动或独立） → **指挥官代号 + 安全密钥**
+- [x] 多设备同步（WIP / 战史 / 番茄钟 / 部署舰队） → **同一账号跨设备恢复**
 - [ ] 数据备份策略（增量同步 + 离线缓存兜底）
+
+### 已修复：换设备数据丢失
+**问题**：原匿名登录导致每次新浏览器分配新 user_id，云端数据变成"孤儿数据"。
+**修复**：
+- `src/api/supabase.js` 移除匿名登录，改为 `signIn` / `signUp` / `signOut`
+- `index.html` 登录页"指挥官代号"和"安全密钥"改为可输入
+- `app.js` 登录时先尝试登录，不存在则自动注册；自动填充上次代号；支持回车提交
+- 设置页新增"退出登录"按钮
+- 缓存版本号统一 bump 到 `supabase-5/6`
+
+**部署前必须操作**：
+1. 登录 Supabase Dashboard → Authentication → Providers → Email
+2. 关闭 **"Confirm email"** 开关
+3. 保存后重新部署
+
+**注意**：旧匿名用户的数据仍保留在 Supabase 中但无法访问；本地数据会在首次登录时自动迁移到新账号。
 
 ### P2：工程化重构
 - [ ] 把 Linear API 抽到 `src/api/linear.js`
@@ -236,6 +252,8 @@
 - v3.0 — 中立单位系统 + 任务栏点击定位 + 面板拖拽 + 测试框架 + localStorage 安全化 + cssEscape 修复
 - v3.1 — 5 艘永久旗舰（双子星/千城河/深空星烛/野居23/潜渊）+ 项目术语库 TERMINOLOGY.md
 - **v4.0 — Canvas 战术渲染层 + 世界尺寸放大 + 缩放体验优化 + 引擎尾焰跟随舰船朝向（heading-aware）**
+- **v4.1 — Supabase 云端持久化 + 匿名登录**
+- **v4.2 — 指挥官账号登录：换设备数据可恢复 + 自动注册 + 退出登录**
 
 ---
 
