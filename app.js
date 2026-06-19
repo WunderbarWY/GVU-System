@@ -197,8 +197,16 @@ function cleanKey(key) {
   return (key || '').replace(/[^\x20-\x7E]/g, '').trim();
 }
 
+function linearProxyEndpoint() {
+  const supabaseUrl = window.SUPABASE_CONFIG?.URL;
+  if (supabaseUrl && !supabaseUrl.includes('YOUR_PROJECT_ID')) {
+    return `${supabaseUrl.replace(/\/+$/, '')}/functions/v1/linear-proxy`;
+  }
+  return 'https://xsawiocbacbnvidqraxh.supabase.co/functions/v1/linear-proxy';
+}
+
 const LinearAPI = {
-  endpoint: 'https://xsawiocbacbnvidqraxh.supabase.co/functions/v1/linear-proxy',
+  endpoint: linearProxyEndpoint(),
   key: cleanKey(safeLS.get('gv_linear_key')),
   pollingId: null,
   isPolling: false,
@@ -228,12 +236,22 @@ const LinearAPI = {
   },
 
   async query(q, vars = {}) {
-    const url = this.endpoint;
+    const url = linearProxyEndpoint();
+    this.endpoint = url;
     const body = JSON.stringify({ query: q, variables: vars });
     console.log('[GV] POST', url, 'key length:', this.key.length);
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Linear-Key': this.key,
+    };
+    const anonKey = window.SUPABASE_CONFIG?.ANON_KEY;
+    if (anonKey && !anonKey.includes('YOUR_ANON_KEY')) {
+      headers.apikey = anonKey;
+      headers.Authorization = `Bearer ${anonKey}`;
+    }
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Api-Key': this.key },
+      headers,
       body,
     });
     const text = await res.text();
@@ -2841,19 +2859,7 @@ function briefRow(t, color, label) {
 function selectUnit(id) {
   const u = G.units.find(x => x.id === id);
   if (!u) return;
-  const newlySelected = G.selectedId !== id;
   G.selectedId = id;
-  if (newlySelected) {
-    u._driftX = (u._driftX || 0) * 0.15;
-    u._driftY = (u._driftY || 0) * 0.15;
-    u._renderX = u.x + u._driftX;
-    u._renderY = u.y + u._driftY;
-    const unitEl = document.querySelector(`.unit[data-id="${cssEscape(id)}"]`);
-    if (unitEl) {
-      unitEl.style.left = u._renderX + '%';
-      unitEl.style.top = u._renderY + '%';
-    }
-  }
   document.querySelectorAll('.unit').forEach(b => b.classList.toggle('is-selected', b.dataset.id === id));
   playCoordinateLock(u);
   renderDetail(id, true);
@@ -2920,8 +2926,9 @@ function playCoordinateLock(unit) {
 
   worldEl.querySelectorAll('.coordinate-lock').forEach(el => el.remove());
   const color = FACTIONS[unit.faction]?.color || '#4da3ff';
-  const renderX = unit._renderX ?? (unit.x + (unit._driftX || 0));
-  const renderY = unit._renderY ?? (unit.y + (unit._driftY || 0));
+  const tacticalPosition = window.TacticalRenderer?.getUnitPosition?.(unit.id);
+  const renderX = tacticalPosition?.x ?? unit._renderX ?? (unit.x + (unit._driftX || 0));
+  const renderY = tacticalPosition?.y ?? unit._renderY ?? (unit.y + (unit._driftY || 0));
   const lock = document.createElement('div');
   lock.className = 'coordinate-lock';
   lock.style.cssText = `left:${renderX}%;top:${renderY}%;--lock-color:${color};`;
@@ -2950,8 +2957,9 @@ function focusOnUnit(id) {
   if (!worldEl) return;
   const worldW = parseFloat(getComputedStyle(worldEl).width) || 16000;
   const worldH = parseFloat(getComputedStyle(worldEl).height) || 10400;
-  const focusX = u._renderX ?? (u.x + (u._driftX || 0));
-  const focusY = u._renderY ?? (u.y + (u._driftY || 0));
+  const tacticalPosition = window.TacticalRenderer?.getUnitPosition?.(u.id);
+  const focusX = tacticalPosition?.x ?? u._renderX ?? (u.x + (u._driftX || 0));
+  const focusY = tacticalPosition?.y ?? u._renderY ?? (u.y + (u._driftY || 0));
   const wx = (focusX / 100) * worldW;
   const wy = (focusY / 100) * worldH;
   map.zoom = Math.max(map.zoom, 0.42);
@@ -3720,21 +3728,114 @@ function initLinearUI() {
 // ============================================
 let _loginSkip = false;
 
-function doLogin() {
-  if (_loginSkip) return;
-  _loginSkip = true;
-  console.log('[GV] doLogin start');
+function setLoginError(msg) {
+  const el = document.querySelector('#loginError');
+  if (el) el.textContent = msg || '';
+}
 
+function setLoginProcessing(isProcessing) {
   const btn = document.querySelector('#loginBtn');
-  if (btn) {
+  if (!btn) return;
+  if (isProcessing) {
     btn.classList.add('is-processing');
-    btn.querySelector('.login-btn-text').textContent = '验证中...';
+    btn.disabled = true;
+    const text = btn.querySelector('.login-btn-text');
+    if (text) text.textContent = '验证中...';
+  } else {
+    btn.classList.remove('is-processing');
+    btn.disabled = false;
+    const text = btn.querySelector('.login-btn-text');
+    if (text) text.textContent = '接入系统';
+  }
+}
+
+async function doLogin() {
+  if (_loginSkip) return;
+
+  const callsignInput = document.querySelector('#loginCallsign');
+  const keyInput = document.querySelector('#loginKey');
+  const callsign = (callsignInput?.value || '').trim();
+  const password = keyInput?.value || '';
+
+  if (!callsign) {
+    setLoginError('请输入指挥官代号');
+    return;
+  }
+  if (password.length < 6) {
+    setLoginError('安全密钥至少 6 位');
+    return;
   }
 
-  // 直接跳过所有动画，立即进入
-  const screen = document.querySelector('#loginScreen');
-  if (screen) screen.classList.add('is-done');
-  setTimeout(finishLogin, 100);
+  _loginSkip = true;
+  setLoginProcessing(true);
+  setLoginError('');
+  console.log('[GV] doLogin start:', callsign);
+
+  try {
+    const gv = window.GVSupabase;
+    if (!gv || !gv.client) {
+      throw new Error('指挥链路未就绪，请刷新重试');
+    }
+
+    // 先尝试登录
+    let result = await gv.signIn(callsign, password);
+
+    // 登录失败：如果是用户不存在或凭据错误，尝试注册
+    if (result.error) {
+      const errMsg = result.error.message || '';
+      const shouldTrySignUp = /invalid login|creds|not found|user not found/i.test(errMsg);
+
+      if (shouldTrySignUp) {
+        console.log('[GV] 登录失败，尝试注册新指挥官:', errMsg);
+        result = await gv.signUp(callsign, password);
+        if (result.error) throw result.error;
+        // 如果 Supabase 开启了邮箱确认，注册后无法立即登录
+        if (result.user && !result.user.email_confirmed_at && !result.user.confirmed_at) {
+          throw new Error('注册成功，但 Supabase 开启了邮箱确认。请在 Supabase Dashboard → Authentication → Providers → Email 中关闭 "Confirm email"，然后刷新重试。');
+        }
+        // 注册成功后重新登录（部分配置下 signUp 即自动登录）
+        if (!result.session) {
+          result = await gv.signIn(callsign, password);
+          if (result.error) throw result.error;
+        }
+        console.log('[GV] 新指挥官注册成功');
+      } else if (/email not confirmed/i.test(errMsg)) {
+        throw new Error('邮箱未确认。请在 Supabase Dashboard → Authentication → Providers → Email 中关闭 "Confirm email"，然后刷新重试。');
+      } else {
+        throw result.error;
+      }
+    }
+
+    if (!result.user) {
+      throw new Error('认证失败，未获取到指挥官身份');
+    }
+
+    // 记住指挥官代号，方便下次
+    safeLS.set('gv_last_callsign', callsign);
+
+    console.log('[GV] 指挥官已接入:', result.user.id.slice(0, 8) + '...');
+    const screen = document.querySelector('#loginScreen');
+    if (screen) screen.classList.add('is-done');
+    setTimeout(finishLogin, 100);
+  } catch (err) {
+    console.error('[GV] 登录失败:', err);
+    setLoginError('× ' + (err.message || '接入失败'));
+    _loginSkip = false;
+    setLoginProcessing(false);
+  }
+}
+
+function logout() {
+  const gv = window.GVSupabase;
+  if (gv && gv.signOut) {
+    gv.signOut().then(() => {
+      location.reload();
+    }).catch(() => {
+      location.reload();
+    });
+  } else {
+    location.reload();
+  }
 }
 
 function typeWriter(el, text, speed, callback) {
@@ -4207,8 +4308,17 @@ function renderSettings() {
     </div>
 
     <div class="settings-group" style="margin-top:16px">
+      <h3>指挥官身份</h3>
+      <p class="muted" style="font-size:12px;margin:0 0 10px">
+        当前代号：<strong style="color:#4da3ff" id="settingsCallsign">未登录</strong><br>
+        <span style="font-size:11px">换设备使用同一代号+密钥即可恢复数据</span>
+      </p>
+      <button onclick="window.__game.logout()" style="width:100%;padding:8px;border:1px solid #ff3f52;border-radius:4px;background:rgba(255,63,82,0.1);color:#ff3f52;cursor:pointer;font-family:var(--font-display);font-size:13px;">⏻ 退出登录</button>
+    </div>
+
+    <div class="settings-group" style="margin-top:16px">
       <h3>关于</h3>
-      <p class="muted" style="font-size:12px;margin:0">银河先遣队作战指挥台 v2.9<br>GVU Strategic Command System</p>
+      <p class="muted" style="font-size:12px;margin:0">银河先遣队作战指挥台 v4.1<br>GVU Strategic Command System</p>
     </div>
 
     <div class="settings-group" style="margin-top:16px">
@@ -4232,6 +4342,15 @@ function renderSettings() {
   const pDur = Math.round(PomodoroTimer.getDuration() / 60);
   const pSel = document.querySelector('#pomodoroDuration');
   if (pSel) pSel.value = String(pDur);
+
+  // 显示当前指挥官代号
+  const callsignEl = document.querySelector('#settingsCallsign');
+  if (callsignEl) {
+    const last = safeLS.get('gv_last_callsign', '');
+    const email = window.GVSupabase?.client?.auth?.currentSession?.user?.email || '';
+    const display = last || email.replace(/@gvu\.local$/, '') || '未知';
+    callsignEl.textContent = display;
+  }
 }
 
 function settingsConnect() {
@@ -4477,8 +4596,24 @@ function importGameData(input) {
   input.value = '';
 }
 
-window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, focusOnUnit, deploy: confirmDeploy, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, doLogin, finishLogin, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory, switchTab, setFleetFilter, settingsConnect, settingsDemo, setPerfMode, setPomodoroDuration, toggleRadar, PomodoroTimer, exportGameData, importGameData };
+window.__game = { complete: completeMission, start: startMission, selectUnit, selectByMission, previewUnit, clearUnitPreview, focusOnUnit, deploy: confirmDeploy, openDeployModal, closeDeployModal, randomDeployName, selectDeploySector, confirmDeploy, doLogin, finishLogin, logout, G, Linear, LinearAPI, StarshipSync, AnimationEngine, WarHistoryStore, renderWarHistory, switchTab, setFleetFilter, settingsConnect, settingsDemo, setPerfMode, setPomodoroDuration, toggleRadar, PomodoroTimer, exportGameData, importGameData };
 window.addEventListener('resize', drawStarfield);
+
+// 预填上次使用的指挥官代号
+const callsignInput = document.querySelector('#loginCallsign');
+if (callsignInput) {
+  const last = safeLS.get('gv_last_callsign', '');
+  if (last) callsignInput.value = last;
+}
+
+// 登录框支持回车提交
+const _loginCallsignInput = document.querySelector('#loginCallsign');
+const _loginKeyInput = document.querySelector('#loginKey');
+function onLoginKeyDown(e) {
+  if (e.key === 'Enter') doLogin();
+}
+if (_loginCallsignInput) _loginCallsignInput.addEventListener('keydown', onLoginKeyDown);
+if (_loginKeyInput) _loginKeyInput.addEventListener('keydown', onLoginKeyDown);
 
 const loginButton = document.querySelector('#loginBtn');
 if (loginButton && !loginButton.dataset.bound) {
@@ -4491,3 +4626,13 @@ if (radarButton && !radarButton.dataset.bound) {
   radarButton.dataset.bound = 'true';
   radarButton.addEventListener('click', toggleRadar);
 }
+
+// 如果已有登录会话（比如同浏览器刷新），自动接入
+setTimeout(() => {
+  if (window.GVSupabase && window.GVSupabase.isReady) {
+    console.log('[GV] 检测到已有登录会话，自动接入');
+    const screen = document.querySelector('#loginScreen');
+    if (screen) screen.classList.add('is-done');
+    setTimeout(finishLogin, 100);
+  }
+}, 300);

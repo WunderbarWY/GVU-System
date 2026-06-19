@@ -7,9 +7,9 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>银河先遣队作战指挥台</title>
-    <link rel="stylesheet" href="./styles.css?v=supabase-3" />
-    <link rel="stylesheet" href="./effects.css?v=supabase-3" />
-    <link rel="stylesheet" href="./console-skin.css?v=supabase-3" />
+    <link rel="stylesheet" href="./styles.css?v=supabase-5" />
+    <link rel="stylesheet" href="./effects.css?v=supabase-5" />
+    <link rel="stylesheet" href="./console-skin.css?v=supabase-5" />
     <script>
       // 应急诊断脚本 — 检测启动卡死
       console.log('[DIAG] Emergency script loaded');
@@ -67,12 +67,14 @@
         <div class="login-form" id="loginForm">
           <div class="login-field">
             <label>指挥官代号</label>
-            <input type="text" id="loginCallsign" value="COMMANDER-1" readonly />
+            <input type="text" id="loginCallsign" placeholder="例如 COMMANDER-1" autocomplete="username" />
           </div>
           <div class="login-field">
             <label>安全密钥</label>
-            <input type="password" id="loginKey" value="••••••••" readonly />
+            <input type="password" id="loginKey" placeholder="至少 6 位" autocomplete="current-password" />
           </div>
+          <p id="loginError" style="margin:8px 0 0;font-size:12px;color:#ff3f52;min-height:18px;text-align:center;"></p>
+          <p style="margin:8px 0 0;font-size:11px;color:rgba(172,219,255,0.6);text-align:center;">新指挥官会自动注册，老指挥官直接登录</p>
           <button class="login-btn" id="loginBtn" type="button">
             <span class="login-btn-text">接入系统</span>
             <span class="login-btn-glow"></span>
@@ -374,11 +376,11 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="./src/config/supabase.js?v=supabase-3"></script>
-    <script src="./src/config/game.js?v=supabase-3"></script>
-    <script src="./src/api/supabase.js?v=supabase-3"></script>
-    <script src="./app.js?v=supabase-3"></script>
-    <script src="./tactical-renderer.js?v=supabase-3"></script>
+    <script src="./src/config/supabase.js?v=supabase-4"></script>
+    <script src="./src/config/game.js?v=supabase-4"></script>
+    <script src="./src/api/supabase.js?v=supabase-5"></script>
+    <script src="./app.js?v=supabase-6"></script>
+    <script src="./tactical-renderer.js?v=supabase-6"></script>
     <script>
       // 版本检测：如果旧 JS 被缓存，PomodoroTimer 不存在，提示刷新
       (function checkVersion() {

@@ -739,6 +739,10 @@
     invalidate: measure,
     hitTest,
     playEffect,
+    getUnitPosition(unitId) {
+      const position = state.layoutPositions.get(unitId);
+      return position ? { ...position } : null;
+    },
     getStats() {
       return {
         running: state.running,
