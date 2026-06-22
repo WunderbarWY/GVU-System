@@ -6,8 +6,8 @@
 (function initTacticalRenderer() {
   'use strict';
 
-  const WORLD_WIDTH = 16000;
-  const WORLD_HEIGHT = 10400;
+  const WORLD_WIDTH = 24000;
+  const WORLD_HEIGHT = 15600;
   const DPR_CAP = 1.5;
   const FACTION_COLORS = {
     vanguard: '#4da3ff',
@@ -16,20 +16,20 @@
     remnant: '#ff3f52',
   };
   const SHIP_SIZES = {
-    raider: 14,
-    frigate: 17,
-    destroyer: 21,
-    cruiser: 26,
-    battleship: 32,
-    dreadnought: 38,
+    raider: 12,
+    frigate: 14,
+    destroyer: 17,
+    cruiser: 21,
+    battleship: 26,
+    dreadnought: 31,
   };
   const ORBITS = [
-    [2800, 1844],
-    [4900, 3143],
-    [6850, 4390],
-    [10300, 6383],
-    [12700, 7880],
-    [15800, 10073],
+    [4200, 2766],
+    [7350, 4715],
+    [10275, 6585],
+    [15450, 9575],
+    [19050, 11820],
+    [23700, 15110],
   ];
   const ROUTES = [
     { faction: 'vanguard', p: [500, 360, 420, 300, 350, 330, 280, 390] },
@@ -61,6 +61,20 @@
     dreadnought: 5,
   };
   const GLYPH_CACHE = new Map();
+  const SECTORS = [
+    { label: 'INNER VANGUARD CONTROL', faction: 'vanguard', x: 27, y: 45, rx: 15, ry: 10, rot: -0.1 },
+    { label: 'EARTH GOV BLOCKADE', faction: 'egov', x: 64, y: 31, rx: 18, ry: 12, rot: -0.28 },
+    { label: 'JUPITER INDUSTRIAL FLEET', faction: 'jupiter', x: 73, y: 68, rx: 22, ry: 13, rot: 0.24 },
+    { label: 'REMNANT RAID CORRIDOR', faction: 'remnant', x: 21, y: 82, rx: 19, ry: 11, rot: -0.38 },
+  ];
+  const DEEP_SPACE_MARKS = [
+    { x: 16, y: 23, text: 'LAGRANGE LISTENING POST / L2-03' },
+    { x: 41, y: 16, text: 'UNCLAIMED TRANSFER WINDOW' },
+    { x: 68, y: 18, text: 'VENUS APPROACH EXCLUSION' },
+    { x: 90, y: 48, text: 'OUTER FLEET MUSTER AREA' },
+    { x: 47, y: 73, text: 'DEBRIS BELT / LOW CONFIDENCE' },
+    { x: 11, y: 65, text: 'SIGNAL LOSS ZONE' },
+  ];
 
   const state = {
     stage: null,
@@ -203,7 +217,7 @@
           let dy = b.y - a.y;
           let distance = Math.hypot(dx, dy);
           const sameFaction = a.unit.faction === b.unit.faction;
-          const minSep = Math.max(2.4, Math.min(7.2, (a.size + b.size) * (sameFaction ? 0.09 : 0.12)));
+          const minSep = Math.max(1.6, Math.min(5.4, (a.size + b.size) * (sameFaction ? 0.075 : 0.105)));
           if (distance >= minSep) continue;
           if (distance < 0.01) {
             const seed = (i * 37 + j * 17) % 360;
@@ -233,6 +247,117 @@
     });
   }
 
+  function drawWorldGrid(ctx, width, height) {
+    ctx.save();
+    ctx.lineWidth = 1;
+    for (let x = 0; x < width; x += 96) {
+      const alpha = x % 384 === 0 ? 0.058 : 0.023;
+      ctx.strokeStyle = `rgba(110,150,180,${alpha})`;
+      ctx.beginPath();
+      ctx.moveTo(x + 0.5, 0);
+      ctx.lineTo(x + 0.5, height);
+      ctx.stroke();
+    }
+    for (let y = 0; y < height; y += 96) {
+      const alpha = y % 384 === 0 ? 0.052 : 0.02;
+      ctx.strokeStyle = `rgba(110,150,180,${alpha})`;
+      ctx.beginPath();
+      ctx.moveTo(0, y + 0.5);
+      ctx.lineTo(width, y + 0.5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawSectorOverlays(ctx) {
+    SECTORS.forEach(sector => {
+      const center = worldPoint(sector.x, sector.y);
+      const rx = state.worldRect.width * sector.rx / 100;
+      const ry = state.worldRect.height * sector.ry / 100;
+      const color = FACTION_COLORS[sector.faction] || '#8fa8bc';
+      if (!visible(center, Math.max(rx, ry) + 120)) return;
+      ctx.save();
+      ctx.translate(center.x, center.y);
+      ctx.rotate(sector.rot);
+      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.max(rx, ry));
+      gradient.addColorStop(0, rgba(color, 0.055));
+      gradient.addColorStop(0.56, rgba(color, 0.025));
+      gradient.addColorStop(1, rgba(color, 0));
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.setLineDash([11, 18]);
+      ctx.strokeStyle = rgba(color, 0.16);
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = rgba(color, 0.58);
+      ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(sector.label, 0, -ry - 12);
+      ctx.restore();
+    });
+  }
+
+  function drawDeepSpaceMarks(ctx) {
+    ctx.save();
+    ctx.font = '9px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.textBaseline = 'middle';
+    DEEP_SPACE_MARKS.forEach((mark, index) => {
+      const p = worldPoint(mark.x, mark.y);
+      if (!visible(p, 160)) return;
+      const alpha = 0.18 + (index % 3) * 0.035;
+      ctx.strokeStyle = `rgba(120,158,190,${alpha})`;
+      ctx.fillStyle = `rgba(156,188,214,${alpha + 0.08})`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 8]);
+      ctx.beginPath();
+      ctx.moveTo(p.x - 34, p.y);
+      ctx.lineTo(p.x - 8, p.y);
+      ctx.moveTo(p.x + 8, p.y);
+      ctx.lineTo(p.x + 34, p.y);
+      ctx.moveTo(p.x, p.y - 22);
+      ctx.lineTo(p.x, p.y - 8);
+      ctx.moveTo(p.x, p.y + 8);
+      ctx.lineTo(p.x, p.y + 22);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillText(mark.text, p.x + 42, p.y + 1);
+    });
+    ctx.restore();
+  }
+
+  function drawInnerBelt(ctx) {
+    const center = worldPoint(50, 50);
+    const scaleX = state.worldRect.width / WORLD_WIDTH;
+    const scaleY = state.worldRect.height / WORLD_HEIGHT;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(136,160,183,0.09)';
+    ctx.fillStyle = 'rgba(166,184,199,0.12)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([1, 20]);
+    ctx.beginPath();
+    ctx.ellipse(center.x, center.y, 8200 * scaleX / 2, 5300 * scaleY / 2, 0.05, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    for (let i = 0; i < 120; i += 1) {
+      const angle = (i * 2.399963) % (Math.PI * 2);
+      const jitter = 0.88 + ((i * 37) % 29) / 180;
+      const x = center.x + Math.cos(angle) * 4100 * scaleX * jitter;
+      const y = center.y + Math.sin(angle) * 2650 * scaleY * jitter;
+      if (!visible({ x, y }, 20)) continue;
+      ctx.globalAlpha = 0.18 + (i % 5) * 0.018;
+      ctx.fillRect(x, y, 1.2, 1.2);
+    }
+    ctx.restore();
+  }
+
   function drawStaticLayer() {
     const ctx = state.staticCtx;
     const width = state.stageRect.width;
@@ -240,21 +365,39 @@
     ctx.clearRect(0, 0, width, height);
     state.metrics.staticRenders += 1;
 
+    const backdrop = ctx.createRadialGradient(width * 0.48, height * 0.49, 0, width * 0.48, height * 0.49, Math.max(width, height) * 0.72);
+    backdrop.addColorStop(0, 'rgba(31, 42, 55, 0.18)');
+    backdrop.addColorStop(0.34, 'rgba(7, 17, 31, 0.18)');
+    backdrop.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = backdrop;
+    ctx.fillRect(0, 0, width, height);
+
+    drawWorldGrid(ctx, width, height);
+    drawSectorOverlays(ctx);
+    drawInnerBelt(ctx);
+    drawDeepSpaceMarks(ctx);
+
     const center = worldPoint(50, 50);
     const scaleX = state.worldRect.width / WORLD_WIDTH;
     const scaleY = state.worldRect.height / WORLD_HEIGHT;
     ctx.save();
-    ctx.setLineDash([2, 12]);
     ORBITS.forEach((orbit, index) => {
       ctx.beginPath();
       ctx.ellipse(center.x, center.y, orbit[0] * scaleX / 2, orbit[1] * scaleY / 2, 0, 0, Math.PI * 2);
-      ctx.strokeStyle = index === 2 ? 'rgba(77,163,255,0.17)' : 'rgba(190,218,238,0.105)';
-      ctx.lineWidth = index === 2 ? 1.1 : 0.75;
+      ctx.strokeStyle = index === 2 ? 'rgba(77,163,255,0.23)' : index > 3 ? 'rgba(188,205,220,0.08)' : 'rgba(190,218,238,0.12)';
+      ctx.lineWidth = index === 2 ? 1.25 : 0.82;
+      ctx.setLineDash(index > 2 ? [2, 18] : [2, 11]);
       ctx.stroke();
+      if (index === 2 || index === 4) {
+        ctx.setLineDash([]);
+        ctx.strokeStyle = index === 2 ? 'rgba(77,163,255,0.08)' : 'rgba(255,210,81,0.055)';
+        ctx.lineWidth = 8;
+        ctx.stroke();
+      }
     });
     ctx.restore();
 
-    const phase = (performance.now() * 0.018) % 28;
+    const phase = (performance.now() * 0.012) % 44;
     ROUTES.forEach(route => {
       const color = FACTION_COLORS[route.faction] || '#7f93a8';
       const p = route.p;
@@ -266,12 +409,22 @@
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.bezierCurveTo(b.x, b.y, c.x, c.y, d.x, d.y);
-      ctx.strokeStyle = rgba(color, route.faction === 'neutral' ? 0.18 : 0.48);
-      ctx.lineWidth = route.faction === 'neutral' ? 0.8 : 1.25;
-      ctx.setLineDash(route.faction === 'neutral' ? [2, 18] : [3, 13]);
+      ctx.strokeStyle = rgba(color, route.faction === 'neutral' ? 0.08 : 0.14);
+      ctx.lineWidth = route.faction === 'neutral' ? 4.2 : 6;
+      ctx.setLineDash([]);
+      ctx.shadowColor = rgba(color, route.faction === 'neutral' ? 0 : 0.2);
+      ctx.shadowBlur = route.faction === 'neutral' ? 0 : 10;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.bezierCurveTo(b.x, b.y, c.x, c.y, d.x, d.y);
+      ctx.strokeStyle = rgba(color, route.faction === 'neutral' ? 0.18 : 0.54);
+      ctx.lineWidth = route.faction === 'neutral' ? 0.72 : 1.1;
+      ctx.setLineDash(route.faction === 'neutral' ? [2, 24] : [5, 18]);
       ctx.lineDashOffset = -phase;
-      ctx.shadowColor = rgba(color, 0.35);
-      ctx.shadowBlur = route.faction === 'neutral' ? 0 : 5;
+      ctx.shadowColor = rgba(color, 0.22);
+      ctx.shadowBlur = route.faction === 'neutral' ? 0 : 4;
       ctx.stroke();
       ctx.restore();
     });
@@ -384,7 +537,7 @@
       const point = worldPoint(candidate.x, candidate.y);
       if (!visible(point, 80)) return;
       const distance = Math.hypot(localX - point.x, localY - point.y);
-      const radius = Math.max(22, candidate.size * Math.max(0.48, scale) * 0.82);
+      const radius = Math.max(18, candidate.size * Math.max(0.42, scale) * 1.25);
       const score = distance / radius;
       if (score < bestDistance) {
         bestDistance = score;
@@ -498,8 +651,8 @@
     const point = worldPoint(x, y);
     const type = neutral ? 'frigate' : normalizeClass(unit.shipClass);
     const worldScale = Math.min(state.worldRect.width / WORLD_WIDTH, state.worldRect.height / WORLD_HEIGHT);
-    const baseSize = neutral ? Math.min(unit.size || 30, 34) : (SHIP_SIZES[type] || SHIP_SIZES.destroyer);
-    const size = baseSize * Math.max(0.24, Math.min(worldScale, 0.95));
+    const baseSize = neutral ? Math.min(unit.size || 24, 28) : (SHIP_SIZES[type] || SHIP_SIZES.destroyer);
+    const size = baseSize * Math.max(0.24, Math.min(worldScale, 0.82));
     if (!visible(point, size * 3)) {
       state.culled += 1;
       return;

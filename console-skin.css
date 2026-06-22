@@ -1200,20 +1200,20 @@
 #celestialBodies,
 #unitLayer,
 #neutralLayer {
-  width: 16000px;
-  height: 10400px;
+  width: 24000px;
+  height: 15600px;
 }
 
 .map-world {
   transform: translate3d(-50%, -50%, 0) translate3d(var(--pan-x, 0px), var(--pan-y, 0px), 0) scale(var(--zoom, 0.14));
 }
 
-.orbit-mercury { width: 2800px; height: 1844px; }
-.orbit-venus { width: 4900px; height: 3143px; }
-.orbit-earth { width: 6850px; height: 4390px; }
-.orbit-jupiter { width: 10300px; height: 6383px; }
-.orbit-saturn { width: 12700px; height: 7880px; }
-.orbit-pluto { width: 15800px; height: 10073px; }
+.orbit-mercury { width: 4200px; height: 2766px; }
+.orbit-venus { width: 7350px; height: 4715px; }
+.orbit-earth { width: 10275px; height: 6585px; }
+.orbit-jupiter { width: 15450px; height: 9575px; }
+.orbit-saturn { width: 19050px; height: 11820px; }
+.orbit-pluto { width: 23700px; height: 15110px; }
 
 /* v6.0 Layered tactical renderer
    Canvas owns high-frequency visuals; DOM remains the interaction/accessibility layer. */

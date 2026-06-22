@@ -529,20 +529,90 @@ const WIPStore = {
 // ============================================
 const WarHistoryStore = {
   _key: 'gv_war_history',
+  _queueKey: 'gvu_war_history_queue',
   _maxRecords: 50,
 
   load() {
-    try { return JSON.parse(localStorage.getItem(this._key)) || { records: [], stats: {} }; } catch { return { records: [], stats: {} }; }
+    try {
+      const data = JSON.parse(localStorage.getItem(this._key)) || { records: [], stats: {} };
+      data.records = (data.records || []).map(r => this._normalizeRecord(r));
+      return data;
+    } catch {
+      return { records: [], stats: {} };
+    }
   },
-  save(data) { safeLS.setJSON(this._key, data); },
+  save(data) {
+    data.records = (data.records || []).map(r => this._normalizeRecord(r));
+    safeLS.setJSON(this._key, data);
+  },
 
-  // 把单条记录同步到 Supabase
+  _createClientId(prefix = 'wh') {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return prefix + '-' + crypto.randomUUID();
+    return prefix + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+  },
+
+  _normalizeRecord(record) {
+    const r = { ...(record || {}) };
+    r.clientId = r.clientId || r.client_id || r.id || this._createClientId('wh-legacy');
+    r.id = r.id || r.clientId;
+    r.time = r.time || new Date().toISOString();
+    r.synced = !!r.synced;
+    return r;
+  },
+
+  hasKill(missionId) {
+    if (!missionId) return false;
+    return this.get().records.some(r => r.type === 'kill' && r.missionId === missionId);
+  },
+
+  _enqueue(record) {
+    const normalized = this._normalizeRecord(record);
+    const queue = this._loadQueue();
+    if (!queue.some(r => r.clientId === normalized.clientId)) {
+      queue.push(normalized);
+      this._saveQueue(queue);
+    }
+  },
+
+  _dequeue(clientId) {
+    this._saveQueue(this._loadQueue().filter(r => r.clientId !== clientId));
+  },
+
+  _loadQueue() {
+    try {
+      return (JSON.parse(localStorage.getItem(this._queueKey)) || []).map(r => this._normalizeRecord(r));
+    } catch {
+      return [];
+    }
+  },
+
+  _saveQueue(queue) {
+    safeLS.setJSON(this._queueKey, queue || []);
+  },
+
+  flushQueue() {
+    this._loadQueue().slice(0, 50).forEach(record => this._syncRecord(record));
+  },
+
+  // 把单条记录同步到 Supabase。失败时进入本地队列，等待网络/登录恢复后重试。
   async _syncRecord(record) {
     const gv = window.GVSupabase;
-    if (!gv || !gv.isReady) return;
+    record = this._normalizeRecord(record);
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      this._enqueue(record);
+      return false;
+    }
+    if (!gv || !gv.isReady) {
+      this._enqueue(record);
+      return false;
+    }
     const userId = gv.getUserId();
-    if (!userId) return;
+    if (!userId) {
+      this._enqueue(record);
+      return false;
+    }
     const payload = {
+      client_id: record.clientId,
       user_id: userId,
       type: record.type,
       time: record.time || new Date().toISOString(),
@@ -558,12 +628,26 @@ const WarHistoryStore = {
       session_num: record.sessionNum || null,
       description: record.desc || null,
       count: record.count || null,
-      metadata: { client_id: record.id },
+      metadata: record.metadata || {},
     };
     try {
-      await gv.insert('war_history', payload);
+      const result = gv.upsert
+        ? await gv.upsert('war_history', payload, { onConflict: 'client_id' })
+        : await gv.insert('war_history', payload);
+      if (result?.error) throw result.error;
+      record.synced = true;
+      this._dequeue(record.clientId);
+      const data = this.get();
+      const local = data.records.find(r => r.clientId === record.clientId || r.id === record.id);
+      if (local) {
+        local.synced = true;
+        this.save(data);
+      }
+      return true;
     } catch (err) {
-      console.warn('[WarHistoryStore] 云端同步失败:', err.message);
+      console.warn('[WarHistoryStore] 云端同步失败，已加入离线队列:', err.message);
+      this._enqueue(record);
+      return false;
     }
   },
 
@@ -577,7 +661,8 @@ const WarHistoryStore = {
     });
     if (error || !data) return null;
     const records = data.map(row => ({
-      id: row.metadata?.client_id || ('wh-cloud-' + row.id),
+      id: row.client_id || row.metadata?.client_id || ('wh-cloud-' + row.id),
+      clientId: row.client_id || row.metadata?.client_id || ('wh-cloud-' + row.id),
       type: row.type,
       time: row.time,
       shipName: row.ship_name || '',
@@ -592,6 +677,8 @@ const WarHistoryStore = {
       sessionNum: row.session_num || null,
       desc: row.description || '',
       count: row.count || null,
+      metadata: row.metadata || {},
+      synced: true,
     }));
     const today = new Date().toISOString().split('T')[0];
     const stats = {
@@ -636,37 +723,52 @@ const WarHistoryStore = {
   recordKill(unit, wipEarned) {
     const data = this.get();
     const now = new Date();
-    data.records.unshift({
-      id: 'wh-k-' + now.getTime(),
+    const missionId = unit?.missionId || unit?.mission?.linearId || unit?.id || '';
+    const existing = missionId ? data.records.find(r => r.type === 'kill' && r.missionId === missionId) : null;
+    if (existing) return existing;
+    const shipClass = unit?.shipClass || priorityToClass(unit?.priority);
+    const faction = unit?.faction || 'vanguard';
+    const clientId = unit?.clientId || this._createClientId('wh-k');
+    const record = {
+      id: clientId,
+      clientId,
       type: 'kill',
       time: now.toISOString(),
-      shipName: unit.name,
-      shipClass: SHIP_CLASSES[unit.shipClass]?.label || unit.shipClass,
-      faction: unit.faction,
-      factionName: FACTIONS[unit.faction]?.name || unit.faction,
-      missionTitle: unit.mission?.title || '',
-      missionId: unit.mission?.linearId || '',
-      wipEarned: wipEarned || 0,
-      location: nearestPlanet(unit.x, unit.y),
-    });
+      shipName: unit?.shipName || unit?.name || '先锋舰',
+      shipClass: SHIP_CLASSES[shipClass]?.label || shipClass || '',
+      faction,
+      factionName: FACTIONS[faction]?.name || faction,
+      missionTitle: unit?.missionTitle || unit?.title || unit?.mission?.title || '',
+      missionId,
+      wipEarned: unit?.wipEarned ?? wipEarned ?? 0,
+      location: unit?.location || (Number.isFinite(unit?.x) && Number.isFinite(unit?.y) ? nearestPlanet(unit.x, unit.y) : ''),
+      desc: unit?.desc || ('任务完成：' + (unit?.missionTitle || unit?.title || unit?.mission?.title || missionId || '未命名任务')),
+      metadata: {
+        source: unit?.source || 'manual',
+        title: unit?.missionTitle || unit?.title || unit?.mission?.title || null,
+      },
+      synced: false,
+    };
+    record.id = record.clientId;
+    data.records.unshift(record);
     if (data.records.length > this._maxRecords) data.records.pop();
 
     data.stats.totalKills = (data.stats.totalKills || 0) + 1;
     data.stats.enemiesDestroyed = data.stats.totalKills;
     data.stats.todayKills = (data.stats.todayKills || 0) + 1;
-    data.stats.todayWip = (data.stats.todayWip || 0) + (wipEarned || 0);
-    this._incFactionStat(data.stats, unit.faction);
+    data.stats.todayWip = (data.stats.todayWip || 0) + (record.wipEarned || 0);
+    this._incFactionStat(data.stats, faction);
     this.save(data);
-    this._syncRecord(data.records[0]);
-    return data;
+    this._syncRecord(record);
+    return record;
   },
 
   // 记录一次部署
   recordDeploy(ship) {
     const data = this.get();
     const now = new Date();
-    data.records.unshift({
-      id: 'wh-d-' + now.getTime(),
+    const record = {
+      id: this._createClientId('wh-d'),
       type: 'deploy',
       time: now.toISOString(),
       shipName: ship.name,
@@ -674,30 +776,43 @@ const WarHistoryStore = {
       faction: 'vanguard',
       factionName: FACTIONS.vanguard.name,
       wipSpent: DEPLOY_COSTS[ship.shipClass] || 0,
-    });
+      metadata: { source: 'manual' },
+      synced: false,
+    };
+    record.clientId = record.id;
+    data.records.unshift(record);
     data.stats.totalDeployments = (data.stats.totalDeployments || 0) + 1;
     if (data.records.length > this._maxRecords) data.records.pop();
     this.save(data);
-    this._syncRecord(data.records[0]);
+    this._syncRecord(record);
     return data;
   },
 
   // 记录番茄钟完成
   recordPomodoro(wipEarned, sessionNum) {
+    if (typeof wipEarned === 'object' && wipEarned !== null) {
+      const info = wipEarned;
+      wipEarned = info.wipEarned ?? info.added ?? 0;
+      sessionNum = info.sessionNum ?? info.session ?? sessionNum;
+    }
     const data = this.get();
     const now = new Date();
-    data.records.unshift({
-      id: 'wh-p-' + now.getTime(),
+    const duration = PomodoroTimer?.getState ? PomodoroTimer.getState().duration / 60 : 0;
+    const record = {
+      id: this._createClientId('wh-p'),
       type: 'pomodoro',
       time: now.toISOString(),
       wipEarned: wipEarned || 0,
       sessionNum: sessionNum || 1,
-      desc: `完成第 ${sessionNum} 个番茄钟，专注 ${PomodoroTimer.getState().duration / 60} 分钟`,
-    });
+      desc: `完成第 ${sessionNum || 1} 个番茄钟，专注 ${duration} 分钟`,
+      metadata: { added: wipEarned || 0, removed: 0 },
+      synced: false,
+    };
+    record.clientId = record.id;
+    data.records.unshift(record);
     if (data.records.length > this._maxRecords) data.records.pop();
     this.save(data);
-    if (added > 0) this._syncRecord(data.records.find(r => r.type === 'sync-in'));
-    if (removed > 0) this._syncRecord(data.records.find(r => r.type === 'sync-out'));
+    this._syncRecord(record);
     return data;
   },
 
@@ -723,28 +838,43 @@ const WarHistoryStore = {
 
   // 记录同步事件（新威胁/撤离）
   recordSync(added, removed) {
+    if (typeof added === 'object' && added !== null) {
+      const info = added;
+      added = info.added || 0;
+      removed = info.removed || 0;
+    }
     const data = this.get();
     const now = new Date();
+    const recordsToSync = [];
     if (added > 0) {
-      data.records.unshift({
-        id: 'wh-s-' + now.getTime(),
+      recordsToSync.push({
+        id: this._createClientId('wh-s'),
         type: 'sync-in',
         time: now.toISOString(),
         count: added,
         desc: `探测到 ${added} 艘新敌舰`,
+        metadata: { syncType: 'in', added, removed: 0 },
+        synced: false,
       });
     }
     if (removed > 0) {
-      data.records.unshift({
-        id: 'wh-s-' + (now.getTime() + 1),
+      recordsToSync.push({
+        id: this._createClientId('wh-s'),
         type: 'sync-out',
         time: now.toISOString(),
         count: removed,
         desc: `${removed} 艘敌舰已撤离`,
+        metadata: { syncType: 'out', added: 0, removed },
+        synced: false,
       });
     }
+    recordsToSync.forEach(record => {
+      record.clientId = record.id;
+      data.records.unshift(record);
+    });
     while (data.records.length > this._maxRecords) data.records.pop();
     this.save(data);
+    recordsToSync.forEach(record => this._syncRecord(record));
     return data;
   },
 
@@ -774,6 +904,21 @@ const WarHistoryStore = {
     this.save({ records: [], stats: {} });
   },
 };
+
+Object.defineProperty(G, 'warHistory', {
+  configurable: true,
+  get() {
+    return WarHistoryStore.get().records;
+  },
+  set(records) {
+    const data = WarHistoryStore.get();
+    data.records = Array.isArray(records) ? records : [];
+    WarHistoryStore.save(data);
+  },
+});
+
+window.addEventListener('online', () => WarHistoryStore.flushQueue());
+window.addEventListener('DOMContentLoaded', () => WarHistoryStore.flushQueue());
 
 // ============================================
 // 番茄钟系统 v2.9 — 真正的倒计时番茄钟
@@ -1741,6 +1886,31 @@ const StarshipSync = {
     setTimeout(() => flash.remove(), 850);
   },
 
+  _findCompletedIssue(issue) {
+    const done = Linear.done.find(d => d.id === issue.id);
+    if (!done) return null;
+    return done.status === 'done' || !done.status ? { ...issue, ...done, status: 'done' } : null;
+  },
+
+  _recordLinearCompletion(issue) {
+    if (!issue?.id || WarHistoryStore.hasKill(issue.id)) return;
+    const unit = G.units.find(u => u.mission?.linearId === issue.id);
+    const wipGain = WIPStore.addKill(issue.estimate || unit?.mission?.estimate || 0);
+    updateWipUI();
+    WarHistoryStore.recordKill({
+      missionId: issue.id,
+      shipName: unit?.name || issue.shipName || issue.title || '先锋舰',
+      shipClass: unit?.shipClass || priorityToClass(issue.priority),
+      faction: unit?.faction || issue.faction || 'egov',
+      missionTitle: issue.title || unit?.mission?.title || '',
+      title: issue.title || unit?.mission?.title || '',
+      wipEarned: wipGain,
+      location: unit ? nearestPlanet(unit.x, unit.y) : '',
+      source: 'linear',
+      desc: 'Linear 已完成：' + (issue.title || issue.id),
+    });
+  },
+
   // ---------- 增量同步入口 ----------
   applyIncremental() {
     const oldIssues = G._lastSyncedIssues || [];
@@ -1761,6 +1931,8 @@ const StarshipSync = {
 
     // 移除飞船（播放离场动画）— 永久旗舰除外
     diff.removed.forEach(issue => {
+      const completedIssue = this._findCompletedIssue(issue);
+      if (completedIssue) this._recordLinearCompletion(completedIssue);
       const unit = G.units.find(u => u.mission?.linearId === issue.id);
       if (unit && unit.status !== 'destroyed' && !unit.isPermanent) {
         this.despawnAnimation(unit.id);
@@ -1769,7 +1941,10 @@ const StarshipSync = {
     });
 
     // 更新飞船属性
-    diff.changed.forEach(({ new: newIssue }) => {
+    diff.changed.forEach(({ old: oldIssue, new: newIssue }) => {
+      if (oldIssue?.status !== 'done' && newIssue.status === 'done') {
+        this._recordLinearCompletion(newIssue);
+      }
       const unit = G.units.find(u => u.mission?.linearId === newIssue.id);
       if (unit && unit.status !== 'destroyed') {
         this.updateUnit(unit, newIssue);
@@ -2326,6 +2501,21 @@ function renderWarHistory() {
             <span class="wh-dot" style="background:#17d7b6;box-shadow:0 0 6px rgba(23,215,182,0.25);"></span>
             <span class="wh-text">${escapeHtml(r.desc)}</span>
           </div>`;
+      } else if (r.type === 'pomodoro') {
+        html += `
+          <div class="wh-item sync">
+            <span class="wh-time${isToday ? ' today' : ''}">${timeStr}</span>
+            <span class="wh-dot" style="background:#ffd251;box-shadow:0 0 6px rgba(255,210,81,0.25);"></span>
+            <span class="wh-text">${escapeHtml(r.desc || '完成番茄钟')}</span>
+            ${r.wipEarned ? `<span class="wh-wip">+${r.wipEarned}</span>` : ''}
+          </div>`;
+      } else {
+        html += `
+          <div class="wh-item sync">
+            <span class="wh-time${isToday ? ' today' : ''}">${timeStr}</span>
+            <span class="wh-dot" style="background:#8fc8ff;box-shadow:0 0 6px rgba(143,200,255,0.2);"></span>
+            <span class="wh-text">${escapeHtml(r.desc || r.shipName || r.type || '战史记录')}</span>
+          </div>`;
       }
     }
     html += `</div>`;
@@ -2375,20 +2565,6 @@ async function completeMission(unitId) {
   // 1. 本地视觉效果：克制的战术锁定/失联反馈，避免廉价粒子爆炸
   tacticalStrike(impact.x, impact.y, FACTIONS[u.faction].color);
   renderDetail(null);
-
-  // 战史记录
-  G.warHistory.unshift({
-    type: 'victory',
-    turn: G.turn,
-    time: new Date().toISOString(),
-    shipName: u.name,
-    shipClass: SHIP_CLASSES[u.shipClass].label,
-    faction: u.faction,
-    location: nearestPlanet(u.x, u.y),
-    missionId: u.mission.linearId,
-    missionTitle: u.mission.title,
-  });
-  if (G.warHistory.length > CONFIG.MAX_HISTORY) G.warHistory.pop();
 
   // 统计更新
   G.stats.kills++;
@@ -3200,8 +3376,8 @@ function meter(label, value, color) {
 // ============================================
 // 地图控制（保留 Codex 全部交互）
 // ============================================
-const MAP_DEFAULT_ZOOM = 0.14;
-const MAP_MIN_ZOOM = 0.045;
+const MAP_DEFAULT_ZOOM = 0.105;
+const MAP_MIN_ZOOM = 0.032;
 const MAP_MAX_ZOOM = 2.4;
 const map = { zoom: MAP_DEFAULT_ZOOM, panX: 0, panY: 0, dragging: false, sx: 0, sy: 0, ox: 0, oy: 0, frame: 0, hoverId: null };
 function applyMap() {
@@ -3909,6 +4085,7 @@ async function bootMain() {
             console.log('[GV] 云端无战史，迁移本地数据');
             await WarHistoryStore.migrateToCloud();
           }
+          WarHistoryStore.flushQueue();
         } else {
           console.warn('[GV] 匿名认证未完成，继续使用本地存储');
         }
@@ -4115,15 +4292,20 @@ function renderCampaign() {
   }
 
   timelineEl.innerHTML = records.map(r => {
-    const color = r.type === 'victory' ? '#17d7b6' : r.type === 'defeat' ? '#ff3f52' : '#ffd251';
-    const icon = r.type === 'victory' ? '✦' : r.type === 'defeat' ? '✕' : '◈';
+    const color = r.type === 'kill' ? '#17d7b6' : r.type === 'deploy' ? '#4da3ff' : r.type === 'pomodoro' ? '#ffd251' : '#8fc8ff';
+    const icon = r.type === 'kill' ? '✦' : r.type === 'deploy' ? '◈' : r.type === 'pomodoro' ? '◎' : '·';
+    const dateStr = r.time ? new Date(r.time).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+    const title = r.shipName
+      ? `${r.shipName}${r.shipClass ? ' · ' + r.shipClass : ''}`
+      : ({ 'sync-in': 'Linear 同步', 'sync-out': 'Linear 同步', pomodoro: '专注记录' }[r.type] || '战史记录');
+    const desc = r.desc || r.missionTitle || r.description || '';
     return `
       <div class="timeline-item">
         <span style="color:${color};font-size:14px;width:20px;text-align:center">${icon}</span>
-        <span class="timeline-date">${escapeHtml(r.date)}</span>
+        <span class="timeline-date">${escapeHtml(dateStr)}</span>
         <div class="timeline-content">
-          <div class="timeline-title">${escapeHtml(r.title)}</div>
-          <div class="timeline-desc">${escapeHtml(r.description || '')}</div>
+          <div class="timeline-title">${escapeHtml(title)}</div>
+          <div class="timeline-desc">${escapeHtml(desc)}</div>
         </div>
       </div>
     `;

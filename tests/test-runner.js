@@ -4,16 +4,25 @@
 
 const _tests = [];
 let _currentSuite = '';
+let _currentBeforeEach = null;
 let _pass = 0, _fail = 0, _skip = 0;
 
 function describe(name, fn) {
+  const prevSuite = _currentSuite;
+  const prevBeforeEach = _currentBeforeEach;
   _currentSuite = name;
+  _currentBeforeEach = null;
   fn();
-  _currentSuite = '';
+  _currentSuite = prevSuite;
+  _currentBeforeEach = prevBeforeEach;
+}
+
+function beforeEach(fn) {
+  _currentBeforeEach = fn;
 }
 
 function it(name, fn) {
-  _tests.push({ suite: _currentSuite, name, fn });
+  _tests.push({ suite: _currentSuite, name, fn, beforeEach: _currentBeforeEach });
 }
 
 function xit(name, _fn) {
@@ -87,6 +96,7 @@ async function runTests() {
   for (const t of _tests) {
     if (t.skip) { _skip++; results.push({ suite: t.suite, name: t.name, status: 'skip' }); continue; }
     try {
+      if (t.beforeEach) await t.beforeEach();
       await t.fn();
       _pass++;
       results.push({ suite: t.suite, name: t.name, status: 'pass' });
