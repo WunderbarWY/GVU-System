@@ -12,59 +12,51 @@
   --console-text-dim: rgba(178, 198, 214, 0.62);
 }
 
-/* Solar core pass: replace the cheap uniform halo with broken corona layers. */
+/* Solar core pass: tactical-symbol style, matching the other planet markers. */
 .sun {
-  width: 520px;
-  height: 520px;
+  width: 420px;
+  height: 420px;
   background:
-    radial-gradient(circle at 45% 40%, rgba(255, 250, 210, 0.82) 0 7%, rgba(255, 190, 72, 0.22) 18%, transparent 42%),
-    radial-gradient(circle, transparent 0 51%, rgba(3, 6, 10, 0.34) 72%),
-    url("./assets/stellar-core-v1.png") center / 142% 142% no-repeat;
+    radial-gradient(circle at 50% 50%, rgba(255, 220, 124, 0.92) 0 5%, rgba(255, 156, 52, 0.42) 10%, rgba(255, 116, 37, 0.12) 22%, transparent 30%),
+    radial-gradient(circle at 50% 50%, rgba(255, 178, 66, 0.12) 0 32%, transparent 34%),
+    repeating-conic-gradient(from -8deg, rgba(255, 185, 82, 0.13) 0deg 1.4deg, transparent 1.4deg 15deg),
+    radial-gradient(circle at 50% 50%, transparent 0 48%, rgba(255, 168, 58, 0.12) 49% 50%, transparent 52%);
+  border: 1px solid rgba(255, 194, 92, 0.22);
   box-shadow:
-    inset -18px -22px 34px rgba(13, 3, 1, 0.58),
-    inset 10px 8px 20px rgba(255, 225, 140, 0.08),
-    0 0 12px rgba(255, 222, 140, 0.38),
-    0 0 31px rgba(255, 136, 39, 0.22),
-    0 0 72px rgba(255, 83, 28, 0.08) !important;
-  filter: saturate(0.92) contrast(1.2) brightness(0.88);
+    inset 0 0 0 1px rgba(255, 235, 171, 0.08),
+    inset 0 0 34px rgba(255, 137, 36, 0.06),
+    0 0 12px rgba(255, 176, 66, 0.18),
+    0 0 38px rgba(255, 116, 37, 0.055) !important;
+  filter: saturate(0.9) contrast(1.08) brightness(0.98);
 }
 
 .sun::before,
 .sun::after {
   border-radius: 50%;
-  mix-blend-mode: screen;
+  mix-blend-mode: normal;
 }
 
 .sun::before {
-  inset: -58px;
-  opacity: 0.62;
+  inset: -34px;
+  opacity: 0.72;
   background:
-    conic-gradient(from 18deg,
-      transparent 0 8%,
-      rgba(255, 178, 66, 0.12) 10%,
-      transparent 16% 24%,
-      rgba(255, 226, 146, 0.09) 28%,
-      transparent 34% 45%,
-      rgba(255, 112, 38, 0.1) 49%,
-      transparent 55% 67%,
-      rgba(255, 201, 94, 0.08) 72%,
-      transparent 78% 100%),
-    radial-gradient(ellipse at 50% 50%, transparent 0 51%, rgba(255, 156, 54, 0.075) 56%, transparent 69%);
-  filter: blur(1.4px);
-  animation: coronaDrift 95s linear infinite;
+    linear-gradient(90deg, transparent 0 48.8%, rgba(255, 196, 94, 0.12) 49.4% 50.6%, transparent 51.2%),
+    linear-gradient(0deg, transparent 0 48.8%, rgba(255, 196, 94, 0.1) 49.4% 50.6%, transparent 51.2%),
+    radial-gradient(circle, transparent 0 47%, rgba(255, 176, 66, 0.14) 48%, transparent 49.5% 60%, rgba(255, 176, 66, 0.09) 61%, transparent 62.5%);
+  filter: none;
+  animation: none;
 }
 
 .sun::after {
-  inset: -92px -118px;
-  opacity: 0.5;
-  border: 0;
+  inset: 56px;
+  opacity: 0.58;
+  border: 1px solid rgba(255, 224, 140, 0.2);
   background:
-    linear-gradient(90deg, transparent 0 25%, rgba(255, 184, 83, 0.06) 42%, transparent 61%),
-    radial-gradient(ellipse at 50% 50%, transparent 0 31%, rgba(255, 219, 130, 0.05) 34%, transparent 42%),
-    radial-gradient(ellipse at 36% 49%, rgba(255, 106, 34, 0.065), transparent 19%),
-    radial-gradient(ellipse at 66% 52%, rgba(255, 181, 64, 0.052), transparent 22%);
-  filter: blur(7px);
-  animation: solarHeatDrift 26s ease-in-out infinite alternate;
+    radial-gradient(circle, rgba(255, 225, 139, 0.72) 0 6%, rgba(255, 168, 52, 0.28) 7% 20%, transparent 22%),
+    linear-gradient(90deg, transparent 0 45%, rgba(255, 238, 174, 0.12) 48% 52%, transparent 55%),
+    linear-gradient(0deg, transparent 0 45%, rgba(255, 238, 174, 0.1) 48% 52%, transparent 55%);
+  filter: none;
+  animation: stellarPulse 14s ease-in-out infinite;
 }
 
 @keyframes solarHeatDrift {

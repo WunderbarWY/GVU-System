@@ -358,6 +358,82 @@
     ctx.restore();
   }
 
+  function cubicPoint(p, t) {
+    const mt = 1 - t;
+    const mt2 = mt * mt;
+    const t2 = t * t;
+    const a = svgPoint(p[0], p[1]);
+    const b = svgPoint(p[2], p[3]);
+    const c = svgPoint(p[4], p[5]);
+    const d = svgPoint(p[6], p[7]);
+    return {
+      x: mt2 * mt * a.x + 3 * mt2 * t * b.x + 3 * mt * t2 * c.x + t2 * t * d.x,
+      y: mt2 * mt * a.y + 3 * mt2 * t * b.y + 3 * mt * t2 * c.y + t2 * t * d.y,
+    };
+  }
+
+  function drawRoutePath(ctx, route, color, phase) {
+    const p = route.p;
+    const a = svgPoint(p[0], p[1]);
+    const b = svgPoint(p[2], p[3]);
+    const c = svgPoint(p[4], p[5]);
+    const d = svgPoint(p[6], p[7]);
+    const neutral = route.faction === 'neutral';
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.bezierCurveTo(b.x, b.y, c.x, c.y, d.x, d.y);
+    ctx.strokeStyle = neutral ? 'rgba(128,154,178,0.10)' : rgba(color, 0.16);
+    ctx.lineWidth = neutral ? 1.1 : 1.6;
+    ctx.setLineDash(neutral ? [2, 24] : [9, 16]);
+    ctx.lineDashOffset = -phase * (neutral ? 0.35 : 0.55);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.bezierCurveTo(b.x, b.y, c.x, c.y, d.x, d.y);
+    ctx.strokeStyle = neutral ? 'rgba(150,170,188,0.16)' : rgba(color, 0.38);
+    ctx.lineWidth = neutral ? 0.55 : 0.82;
+    ctx.setLineDash(neutral ? [1, 16] : [1, 10]);
+    ctx.lineDashOffset = -phase;
+    ctx.stroke();
+
+    if (!neutral) {
+      [0.22, 0.5, 0.78].forEach((t, index) => {
+        const point = cubicPoint(p, t);
+        const next = cubicPoint(p, Math.min(0.98, t + 0.018));
+        const angle = Math.atan2(next.y - point.y, next.x - point.x);
+        ctx.save();
+        ctx.translate(point.x, point.y);
+        ctx.rotate(angle);
+        ctx.strokeStyle = rgba(color, 0.48 - index * 0.05);
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(-5, -4);
+        ctx.lineTo(0, 0);
+        ctx.lineTo(-5, 4);
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
+
+    [0, 1].forEach(t => {
+      const point = cubicPoint(p, t);
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, neutral ? 2.1 : 2.8, 0, Math.PI * 2);
+      ctx.fillStyle = neutral ? 'rgba(150,170,188,0.24)' : rgba(color, 0.52);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, neutral ? 5.2 : 7, 0, Math.PI * 2);
+      ctx.strokeStyle = neutral ? 'rgba(150,170,188,0.12)' : rgba(color, 0.22);
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    });
+
+    ctx.restore();
+  }
+
   function drawStaticLayer() {
     const ctx = state.staticCtx;
     const width = state.stageRect.width;
@@ -400,33 +476,7 @@
     const phase = (performance.now() * 0.012) % 44;
     ROUTES.forEach(route => {
       const color = FACTION_COLORS[route.faction] || '#7f93a8';
-      const p = route.p;
-      const a = svgPoint(p[0], p[1]);
-      const b = svgPoint(p[2], p[3]);
-      const c = svgPoint(p[4], p[5]);
-      const d = svgPoint(p[6], p[7]);
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.bezierCurveTo(b.x, b.y, c.x, c.y, d.x, d.y);
-      ctx.strokeStyle = rgba(color, route.faction === 'neutral' ? 0.08 : 0.14);
-      ctx.lineWidth = route.faction === 'neutral' ? 4.2 : 6;
-      ctx.setLineDash([]);
-      ctx.shadowColor = rgba(color, route.faction === 'neutral' ? 0 : 0.2);
-      ctx.shadowBlur = route.faction === 'neutral' ? 0 : 10;
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.bezierCurveTo(b.x, b.y, c.x, c.y, d.x, d.y);
-      ctx.strokeStyle = rgba(color, route.faction === 'neutral' ? 0.18 : 0.54);
-      ctx.lineWidth = route.faction === 'neutral' ? 0.72 : 1.1;
-      ctx.setLineDash(route.faction === 'neutral' ? [2, 24] : [5, 18]);
-      ctx.lineDashOffset = -phase;
-      ctx.shadowColor = rgba(color, 0.22);
-      ctx.shadowBlur = route.faction === 'neutral' ? 0 : 4;
-      ctx.stroke();
-      ctx.restore();
+      drawRoutePath(ctx, route, color, phase);
     });
   }
 
